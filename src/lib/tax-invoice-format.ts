@@ -593,7 +593,7 @@ table.inv .b { font-weight: 700; color: #171717; }
         <circle cx="32" cy="51" r="5" fill="#1e3a8a" stroke="#38bdf8" stroke-width="1.5"/>
         <circle cx="68" cy="51" r="5" fill="#1e3a8a" stroke="#38bdf8" stroke-width="1.5"/>
         <path d="M 8 56 L 92 56" stroke="#3b82f6" stroke-width="1" opacity="0.6"/>
-        <text x="50" y="82" fill="#3b82f6" font-size="8.5" font-family="'Outfit', sans-serif" font-weight="800" text-anchor="middle" letter-spacing="1.5">PRIME</text>
+        <text x="50" y="82" fill="#3b82f6" font-size="5.2" font-family="'Outfit', sans-serif" font-weight="800" text-anchor="middle" letter-spacing="0.3">MYDETAILOS</text>
       </svg>
       <div class="brand-text">
         <div class="brand-name" style="font-size: 22px; font-weight: 700; color: #1e3a8a; letter-spacing: -0.5px;">${escapeHtml(business.businessName)}</div>

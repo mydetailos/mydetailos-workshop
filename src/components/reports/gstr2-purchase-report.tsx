@@ -50,7 +50,7 @@ import { writeFavouriteFlag } from "@/lib/reports/report-favourites";
 import { useReportFavouritesStore } from "@/store/report-favourites-store";
 import { getReportHrefForFavouriteKey } from "@/lib/reports/report-favourites-keys";
 
-const FAV_KEY = "prime-detailer-gstr2-favourite";
+const FAV_KEY = "mydetailos-gstr2-favourite";
 
 const PERIOD_OPTIONS = [
   { value: "today", label: "Today" },

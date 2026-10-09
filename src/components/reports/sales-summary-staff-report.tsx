@@ -39,7 +39,7 @@ import { writeFavouriteFlag } from "@/lib/reports/report-favourites";
 import { useReportFavouritesStore } from "@/store/report-favourites-store";
 import { getReportHrefForFavouriteKey } from "@/lib/reports/report-favourites-keys";
 
-const FAV_KEY = "prime-detailer-sales-staff-favourite";
+const FAV_KEY = "mydetailos-sales-staff-favourite";
 
 function startOfDay(d: Date) {
   const x = new Date(d);

@@ -3,7 +3,7 @@
 Two packages (no npm workspaces yet):
 
 ```text
-prime-detailer-fs-demo/
+mydetailos-workshop/
   docs/                 # Architecture, standards, API, testing, branch scoping
   frontend/             # Next.js app
   backend/              # Express + Prisma API

@@ -188,9 +188,9 @@ function suggestAddUserEmail(name: string, phoneDigits: string, existingEmails: 
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.+|\.+$/g, "");
   const base = `${slug || "user"}.${phoneDigits}`;
-  let email = `${base}@primecarwash.local`;
+  let email = `${base}@mydetailos.local`;
   if (!existingEmails.has(email.toLowerCase())) return email;
-  return `${base}.${Date.now().toString(36)}@primecarwash.local`;
+  return `${base}.${Date.now().toString(36)}@mydetailos.local`;
 }
 
 export default function StaffPage() {

@@ -35,7 +35,7 @@ import { useReportFavouritesStore } from "@/store/report-favourites-store";
 import { getReportHrefForFavouriteKey } from "@/lib/reports/report-favourites-keys";
 import { recognizedExpenseAmount } from "@/lib/accounting/dashboard-metrics";
 
-const FAV_KEY = "prime-detailer-pl-favourite";
+const FAV_KEY = "mydetailos-pl-favourite";
 
 /** Demo stock figures when inventory is not modeled in P&amp;L yet. */
 const DUMMY_STOCK = 190050.64;

@@ -1,49 +1,49 @@
 /** Favourite report href ↔ legacy localStorage key maps + migration helpers. */
 
-export const REPORT_FAVOURITE_EVENT = "prime-report-favourite";
+export const REPORT_FAVOURITE_EVENT = "mydetailos-report-favourite";
 
 /** Special key: Balance Sheet previously lived in the ledger store. */
 export const BALANCE_SHEET_FAV_MARKER = "__balance_sheet_store__";
 
-const BALANCE_SHEET_LOCAL_KEY = "prime-detailer-balance-sheet-favourite";
+const BALANCE_SHEET_LOCAL_KEY = "mydetailos-balance-sheet-favourite";
 
 /** href → legacy localStorage key (or balance-sheet marker). */
 export const REPORT_FAVOURITE_KEY_BY_HREF: Record<string, string> = {
   "/reports/finance/balance-sheet": BALANCE_SHEET_FAV_MARKER,
-  "/reports/finance/profit-loss": "prime-detailer-pl-favourite",
-  "/reports/gst/gstr-1-sales": "prime-detailer-gstr1-favourite",
-  "/reports/gst/gstr-2-purchase": "prime-detailer-gstr2-favourite",
-  "/reports/gst/gstr-3b": "prime-detailer-gstr3b-favourite",
-  "/reports/gst/gst-purchase-hsn": "prime-detailer-gst-purchase-hsn-favourite",
-  "/reports/gst/gst-sales-hsn": "prime-detailer-gst-sales-hsn-favourite",
-  "/reports/gst/hsn-wise-sales-summary": "prime-detailer-hsn-wise-sales-favourite",
-  "/reports/gst/tds-payable": "prime-detailer-tds-payable-fav",
-  "/reports/gst/tds-receivable": "prime-detailer-tds-receivable-fav",
-  "/reports/gst/tcs-payable": "prime-detailer-tcs-payable-fav",
-  "/reports/gst/tcs-receivable": "prime-detailer-tcs-receivable-fav",
-  "/reports/sales-summary-staff": "prime-detailer-sales-staff-favourite",
-  "/reports/analytics": "prime-detailer-analytics-favourite",
-  "/reports/transaction/bill-wise-profit": "prime-detailer-bill-wise-profit-fav",
-  "/reports/transaction/cash-bank": "prime-detailer-cash-bank-fav",
-  "/reports/transaction/daybook": "prime-detailer-daybook-fav",
-  "/reports/transaction/expense-category": "prime-detailer-expense-cat-fav",
-  "/reports/transaction/expense-transaction": "prime-detailer-expense-txn-fav",
-  "/reports/transaction/purchase-summary": "prime-detailer-purchase-summary-fav",
-  "/reports/item/by-party": "prime-detailer-item-by-party-fav",
-  "/reports/item/sales-purchase-summary": "prime-detailer-item-sp-summary-fav",
-  "/reports/item/low-stock-summary": "prime-detailer-low-stock-fav",
-  "/reports/item/rate-list": "prime-detailer-rate-list-fav",
-  "/reports/item/stock-detail": "prime-detailer-stock-detail-fav",
-  "/reports/item/stock-summary": "prime-detailer-stock-summary-fav",
-  "/reports/party/receivable-ageing": "prime-detailer-ageing-fav",
-  "/reports/party/by-item": "prime-detailer-party-by-item-fav",
-  "/reports/party/ledger": "prime-detailer-party-ledger-fav",
-  "/reports/party/party-wise-outstanding": "prime-detailer-party-outstanding-fav",
-  "/reports/party/sales-summary-category": "prime-detailer-sales-cat-wise-fav",
-  "/reports/hr-attendance": "prime-detailer-hr-attendance-favourite",
-  "/reports/hr-leave": "prime-detailer-hr-leave-favourite",
-  "/reports/hr-payroll": "prime-detailer-hr-payroll-favourite",
-  "/reports/hr-rewards": "prime-detailer-hr-rewards-favourite",
+  "/reports/finance/profit-loss": "mydetailos-pl-favourite",
+  "/reports/gst/gstr-1-sales": "mydetailos-gstr1-favourite",
+  "/reports/gst/gstr-2-purchase": "mydetailos-gstr2-favourite",
+  "/reports/gst/gstr-3b": "mydetailos-gstr3b-favourite",
+  "/reports/gst/gst-purchase-hsn": "mydetailos-gst-purchase-hsn-favourite",
+  "/reports/gst/gst-sales-hsn": "mydetailos-gst-sales-hsn-favourite",
+  "/reports/gst/hsn-wise-sales-summary": "mydetailos-hsn-wise-sales-favourite",
+  "/reports/gst/tds-payable": "mydetailos-tds-payable-fav",
+  "/reports/gst/tds-receivable": "mydetailos-tds-receivable-fav",
+  "/reports/gst/tcs-payable": "mydetailos-tcs-payable-fav",
+  "/reports/gst/tcs-receivable": "mydetailos-tcs-receivable-fav",
+  "/reports/sales-summary-staff": "mydetailos-sales-staff-favourite",
+  "/reports/analytics": "mydetailos-analytics-favourite",
+  "/reports/transaction/bill-wise-profit": "mydetailos-bill-wise-profit-fav",
+  "/reports/transaction/cash-bank": "mydetailos-cash-bank-fav",
+  "/reports/transaction/daybook": "mydetailos-daybook-fav",
+  "/reports/transaction/expense-category": "mydetailos-expense-cat-fav",
+  "/reports/transaction/expense-transaction": "mydetailos-expense-txn-fav",
+  "/reports/transaction/purchase-summary": "mydetailos-purchase-summary-fav",
+  "/reports/item/by-party": "mydetailos-item-by-party-fav",
+  "/reports/item/sales-purchase-summary": "mydetailos-item-sp-summary-fav",
+  "/reports/item/low-stock-summary": "mydetailos-low-stock-fav",
+  "/reports/item/rate-list": "mydetailos-rate-list-fav",
+  "/reports/item/stock-detail": "mydetailos-stock-detail-fav",
+  "/reports/item/stock-summary": "mydetailos-stock-summary-fav",
+  "/reports/party/receivable-ageing": "mydetailos-ageing-fav",
+  "/reports/party/by-item": "mydetailos-party-by-item-fav",
+  "/reports/party/ledger": "mydetailos-party-ledger-fav",
+  "/reports/party/party-wise-outstanding": "mydetailos-party-outstanding-fav",
+  "/reports/party/sales-summary-category": "mydetailos-sales-cat-wise-fav",
+  "/reports/hr-attendance": "mydetailos-hr-attendance-favourite",
+  "/reports/hr-leave": "mydetailos-hr-leave-favourite",
+  "/reports/hr-payroll": "mydetailos-hr-payroll-favourite",
+  "/reports/hr-rewards": "mydetailos-hr-rewards-favourite",
 
 };
 
@@ -102,7 +102,7 @@ export function collectLocalFavouriteHrefs(): string[] {
 export function shouldMigrateLocalFavourites(userId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return localStorage.getItem(`prime-detailer-fav-migrated-${userId}`) !== "1";
+    return localStorage.getItem(`mydetailos-fav-migrated-${userId}`) !== "1";
   } catch {
     return false;
   }
@@ -111,7 +111,7 @@ export function shouldMigrateLocalFavourites(userId: string): boolean {
 export function markLocalFavouritesMigrated(userId: string): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(`prime-detailer-fav-migrated-${userId}`, "1");
+    localStorage.setItem(`mydetailos-fav-migrated-${userId}`, "1");
   } catch {
     /* ignore */
   }

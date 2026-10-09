@@ -60,7 +60,7 @@ export function BillWiseProfitReport() {
     <TooltipProvider>
       <ReportPageChrome
         title="Bill Wise Profit"
-        favouriteStorageKey="prime-detailer-bill-wise-profit-fav"
+        favouriteStorageKey="mydetailos-bill-wise-profit-fav"
         emailReportName="Bill Wise Profit"
         period={period}
         onPeriodChange={setPeriod}
@@ -157,7 +157,7 @@ export function DaybookReport() {
   return (
     <ReportPageChrome
       title="Daybook"
-      favouriteStorageKey="prime-detailer-daybook-fav"
+      favouriteStorageKey="mydetailos-daybook-fav"
       emailReportName="Daybook"
       period={period}
       onPeriodChange={setPeriod}
@@ -240,7 +240,7 @@ export function PurchaseSummaryReport() {
   return (
     <ReportPageChrome
       title="Purchase Summary"
-      favouriteStorageKey="prime-detailer-purchase-summary-fav"
+      favouriteStorageKey="mydetailos-purchase-summary-fav"
       emailReportName="Purchase Summary"
       period={period}
       onPeriodChange={setPeriod}
@@ -300,7 +300,7 @@ export function CashBankPaymentsReport() {
   return (
     <ReportPageChrome
       title="Cash and Bank Report (All Payments)"
-      favouriteStorageKey="prime-detailer-cash-bank-fav"
+      favouriteStorageKey="mydetailos-cash-bank-fav"
       emailReportName="Cash and Bank Report (All Payments)"
       period={period}
       onPeriodChange={setPeriod}
@@ -396,7 +396,7 @@ export function ExpenseCategoryReport() {
   return (
     <ReportPageChrome
       title="Expense Category Report"
-      favouriteStorageKey="prime-detailer-expense-cat-fav"
+      favouriteStorageKey="mydetailos-expense-cat-fav"
       emailReportName="Expense Category Report"
       period={period}
       onPeriodChange={setPeriod}
@@ -457,7 +457,7 @@ export function ExpenseTransactionReport() {
   return (
     <ReportPageChrome
       title="Expense Transaction Report"
-      favouriteStorageKey="prime-detailer-expense-txn-fav"
+      favouriteStorageKey="mydetailos-expense-txn-fav"
       emailReportName="Expense Transaction Report"
       period={period}
       onPeriodChange={setPeriod}

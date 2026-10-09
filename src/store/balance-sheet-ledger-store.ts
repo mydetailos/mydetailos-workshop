@@ -147,14 +147,14 @@ export const useBalanceSheetLedgerStore = create<BalanceSheetLedgerStore>((set, 
     });
     try {
       localStorage.setItem(
-        "prime-detailer-balance-sheet-favourite",
+        "mydetailos-balance-sheet-favourite",
         favourite ? "1" : "0"
       );
     } catch {
       /* ignore */
     }
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("prime-report-favourite"));
+      window.dispatchEvent(new CustomEvent("mydetailos-report-favourite"));
     }
   },
 

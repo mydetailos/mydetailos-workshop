@@ -13,7 +13,7 @@ import {
 import { formatDate, formatInrFull } from "@/lib/utils";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-gst-purchase-hsn-favourite";
+const FAV_KEY = "mydetailos-gst-purchase-hsn-favourite";
 
 export function GstPurchaseHsnReport() {
   const purchases = useInventoryStore((s) => s.productPurchases);

@@ -9,7 +9,7 @@ import { formatInrFull } from "@/lib/utils";
 import { useScopedInvoices } from "@/hooks/use-scoped-data";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-hsn-wise-sales-favourite";
+const FAV_KEY = "mydetailos-hsn-wise-sales-favourite";
 
 export function HsnWiseSalesSummaryReport() {
   const [period, setPeriod] = useState<string>(DEFAULT_REPORT_PERIOD);

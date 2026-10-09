@@ -25,7 +25,7 @@ import { useLeaveStore } from "@/store/leave-store";
 import { useStaffStore } from "@/store/staff-store";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-hr-attendance-favourite";
+const FAV_KEY = "mydetailos-hr-attendance-favourite";
 
 export function HrAttendanceReport() {
   const now = new Date();

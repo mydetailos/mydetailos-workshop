@@ -2,10 +2,7 @@ import { useOrganizationStore } from "@/store/organization-store";
 import { useSettingsStore } from "@/store/settings-store";
 
 /** Platform / seed defaults — not a real workshop trade name. */
-const PLATFORM_DEFAULT_BUSINESS_NAMES = new Set([
-  "my detail os",
-  "prime detailer",
-]);
+const PLATFORM_DEFAULT_BUSINESS_NAMES = new Set(["my detail os", "mydetailos"]);
 
 /**
  * Workshop name for customer-facing copy (WhatsApp, SMS, etc.).

@@ -19,7 +19,7 @@ import { useBranchStore } from "@/store/branch-store";
 import { usePayrollStore } from "@/store/payroll-store";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-hr-payroll-favourite";
+const FAV_KEY = "mydetailos-hr-payroll-favourite";
 
 export function HrPayrollReport() {
   const now = new Date();

@@ -245,7 +245,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "prime-detailers-auth",
+      name: "mydetailos-auth",
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         user: state.user,

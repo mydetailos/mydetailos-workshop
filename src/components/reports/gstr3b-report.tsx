@@ -7,7 +7,7 @@ import { DEFAULT_REPORT_PERIOD } from "@/lib/reports/report-period-presets";
 import { useScopedInvoices } from "@/hooks/use-scoped-data";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-gstr3b-favourite";
+const FAV_KEY = "mydetailos-gstr3b-favourite";
 
 function N({ n }: { n: number }) {
   return <td className="border border-border px-2 py-1.5 text-right tabular-nums">{n.toFixed(2)}</td>;

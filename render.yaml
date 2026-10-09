@@ -3,7 +3,7 @@
 
 services:
   - type: web
-    name: prime-detailers-api
+    name: mydetailos-api
     runtime: node
     plan: free
     rootDir: backend

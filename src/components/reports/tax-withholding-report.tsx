@@ -75,7 +75,7 @@ export function TaxWithholdingReport({ variant }: { variant: TaxReportVariant })
   return (
     <ReportPageChrome
       title={meta.title}
-      favouriteStorageKey={`prime-detailer-${variant}-fav`}
+      favouriteStorageKey={`mydetailos-${variant}-fav`}
       emailReportName={meta.title}
       period={period}
       onPeriodChange={setPeriod}

@@ -102,7 +102,7 @@ export function AgeingReport() {
   return (
     <ReportPageChrome
       title="Ageing Report"
-      favouriteStorageKey="prime-detailer-ageing-fav"
+      favouriteStorageKey="mydetailos-ageing-fav"
       emailReportName="Ageing Report"
       period={period}
       onPeriodChange={setPeriod}
@@ -277,7 +277,7 @@ export function PartyReportByItem() {
   return (
     <ReportPageChrome
       title="Party Report By Item"
-      favouriteStorageKey="prime-detailer-party-by-item-fav"
+      favouriteStorageKey="mydetailos-party-by-item-fav"
       emailReportName="Party Report By Item"
       period={period}
       onPeriodChange={setPeriod}
@@ -382,7 +382,7 @@ export function PartyLedgerStatementReport() {
   return (
     <ReportPageChrome
       title="Party Statement (Ledger)"
-      favouriteStorageKey="prime-detailer-party-ledger-fav"
+      favouriteStorageKey="mydetailos-party-ledger-fav"
       emailReportName="Party Statement (Ledger)"
       period={period}
       onPeriodChange={setPeriod}
@@ -507,7 +507,7 @@ export function PartyWiseOutstandingReport() {
   return (
     <ReportPageChrome
       title="Party Wise Outstanding"
-      favouriteStorageKey="prime-detailer-party-outstanding-fav"
+      favouriteStorageKey="mydetailos-party-outstanding-fav"
       emailReportName="Party Wise Outstanding"
       period={period}
       onPeriodChange={setPeriod}
@@ -631,7 +631,7 @@ export function SalesSummaryCategoryWiseReport() {
   return (
     <ReportPageChrome
       title="Sales Summary - Category Wise"
-      favouriteStorageKey="prime-detailer-sales-cat-wise-fav"
+      favouriteStorageKey="mydetailos-sales-cat-wise-fav"
       emailReportName="Sales Summary - Category Wise"
       period={period}
       onPeriodChange={setPeriod}

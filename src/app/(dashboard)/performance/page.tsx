@@ -332,7 +332,7 @@ export default function PerformancePage() {
     return [
       {
         name: `Floor Manager — ${n(0)}`,
-        email: "floor.manager.1@demo.prime",
+        email: "floor.manager.1@demo.mydetailos",
         branch: n(0),
         jobs: branchRows[0]?.deliveredCount ?? 0,
         revenue: branchRows[0]?.totalJobValue ?? 0,
@@ -345,7 +345,7 @@ export default function PerformancePage() {
         ? [
             {
               name: `Floor Manager — ${n(1)}`,
-              email: "floor.manager.2@demo.prime",
+              email: "floor.manager.2@demo.mydetailos",
               branch: n(1),
               jobs: branchRows[1]?.deliveredCount ?? 0,
               revenue: branchRows[1]?.totalJobValue ?? 0,

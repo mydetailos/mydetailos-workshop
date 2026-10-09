@@ -67,7 +67,7 @@ export function ItemReportByParty() {
   return (
     <ReportPageChrome
       title="Item Report By Party"
-      favouriteStorageKey="prime-detailer-item-by-party-fav"
+      favouriteStorageKey="mydetailos-item-by-party-fav"
       emailReportName="Item Report By Party"
       period={period}
       onPeriodChange={setPeriod}
@@ -189,7 +189,7 @@ export function ItemSalesPurchaseSummaryReport() {
   return (
     <ReportPageChrome
       title="Item Sales and Purchase Summary"
-      favouriteStorageKey="prime-detailer-item-sp-summary-fav"
+      favouriteStorageKey="mydetailos-item-sp-summary-fav"
       emailReportName="Item Sales and Purchase Summary"
       period={period}
       onPeriodChange={setPeriod}
@@ -300,7 +300,7 @@ export function LowStockSummaryReport() {
   return (
     <ReportPageChrome
       title="Low Stock Summary"
-      favouriteStorageKey="prime-detailer-low-stock-fav"
+      favouriteStorageKey="mydetailos-low-stock-fav"
       emailReportName="Low Stock Summary"
       period={period}
       onPeriodChange={setPeriod}
@@ -377,7 +377,7 @@ export function RateListReport() {
   return (
     <ReportPageChrome
       title="Rate List"
-      favouriteStorageKey="prime-detailer-rate-list-fav"
+      favouriteStorageKey="mydetailos-rate-list-fav"
       emailReportName="Rate List"
       period="week"
       onPeriodChange={() => {}}
@@ -441,7 +441,7 @@ export function StockDetailReport() {
   return (
     <ReportPageChrome
       title="Stock Detail Report"
-      favouriteStorageKey="prime-detailer-stock-detail-fav"
+      favouriteStorageKey="mydetailos-stock-detail-fav"
       emailReportName="Stock Detail Report"
       period={period}
       onPeriodChange={setPeriod}
@@ -555,7 +555,7 @@ export function StockSummaryReport() {
   return (
     <ReportPageChrome
       title="Stock Summary"
-      favouriteStorageKey="prime-detailer-stock-summary-fav"
+      favouriteStorageKey="mydetailos-stock-summary-fav"
       emailReportName="Stock Summary"
       period={period}
       onPeriodChange={setPeriod}

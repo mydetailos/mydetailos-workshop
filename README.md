@@ -20,7 +20,7 @@ npm install
 npm run db:up
 ```
 
-Copy `backend/env.example` → `backend/.env`, set `DATABASE_URL` to `postgresql://prime:prime@localhost:5432/primedetailer?schema=public` (Docker Compose defaults), then:
+Copy `backend/env.example` → `backend/.env`, set `DATABASE_URL` to `postgresql://mydetailos:mydetailos@localhost:5432/mydetailos?schema=public` (Docker Compose defaults), then:
 
 ```bash
 npx prisma migrate deploy

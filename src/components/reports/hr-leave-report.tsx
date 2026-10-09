@@ -32,7 +32,7 @@ import { useLeaveStore } from "@/store/leave-store";
 import type { LeaveRequestStatus } from "@/types";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-hr-leave-favourite";
+const FAV_KEY = "mydetailos-hr-leave-favourite";
 
 const STATUS_OPTIONS: (LeaveRequestStatus | "ALL")[] = [
   "ALL",

@@ -36,7 +36,7 @@ import { writeFavouriteFlag } from "@/lib/reports/report-favourites";
 import { useReportFavouritesStore } from "@/store/report-favourites-store";
 import { getReportHrefForFavouriteKey } from "@/lib/reports/report-favourites-keys";
 
-const FAV_KEY = "prime-detailer-gstr1-favourite";
+const FAV_KEY = "mydetailos-gstr1-favourite";
 
 const GSTR1_PERIOD_OPTIONS = [
   { value: "custom", label: "Custom date (from-to)" },

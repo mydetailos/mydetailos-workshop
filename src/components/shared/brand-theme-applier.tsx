@@ -10,7 +10,7 @@ import {
 } from "@/lib/brand-color";
 import { useSettingsStore } from "@/store/settings-store";
 
-const BRAND_FAVICON_CACHE_KEY = "prime-brand-primary";
+const BRAND_FAVICON_CACHE_KEY = "mydetailos-brand-primary";
 
 /**
  * Keeps CSS primary / sidebar-active tokens and favicon in sync with company brandPrimary.

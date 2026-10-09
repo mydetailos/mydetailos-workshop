@@ -19,7 +19,7 @@ import { useBranchStore } from "@/store/branch-store";
 import { useStaffRewardStore } from "@/store/staff-reward-store";
 import { toast } from "sonner";
 
-const FAV_KEY = "prime-detailer-hr-rewards-favourite";
+const FAV_KEY = "mydetailos-hr-rewards-favourite";
 
 export function HrRewardsReport() {
   const now = new Date();

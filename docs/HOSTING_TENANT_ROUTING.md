@@ -9,12 +9,12 @@ The workshop Next.js app rewrites `/{orgSlug}/…` → `/…` in `src/middleware
 
 ## Edge / Vercel split (marketing site vs workshop app)
 
-On the **marketing** deployment (`prime-detailers-website` / mydetailos.com), configure rewrites so:
+On the **marketing** deployment (`mydetailos-website` / mydetailos.com), configure rewrites so:
 
 | Path pattern | Destination |
 | --- | --- |
 | Reserved marketing paths (`/`, `/login`, `/signup`, `/pricing`, `/features`, `/about`, …) | Marketing site (this deployment) |
-| `/{orgSlug}` and `/{orgSlug}/…` where `orgSlug` is **not** reserved | Workshop app (prime-detailer-frontend) |
+| `/{orgSlug}` and `/{orgSlug}/…` where `orgSlug` is **not** reserved | Workshop app (mydetailos-workshop) |
 
 Example Vercel `rewrites` sketch for the **marketing** project:
 

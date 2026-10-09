@@ -17,13 +17,13 @@ describe("tenant helpers", () => {
     expect(isReservedSlug("inspections")).toBe(true);
     expect(isReservedSlug("abcd-detailers")).toBe(false);
     // Real org slugs must NOT be reserved or /{slug}/login 404s
-    expect(isReservedSlug("prime-detailers")).toBe(false);
+    expect(isReservedSlug("my-detail-os")).toBe(false);
     expect(isReservedSlug("my-detail-os")).toBe(false);
   });
 
   it("parses org slug from pathname", () => {
     expect(parseOrgSlugFromPathname("/abcd-detailers/dashboard")).toBe("abcd-detailers");
-    expect(parseOrgSlugFromPathname("/prime-detailers/login")).toBe("prime-detailers");
+    expect(parseOrgSlugFromPathname("/my-detail-os/login")).toBe("my-detail-os");
     expect(parseOrgSlugFromPathname("/dashboard")).toBe(null);
     expect(parseOrgSlugFromPathname("/saas-admin/organizations")).toBe(null);
     expect(parseOrgSlugFromPathname("/offers")).toBe(null);
@@ -33,7 +33,7 @@ describe("tenant helpers", () => {
 
   it("strips org slug for route matching", () => {
     expect(stripOrgSlugFromPath("/abcd-detailers/dashboard")).toBe("/dashboard");
-    expect(stripOrgSlugFromPath("/prime-detailers/login")).toBe("/login");
+    expect(stripOrgSlugFromPath("/my-detail-os/login")).toBe("/login");
     expect(stripOrgSlugFromPath("/abcd-detailers/customer/login")).toBe("/customer/login");
     expect(stripOrgSlugFromPath("/dashboard")).toBe("/dashboard");
     expect(stripOrgSlugFromPath("/my-detail-os/offers")).toBe("/offers");
@@ -42,7 +42,7 @@ describe("tenant helpers", () => {
 
   it("prefixes tenant paths when slug present", () => {
     expect(tenantPath("abcd-detailers", "/dashboard")).toBe("/abcd-detailers/dashboard");
-    expect(tenantPath("prime-detailers", "/login")).toBe("/prime-detailers/login");
+    expect(tenantPath("my-detail-os", "/login")).toBe("/my-detail-os/login");
     expect(tenantPath(null, "/dashboard")).toBe("/dashboard");
     expect(tenantPath("", "/customer/login")).toBe("/customer/login");
   });
