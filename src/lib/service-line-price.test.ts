@@ -26,6 +26,15 @@ describe("catalogPriceForSegment", () => {
     expect(catalogPriceForSegment(item, "")).toBe(1000);
     expect(catalogPriceForSegment(item, "SEDAN")).toBe(1100);
   });
+
+  it("falls back when a catalog item has no segment prices", () => {
+    expect(
+      catalogPriceForSegment(
+        { defaultPrice: 750, segmentPricing: undefined as unknown as ServiceCatalogItem["segmentPricing"] },
+        "HATCHBACK"
+      )
+    ).toBe(750);
+  });
 });
 
 describe("withCatalogPrice / withCustomPrice / effectiveServicePrice", () => {

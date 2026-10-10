@@ -30,14 +30,9 @@ import {
   filterCatalogServices,
 } from "@/components/services/searchable-service-select";
 import { ServiceCustomPriceControl } from "@/components/services/service-custom-price-control";
-import { withCatalogPrice, withCustomPrice } from "@/lib/service-line-price";
+import { catalogPriceForSegment, withCatalogPrice, withCustomPrice } from "@/lib/service-line-price";
 import { useAuthStore } from "@/store/auth-store";
-import type { JobCard, ServiceCatalogItem, ServiceItem, VehicleSegment } from "@/types";
-
-function catalogPrice(item: ServiceCatalogItem, segment: VehicleSegment): number {
-  const key = segment as keyof ServiceCatalogItem["segmentPricing"];
-  return item.segmentPricing[key] ?? item.defaultPrice;
-}
+import type { JobCard, ServiceCatalogItem, ServiceItem } from "@/types";
 
 type EditJobCardDetailsDialogProps = {
   jobCard: JobCard | null;
@@ -106,7 +101,7 @@ export function EditJobCardDetailsDialog({
       const cat = catalog.find((c) => c.id === sid);
       if (!cat) return [];
       const prev = prevByCatalog.get(sid);
-      const listPrice = catalogPrice(cat, jobCard.vehicleSegment);
+      const listPrice = catalogPriceForSegment(cat, jobCard.vehicleSegment);
       const catalogPriceSnap = prev?.catalogPrice ?? listPrice;
 
       if (prev?.priceSource === "MEMBERSHIP") {
@@ -314,7 +309,7 @@ export function EditJobCardDetailsDialog({
               ) : (
                 filteredCatalog.map((svc) => {
                   const listPrice = jobCard
-                    ? catalogPrice(svc, jobCard.vehicleSegment)
+                    ? catalogPriceForSegment(svc, jobCard.vehicleSegment)
                     : svc.defaultPrice;
                   const selected = selectedServiceIds.has(svc.id);
                   const preview = servicesPreview.find((s) => s.serviceCatalogId === svc.id);

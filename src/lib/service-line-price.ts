@@ -16,7 +16,7 @@ export function catalogPriceForSegment(
 ): number {
   if (!segment) return item.defaultPrice;
   const key = segment as keyof ServiceCatalogItem["segmentPricing"];
-  return item.segmentPricing[key] ?? item.defaultPrice;
+  return item.segmentPricing?.[key] ?? item.defaultPrice;
 }
 
 export function withCatalogPrice(
