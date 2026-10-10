@@ -89,7 +89,6 @@ export function buildJobCardCustomerWhatsAppMessage(
         `📱 Phone: ${phone}`,
         `🔑 Password: ${password}`,
         `🔗 Login: ${portalUrl}`,
-        `🔐 Please change your password after first login.`,
       ]
     : [
         ``,
@@ -880,7 +879,6 @@ export function buildBeforePhotosReadyWhatsAppMessage(
         `🔑 Password: ${password}`,
         ``,
         `🔗 Login: ${portalUrl}`,
-        `🔐 Please change your password after first login.`,
       ]
     : [
         ``,

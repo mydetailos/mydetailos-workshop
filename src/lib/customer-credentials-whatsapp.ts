@@ -62,8 +62,6 @@ export function buildCustomerCredentialsWhatsAppMessage(
           `🔗 *Track your vehicle:*`,
           `${customerPortalUrl}`,
           ``,
-          `🔐 Please change your password after your first login.`,
-          ``,
         ]
       : []),
     `Thank you for choosing *${businessName}*! ❤️`,
