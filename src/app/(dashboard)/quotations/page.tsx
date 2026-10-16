@@ -80,6 +80,7 @@ import {
 } from "@/lib/customer-vehicle-lookup";
 import type {
   JobCard,
+  JobCardPartItem,
   Quotation,
   QuotationPartLine,
   QuotationStatus,
@@ -910,6 +911,24 @@ export default function QuotationsPage() {
     const incentivePercent = 0;
     const incentiveAmount = Math.round((q.subtotal * incentivePercent) / 100);
 
+    const jobParts: JobCardPartItem[] | undefined =
+      q.parts && q.parts.length > 0
+        ? q.parts.map((p, idx) => ({
+            id: `jp-${jobId}-${idx}`,
+            jobCardId: jobId,
+            partId: p.partId,
+            name: p.name,
+            sku: p.sku,
+            quantity: p.quantity,
+            unit: p.unit,
+            unitPrice: p.unitPrice,
+            lineTotal: p.lineTotal,
+            isCustomPrice: p.isCustomPrice,
+            catalogPrice: p.catalogPrice,
+            priceSource: p.isCustomPrice ? ("CUSTOM" as const) : ("CATALOG" as const),
+          }))
+        : undefined;
+
     const newJob: JobCard = {
       id: jobId,
       jobNumber,
@@ -926,6 +945,7 @@ export default function QuotationsPage() {
       reportedIssues: `Converted from quotation ${q.quotationNumber}`,
       expectedDelivery: new Date(Date.now() + 86400000).toISOString(),
       services: serviceItems,
+      parts: jobParts,
       estimatedAmount: q.subtotal,
       incentivePercent,
       incentiveAmount,
@@ -1986,6 +2006,11 @@ export default function QuotationsPage() {
                         <li key={`${p.partId}-${p.unit}`} className="flex justify-between gap-3 text-sm">
                           <span className="min-w-0 truncate">
                             {p.name} × {p.quantity} {p.unit}
+                            {p.isCustomPrice && (
+                              <span className="ml-1.5 text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 py-0.5 rounded">
+                                custom
+                              </span>
+                            )}
                           </span>
                           <span className="shrink-0 tabular-nums">{formatCurrency(p.lineTotal)}</span>
                         </li>

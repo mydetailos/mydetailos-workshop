@@ -7,35 +7,111 @@
  */
 
 export const TWILIO_TEMPLATE_SIDS = {
-  // Example SID from your prompt: "HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  STATUS_UPDATE: "", 
-  BOOKING_CONFIRMATION: "",
-  QUOTATION_READY: "",
-  INVOICE_READY: "",
-  PAYMENT_RECEIVED: "",
-  SERVICE_REMINDER: "",
+  // Customer & Portal
+  CUSTOMER_WELCOME: "HX2656ed64ee960fb6995f9211b4b71c72", // customer_portal_login_v2
+  AUTH_VERIFICATION: "HXf1c8e1cbd228b0ab0700445712169f1e", // WhatsApp authentication (OTP)
+
+  // Service & Reminders
+  SERVICE_REMINDER: "HX7eb233c8252b14bee9403c8eb4bd1fea", // service_reminder_exact
+  INSPECTION_REPORT: "HXe3ca0b811651060e2d338d598eef2270", // inspection_report_v2
+
+  // Invoices & Billing
+  PAYMENT_PENDING: "HX429538b3d8638a6ef9c0aff78dc0c933", // payment_pending_exact_v2
+
+  // SaaS / Studio Owner
+  OWNER_TRIAL_LOGIN: "HXe75d4fd3589625f967fd09cb3dd4cad8", // owner_trial_started_login
+  OWNER_PLAN_ACTIVATED: "HX6614aca21b384ae0eb0089e30eb11981", // owner_plan_activated_exact
+  OWNER_PAYMENT_LINK: "HX1bede6b642ec0b693a58bb793bb99558", // owner_payment_link_exact
 };
 
 /**
- * Helper to build the contentVariables map exactly as your Twilio template expects them.
- * Modify the keys ("1", "2") to match how you defined the placeholders {{1}}, {{2}} in Twilio.
+ * Customer Welcome (customer_portal_login_v2: HX2656ed64ee960fb6995f9211b4b71c72)
+ * Template: "Hi {{1}}, your customer account for {{2}} is now active 🚗..."
  */
-export function buildStatusUpdateVariables(
+export function buildCustomerWelcomeVariables(
   customerName: string,
-  jobNumber: string,
-  statusLabel: string,
-  vehicleStr: string,
-  serviceName: string,
-  customerPhone: string,
-  couponCode: string = ""
+  businessName: string
 ): Record<string, string> {
+  const firstName = customerName.trim().split(/\s+/)[0] || customerName;
   return {
-    "1": customerName,
-    "2": jobNumber,
-    "3": statusLabel,
-    "4": vehicleStr,
-    "5": serviceName,
-    "6": customerPhone,
-    "7": couponCode
+    "1": firstName,
+    "2": businessName,
+  };
+}
+
+/**
+ * Service Reminder (service_reminder_exact: HX7eb233c8252b14bee9403c8eb4bd1fea)
+ * Template:
+ * "Hi {{1}}, Friendly reminder from {{2}} regarding your vehicle.
+ *  Reminder: {{3}} | Customer: {{4}} | Vehicle: {{5}} | Due: {{6}} | Note: {{7}}
+ *  Book a slot when convenient – reply here or call us. — Team {{2}}"
+ */
+export function buildServiceReminderVariables(opts: {
+  customerName: string;
+  businessName: string;
+  reminderType: string;
+  vehicleStr: string;
+  dueDate: string;
+  note?: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.reminderType,
+    "4": opts.customerName,
+    "5": opts.vehicleStr,
+    "6": opts.dueDate,
+    "7": opts.note?.trim() || "Regular maintenance",
+  };
+}
+
+/**
+ * Payment Pending / Ledger Reminder (payment_pending_exact_v2: HX429538b3d8638a6ef9c0aff78dc0c933)
+ * Template:
+ * "Hi sir/ma'am, Your payment of {{1}} is pending on invoice {{2}}.
+ *  View invoice: {{3}} | View full ledger statement: {{4}}
+ *  Please clear the payment as soon as possible. Thank you, {{5}} team."
+ */
+export function buildPaymentPendingVariables(opts: {
+  pendingAmount: string;
+  invoiceNumber: string;
+  invoiceUrl: string;
+  statementUrl: string;
+  businessName: string;
+}): Record<string, string> {
+  return {
+    "1": opts.pendingAmount,
+    "2": opts.invoiceNumber,
+    "3": opts.invoiceUrl,
+    "4": opts.statementUrl,
+    "5": opts.businessName,
+  };
+}
+
+/**
+ * Inspection Report Ready (inspection_report_v2: HXe3ca0b811651060e2d338d598eef2270)
+ * Template:
+ * "Hello {{2}}, Your vehicle {{3}} inspection report {{4}} is ready at {{5}}.
+ *  Diagnostic summary: overall health is {{6}}... Address: {{7}} Need help? Contact us at {{8}}."
+ */
+export function buildInspectionReportVariables(opts: {
+  customerName: string;
+  vehicleStr: string;
+  reportNumber: string;
+  branchName: string;
+  overallHealth: string;
+  address: string;
+  phone: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "2": firstName,
+    "3": opts.vehicleStr,
+    "4": opts.reportNumber,
+    "5": opts.branchName,
+    "6": opts.overallHealth,
+    "7": opts.address,
+    "8": opts.phone,
   };
 }

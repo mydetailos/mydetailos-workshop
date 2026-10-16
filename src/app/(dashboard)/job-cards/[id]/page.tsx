@@ -299,6 +299,11 @@ export default function JobCardDetailPage() {
     [customers, jobCard]
   );
 
+  const effectiveCustomerPhone = useMemo(
+    () => jobCard?.customerPhone?.trim() || customerRecord?.phone?.trim() || "",
+    [jobCard?.customerPhone, customerRecord?.phone]
+  );
+
   const dropOffPrefill = useMemo(() => {
     if (!jobCard || !jobNeedsDropOffForm(jobCard, pickupDropRequests)) return null;
     const drop = getLinkedDropRequest(jobCard.id, pickupDropRequests);
@@ -1823,7 +1828,7 @@ export default function JobCardDetailPage() {
         createdAt={jobCard.createdAt}
         customerName={jobCard.customerName}
         onNotifyCustomer={() => setWhatsAppNotifyOpen(true)}
-        notifyDisabled={!jobCard.customerPhone?.trim()}
+        notifyDisabled={!effectiveCustomerPhone}
         notifyDisabledTitle="Customer phone number is required"
       />
 
@@ -1954,9 +1959,9 @@ export default function JobCardDetailPage() {
                       className="h-8 w-8"
                       type="button"
                       onClick={() => setWhatsAppNotifyOpen(true)}
-                      disabled={!jobCard.customerPhone?.trim()}
+                      disabled={!effectiveCustomerPhone}
                       title={
-                        jobCard.customerPhone?.trim()
+                        effectiveCustomerPhone
                           ? "Notify customer on WhatsApp"
                           : "Customer phone number is required"
                       }
@@ -3705,6 +3710,7 @@ export default function JobCardDetailPage() {
         jobCard={jobCard}
         businessName={businessName}
         invoiceNumber={invoiceForJob?.invoiceNumber}
+        customerPhone={effectiveCustomerPhone}
       />
     </div>
   );

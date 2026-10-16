@@ -3,6 +3,8 @@ import {
   deriveStaffAccessLevel,
   permissionsForStaffAccessLevel,
   userHasWithoutEditAccess,
+  permissionsHavePortalAccess,
+  userHasPortalAccess,
 } from "@/lib/staff-access";
 
 describe("deriveStaffAccessLevel", () => {
@@ -70,5 +72,21 @@ describe("permissionsForStaffAccessLevel withoutEditAccess", () => {
     expect(next).toContain("LEAVE_CREATE");
     expect(next).toContain("JOB_CARDS_CREATE");
     expect(next).toContain("JOB_CARDS_VIEW");
+  });
+});
+
+describe("portal access helpers", () => {
+  it("detects portal access state from permissions array", () => {
+    expect(permissionsHavePortalAccess(["JOB_CARDS_VIEW"])).toBe(true);
+    expect(permissionsHavePortalAccess([])).toBe(true);
+    expect(permissionsHavePortalAccess(undefined)).toBe(true);
+    expect(permissionsHavePortalAccess(["NO_PORTAL_ACCESS"])).toBe(false);
+  });
+
+  it("userHasPortalAccess always allows admins and super admins", () => {
+    expect(userHasPortalAccess({ role: "SUPER_ADMIN", permissions: ["NO_PORTAL_ACCESS"] })).toBe(true);
+    expect(userHasPortalAccess({ role: "ADMIN", permissions: ["NO_PORTAL_ACCESS"] })).toBe(true);
+    expect(userHasPortalAccess({ role: "MECHANIC", permissions: ["NO_PORTAL_ACCESS"] })).toBe(false);
+    expect(userHasPortalAccess({ role: "MECHANIC", permissions: ["JOB_CARDS_VIEW"] })).toBe(true);
   });
 });

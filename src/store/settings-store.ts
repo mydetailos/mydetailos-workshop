@@ -33,6 +33,8 @@ export const DEFAULT_REMINDER_CATEGORY_FREQUENCIES: ReminderCategoryFrequencies 
   PUC: "BIANNUAL",
 };
 
+export type InvoiceSignatureType = "BLANK" | "CUSTOM" | "STYLIZED" | "NONE";
+
 export interface SerializableAppSettings {
   gstRegistrationStatus: "REGISTERED" | "NOT_REGISTERED";
   businessName: string;
@@ -83,6 +85,14 @@ export interface SerializableAppSettings {
    * Empty array hides the block; bootstrap omit uses {@link DEFAULT_LOGIN_HERO_FEATURES}.
    */
   loginHeroFeatures: LoginHeroFeature[];
+  /** Invoice signature display style: BLANK (box for stamp/signature), CUSTOM (uploaded image), STYLIZED (digital wave), NONE (no signature line). */
+  invoiceSignatureType: InvoiceSignatureType;
+  /** Custom signature image URL or data URI. */
+  invoiceSignatureUrl: string;
+  /** Designation title shown below signature on invoices (e.g. "Authorized Signatory"). */
+  invoiceSignatoryTitle: string;
+  /** Entity/person name shown below signature on invoices (defaults to business name). */
+  invoiceSignatoryName: string;
 }
 
 export const DEFAULT_SERIALIZABLE_APP_SETTINGS: SerializableAppSettings = {
@@ -119,6 +129,10 @@ export const DEFAULT_SERIALIZABLE_APP_SETTINGS: SerializableAppSettings = {
   loginHeroHeading: "",
   loginHeroDescription: "",
   loginHeroFeatures: [...DEFAULT_LOGIN_HERO_FEATURES],
+  invoiceSignatureType: "BLANK",
+  invoiceSignatureUrl: "",
+  invoiceSignatoryTitle: "Authorized Signatory",
+  invoiceSignatoryName: "",
 };
 
 function normalizeCategoryFrequencies(raw: unknown): ReminderCategoryFrequencies {
@@ -168,6 +182,10 @@ function sliceSerializable(s: SerializableAppSettings): SerializableAppSettings 
     loginHeroHeading: s.loginHeroHeading,
     loginHeroDescription: s.loginHeroDescription,
     loginHeroFeatures: s.loginHeroFeatures.slice(0, 3),
+    invoiceSignatureType: s.invoiceSignatureType,
+    invoiceSignatureUrl: s.invoiceSignatureUrl,
+    invoiceSignatoryTitle: s.invoiceSignatoryTitle,
+    invoiceSignatoryName: s.invoiceSignatoryName,
   };
 }
 
@@ -210,8 +228,19 @@ export function mergeAppSettingsPayload(raw: unknown): Partial<SerializableAppSe
     "bankUpi",
     "identityContactName",
     "loginHeroHeading",
-    "loginHeroDescription"
+    "loginHeroDescription",
+    "invoiceSignatureUrl",
+    "invoiceSignatoryTitle",
+    "invoiceSignatoryName"
   );
+  if (
+    o.invoiceSignatureType === "BLANK" ||
+    o.invoiceSignatureType === "CUSTOM" ||
+    o.invoiceSignatureType === "STYLIZED" ||
+    o.invoiceSignatureType === "NONE"
+  ) {
+    next.invoiceSignatureType = o.invoiceSignatureType;
+  }
   if (o.gstRegistrationStatus === "REGISTERED" || o.gstRegistrationStatus === "NOT_REGISTERED") {
     next.gstRegistrationStatus = o.gstRegistrationStatus;
   }
@@ -306,6 +335,17 @@ interface SettingsState extends SerializableAppSettings {
   /** Live preview while editing brand color in settings (not persisted). */
   brandPrimaryPreview: string | null;
   setBrandPrimaryPreview: (hex: string | null) => void;
+  setInvoiceSettings: (
+    settings: Partial<
+      Pick<
+        SerializableAppSettings,
+        | "invoiceSignatureType"
+        | "invoiceSignatureUrl"
+        | "invoiceSignatoryTitle"
+        | "invoiceSignatoryName"
+      >
+    >
+  ) => void;
   patchFromBootstrap: (patch: Partial<SerializableAppSettings>) => void;
 }
 
@@ -330,6 +370,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setBusinessProfile: (profile) => {
     set((state) => ({ ...state, ...profile }));
+    scheduleAppSettingsSync(get);
+  },
+
+  setInvoiceSettings: (settings) => {
+    set((state) => ({ ...state, ...settings }));
     scheduleAppSettingsSync(get);
   },
 

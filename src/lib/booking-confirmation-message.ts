@@ -298,7 +298,16 @@ export function buildJobCardCreationConfirmationMessage(
 
 /** Digits only for wa.me (e.g. 919369111655) */
 export function whatsappDigits(phone: string): string {
-  const d = phone.replace(/\D/g, "");
+  let d = phone.replace(/\D/g, "");
+  if (d.startsWith("00")) {
+    d = d.slice(2);
+  }
+  if (d.length === 11 && d.startsWith("0")) {
+    d = d.slice(1);
+  }
+  if (d.length === 13 && d.startsWith("910")) {
+    d = "91" + d.slice(3);
+  }
   if (d.length === 10) return `91${d}`;
   if (d.startsWith("91") && d.length >= 12) return d;
   return d;

@@ -15,7 +15,6 @@ import {
   dialogMobileSheetHeaderClasses,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/lib/api-client";
 import {
   buildJobCardTemplateMessage,
   defaultWhatsAppTemplateForStatus,
@@ -24,11 +23,8 @@ import {
   type JobCardWhatsAppTemplateId,
 } from "@/lib/job-card-whatsapp-templates";
 import { cn } from "@/lib/utils";
-import {
-  isWhatsAppNotConfiguredError,
-  openWhatsAppComposer,
-  sendCustomerWhatsApp,
-} from "@/lib/whatsapp-send";
+import { openWhatsAppComposer } from "@/lib/whatsapp-send";
+import { pushActivityLog } from "@/lib/activity-log-helper";
 import { getCustomerPortalAbsoluteUrl, getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
 import { useNotificationStore } from "@/store/notification-store";
@@ -40,6 +36,7 @@ export type JobCardWhatsAppNotifyDialogProps = {
   jobCard: JobCard;
   businessName: string;
   invoiceNumber?: string | null;
+  customerPhone?: string | null;
 };
 
 function appOrigin(): string {
@@ -53,10 +50,10 @@ export function JobCardWhatsAppNotifyDialog({
   jobCard,
   businessName,
   invoiceNumber,
+  customerPhone,
 }: JobCardWhatsAppNotifyDialogProps) {
   const [templateId, setTemplateId] = useState<JobCardWhatsAppTemplateId>("ready_for_pickup");
   const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
 
   const displayName = resolveWorkshopDisplayName({ businessName });
 
@@ -86,46 +83,38 @@ export function JobCardWhatsAppNotifyDialog({
     setMessage(buildJobCardTemplateMessage(id, jobCard, buildOpts));
   };
 
-  const phone = jobCard.customerPhone?.trim() ?? "";
-  const canSend = Boolean(phone) && message.trim().length > 0 && !sending;
+  const phone = (customerPhone ?? jobCard.customerPhone)?.trim() ?? "";
+  const canSend = Boolean(phone) && message.trim().length > 0;
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!canSend) return;
     const body = message.trim();
-    setSending(true);
-    const pushStaffNotification = (channel: "api" | "composer") => {
-      useNotificationStore.getState().addNotification({
-        type: "whatsapp_sent",
-        title: channel === "api" ? "WhatsApp sent to customer" : "WhatsApp composer opened",
-        message:
-          channel === "api"
-            ? `${jobCard.jobNumber} — message sent to ${phone}.`
-            : `${jobCard.jobNumber} — finish sending in WhatsApp (${phone}); API sender not configured.`,
-        href: `/job-cards/${jobCard.id}`,
-        branchId: jobCard.branchId,
-      });
-    };
-    try {
-      await sendCustomerWhatsApp(phone, body);
-      toast.success("WhatsApp sent", { description: `Delivered to ${phone}` });
-      pushStaffNotification("api");
-      onOpenChange(false);
-    } catch (e) {
-      if (isWhatsAppNotConfiguredError(e)) {
-        openWhatsAppComposer(phone, body);
-        toast.info("WhatsApp opened", {
-          description: "Server WhatsApp is not configured — complete the message in the WhatsApp app.",
-        });
-        pushStaffNotification("composer");
-        onOpenChange(false);
-        return;
-      }
-      toast.error("WhatsApp failed", {
-        description: e instanceof ApiError ? e.message : "Could not send WhatsApp",
-      });
-    } finally {
-      setSending(false);
-    }
+
+    const { usedClipboard } = openWhatsAppComposer(phone, body);
+
+    useNotificationStore.getState().addNotification({
+      type: "whatsapp_sent",
+      title: "WhatsApp opened for customer",
+      message: `${jobCard.jobNumber} — message opened in WhatsApp for ${phone}.`,
+      href: `/job-cards/${jobCard.id}`,
+      branchId: jobCard.branchId,
+    });
+
+    pushActivityLog({
+      action: "WHATSAPP_SENT",
+      entityType: "JOB_CARD",
+      entityId: jobCard.id,
+      entityLabel: jobCard.jobNumber,
+      details: `WhatsApp notification opened for ${jobCard.customerName} (${phone})`,
+    });
+
+    toast.success("WhatsApp opened", {
+      description: usedClipboard
+        ? "Message copied to clipboard — paste in WhatsApp chat."
+        : `Opening WhatsApp chat with ${phone}`,
+    });
+
+    onOpenChange(false);
   };
 
   return (
@@ -202,17 +191,18 @@ export function JobCardWhatsAppNotifyDialog({
         </div>
 
         <DialogFooter className="shrink-0 flex-col-reverse gap-2 border-t bg-muted/20 px-6 py-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" disabled={sending} onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             type="button"
-            className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            className="bg-[#25D366] text-white hover:bg-[#20bd5a] dark:bg-[#25D366] dark:text-white dark:hover:bg-[#20bd5a] gap-2 font-medium"
             disabled={!canSend}
             title={!phone ? "Customer phone number is required" : undefined}
-            onClick={() => void handleSend()}
+            onClick={handleSend}
           >
-            {sending ? "Sending…" : "Send on WhatsApp"}
+            <WhatsAppIcon className="h-4 w-4" />
+            Send on WhatsApp
           </Button>
         </DialogFooter>
       </DialogContent>

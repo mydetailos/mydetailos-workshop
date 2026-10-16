@@ -16,6 +16,7 @@ export function userHasPermission(
 ): boolean {
   if (!user?.role) return false;
   if (user.role === "SUPER_ADMIN") return true;
+  if (user.permissions?.includes("NO_PORTAL_ACCESS")) return false;
   return Boolean(user.permissions?.includes(permissionKey));
 }
 
@@ -78,6 +79,7 @@ export function canAccessNavItem(
 ): boolean {
   if (!userRole) return false;
   if (userRole === "PLATFORM_OWNER") return false;
+  if (userPermissions?.includes("NO_PORTAL_ACCESS")) return false;
   if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return true;
 
   // 1. Explicit Permission Check (Granular or Base)
@@ -116,6 +118,7 @@ function granularCheck(
 ): boolean {
   if (!user?.role) return false;
   if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") return true;
+  if (user.permissions?.includes("NO_PORTAL_ACCESS")) return false;
   const perms = user.permissions ?? [];
   if (perms.includes(moduleKey)) return true; // base key = full access
   return perms.includes(`${moduleKey}_${action}`);

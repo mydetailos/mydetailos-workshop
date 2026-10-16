@@ -53,9 +53,31 @@ function isHrStaffPermissionKey(perm: string): boolean {
   return Boolean(match?.[1] && HR_MODULE_KEY_SET.has(match[1]));
 }
 
+/**
+ * Sentinel permission key stored when an admin disables workshop portal access for a user.
+ * Allows zero-migration persistence inside the existing User.permissions array.
+ */
+export const NO_PORTAL_ACCESS_KEY = "NO_PORTAL_ACCESS";
+
+/** Check whether a permissions array indicates portal access is granted. */
+export function permissionsHavePortalAccess(permissions: string[] | undefined): boolean {
+  const perms = permissions ?? [];
+  return !perms.includes(NO_PORTAL_ACCESS_KEY);
+}
+
+/** Check whether a user has permission to log in and use the workshop portal. */
+export function userHasPortalAccess(
+  user: Pick<User, "role" | "permissions"> | null | undefined
+): boolean {
+  if (!user?.role) return false;
+  if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") return true;
+  return permissionsHavePortalAccess(user.permissions);
+}
+
 /** Infer access level from stored permission keys (best-effort). */
 export function deriveStaffAccessLevel(permissions: string[] | undefined): StaffAccessLevel {
   const perms = permissions ?? [];
+  if (perms.includes(NO_PORTAL_ACCESS_KEY)) return "withoutEditAccess";
   // Explicit edit grants always mean With Edit Access.
   if (perms.some((p) => p.endsWith("_EDIT"))) return "withEditAccess";
 
@@ -99,15 +121,19 @@ export function permissionsForStaffAccessLevel(
   level: StaffAccessLevel,
   role?: UserRole
 ): string[] {
-  let basePerms = current ?? [];
-  // If the user has no permissions (e.g. legacy or cleared), applying "With Edit Access"
-  // should bootstrap them with their role defaults so they don't get stuck with nothing.
+  // Strip any NO_PORTAL_ACCESS sentinel before deriving active module permissions
+  const cleaned = (current ?? []).filter((p) => p !== NO_PORTAL_ACCESS_KEY);
+  let basePerms = cleaned;
+  // If the user has no permissions (e.g. legacy, cleared, or previously disabled portal),
+  // applying an access level should bootstrap them with their role defaults.
   if (basePerms.length === 0 && role) {
     const defaultModules = getDefaultModuleKeysForRole(role);
     basePerms = defaultModules.flatMap((m) => [`${m}_CREATE`, `${m}_VIEW`]);
   }
 
-  const expanded = expandLegacyBaseKeys(basePerms).filter((p) => !p.endsWith("_DELETE"));
+  const expanded = expandLegacyBaseKeys(basePerms).filter(
+    (p) => !p.endsWith("_DELETE") && p !== NO_PORTAL_ACCESS_KEY
+  );
 
   if (level === "withoutEditAccess") {
     // No edit/delete; strip HR modules except Leave (users can still apply for leave).

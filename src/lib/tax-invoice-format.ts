@@ -122,6 +122,10 @@ export interface TaxInvoiceBusinessBlock {
   bankAccountNumber: string;
   bankIfsc: string;
   bankUpi: string;
+  invoiceSignatureType?: "BLANK" | "CUSTOM" | "STYLIZED" | "NONE";
+  invoiceSignatureUrl?: string;
+  invoiceSignatoryTitle?: string;
+  invoiceSignatoryName?: string;
 }
 
 /** Compact vehicle meta for invoice header (e.g. "EX · 2026 · Diesel · Blue"). */
@@ -324,6 +328,31 @@ export function buildTaxInvoicePrintHtml(
   const expectedDel = jobCard?.expectedDelivery
     ? formatDate(jobCard.expectedDelivery)
     : "—";
+
+  const signatureType = business.invoiceSignatureType || "BLANK";
+  const signatoryTitle = business.invoiceSignatoryTitle?.trim() || "Authorized Signatory";
+  const signatoryName = business.invoiceSignatoryName?.trim() || business.businessName;
+
+  let signatureVisualHtml = "";
+  if (signatureType === "CUSTOM" && business.invoiceSignatureUrl?.trim()) {
+    signatureVisualHtml = `<div style="height: 42px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+      <img src="${escapeHtml(business.invoiceSignatureUrl.trim())}" alt="Signature" style="max-height: 40px; max-width: 130px; object-fit: contain;" />
+    </div>`;
+  } else if (signatureType === "STYLIZED") {
+    signatureVisualHtml = `<svg width="120" height="40" viewBox="0 0 120 40" style="margin-bottom: 4px;">
+      <path d="M 15 28 C 35 12, 45 4, 55 18 C 65 32, 70 36, 85 14 C 95 6, 105 14, 100 26 C 95 34, 110 20, 115 18" fill="none" stroke="#0b1329" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`;
+  } else if (signatureType === "NONE") {
+    signatureVisualHtml = `<div style="min-height: 38px; display: flex; align-items: center; justify-content: center; text-align: center; margin-bottom: 4px; padding: 0 4px;">
+      <span style="font-size: 8px; color: #737373; font-style: italic;">Computer-generated invoice. No signature required.</span>
+    </div>`;
+  } else {
+    // "BLANK" - Clean box for physical stamp and pen signature
+    signatureVisualHtml = `<div style="height: 42px; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; margin-bottom: 4px;">
+      <div style="width: 85%; border-bottom: 1px dashed #a3a3a3; height: 1px;"></div>
+    </div>`;
+  }
+
   const dash = (value: string) => {
     const t = value.trim();
     return t ? escapeHtml(t) : "—";
@@ -790,12 +819,10 @@ table.inv .b { font-weight: 700; color: #171717; }
         <span style="font-weight: 700; color: #171717;">${numberToWords(Math.round(displayGrandTotal))}</span>
       </div>
 
-      <div style="margin-top: 14px; border: 1px solid #d4d4d4; border-radius: 4px; padding: 12px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff;">
-        <svg width="120" height="40" viewBox="0 0 120 40" style="margin-bottom: 4px;">
-          <path d="M 15 28 C 35 12, 45 4, 55 18 C 65 32, 70 36, 85 14 C 95 6, 105 14, 100 26 C 95 34, 110 20, 115 18" fill="none" stroke="#0b1329" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-        <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #737373;">Authorized Signatory</div>
-        <div style="font-size: 9px; font-weight: 700; color: #0b1329; margin-top: 2px;">${escapeHtml(business.businessName)}</div>
+      <div style="margin-top: 14px; border: 1px solid #d4d4d4; border-radius: 4px; padding: 10px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; min-height: 80px;">
+        ${signatureVisualHtml}
+        <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #737373;">${escapeHtml(signatoryTitle)}</div>
+        <div style="font-size: 9px; font-weight: 700; color: #0b1329; margin-top: 2px;">${escapeHtml(signatoryName)}</div>
       </div>
     </div>
   </div>

@@ -16,6 +16,8 @@ export interface QuotationPartLine {
   unit: string;
   unitPrice: number;
   lineTotal: number;
+  catalogPrice?: number;
+  isCustomPrice?: boolean;
 }
 
 export interface Quotation {
