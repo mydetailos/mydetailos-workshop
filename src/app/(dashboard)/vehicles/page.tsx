@@ -634,9 +634,15 @@ export default function VehiclesPage() {
           extraModels={extraModels}
           setExtraModels={setExtraModels}
           onSave={async (updated) => {
-            await updateVehicle(updated.id, updated);
+            const res = await updateVehicle(updated.id, updated);
+            if (!res) {
+              toast.error("Failed to update vehicle", {
+                description: "Please check your network connection and verify vehicle details.",
+              });
+              return;
+            }
             setEditingVehicle(null);
-            toast.success("Vehicle updated", { description: `${updated.registrationNumber} has been updated.` });
+            toast.success("Vehicle updated", { description: `${res.registrationNumber} has been updated.` });
           }}
         />
       )}
@@ -693,7 +699,7 @@ export interface EditVehicleDialogProps {
   setExtraBrands: React.Dispatch<React.SetStateAction<string[]>>;
   extraModels: Record<string, Array<{ name: string }>>;
   setExtraModels: React.Dispatch<React.SetStateAction<Record<string, Array<{ name: string }>>>>;
-  onSave: (updated: Vehicle) => void;
+  onSave: (updated: Vehicle) => void | Promise<void>;
 }
 
 export function EditVehicleDialog({
@@ -712,6 +718,7 @@ export function EditVehicleDialog({
   const [newBrandDraft, setNewBrandDraft] = useState("");
   const [newModelOpen, setNewModelOpen] = useState(false);
   const [newModelDraft, setNewModelDraft] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isVinInitial = vehicle.vinNumber ? "VIN" : "REG";
   const initialValue = vehicle.vinNumber || vehicle.registrationNumber;
@@ -764,33 +771,38 @@ export function EditVehicleDialog({
     return unique.sort((a, b) => a.name.localeCompare(b.name));
   }, [getModels, watchMake, extraModels]);
 
-  const onSubmit = (data: AddVehicleFormData) => {
-    const isVin = data.identifierType === "VIN";
-    const regStored = isVin
-      ? data.identifierValue.trim().toUpperCase()
-      : normalizeRegistrationNumber(data.identifierValue);
+  const onSubmit = async (data: AddVehicleFormData) => {
+    setIsSubmitting(true);
+    try {
+      const isVin = data.identifierType === "VIN";
+      const regStored = isVin
+        ? data.identifierValue.trim().toUpperCase()
+        : normalizeRegistrationNumber(data.identifierValue);
 
-    const customer = customers.find((c) => c.id === data.customerId);
-    const updatedVehicle: Vehicle = {
-      ...vehicle,
-      customerId: data.customerId,
-      customerName: customer?.name ?? "Unknown",
-      registrationNumber: regStored,
-      make: data.make,
-      model: data.model,
-      variant: data.variant || undefined,
-      fuelType: data.fuelType,
-      segment: data.segment,
-      color: data.color,
-      year: data.year,
-      notes: data.notes || undefined,
-      odometer: data.odometer ? Number(data.odometer) : undefined,
-      insuranceProvider: data.insuranceProvider?.trim() || undefined,
-      insurancePolicyNumber: data.insurancePolicyNumber?.trim() || undefined,
-      insuranceDueDate: data.insuranceDueDate || undefined,
-      vinNumber: isVin ? regStored : undefined,
-    };
-    onSave(updatedVehicle);
+      const customer = customers.find((c) => c.id === data.customerId);
+      const updatedVehicle: Vehicle = {
+        ...vehicle,
+        customerId: data.customerId,
+        customerName: customer?.name ?? "Unknown",
+        registrationNumber: regStored,
+        make: data.make,
+        model: data.model,
+        variant: data.variant?.trim() || undefined,
+        fuelType: data.fuelType,
+        segment: (data.segment === ("MUV_MPV" as any) ? "MUV" : data.segment),
+        color: data.color?.trim() || "—",
+        year: data.year ? Number(data.year) : new Date().getFullYear(),
+        notes: data.notes?.trim() || undefined,
+        odometer: data.odometer ? Number(data.odometer) : undefined,
+        insuranceProvider: data.insuranceProvider?.trim() || undefined,
+        insurancePolicyNumber: data.insurancePolicyNumber?.trim() || undefined,
+        insuranceDueDate: data.insuranceDueDate || undefined,
+        vinNumber: isVin ? regStored : undefined,
+      };
+      await onSave(updatedVehicle);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1026,7 +1038,7 @@ export function EditVehicleDialog({
                         <SelectItem value="SEDAN">Sedan</SelectItem>
                         <SelectItem value="SUV">SUV</SelectItem>
                         <SelectItem value="LUXURY">Luxury</SelectItem>
-                        <SelectItem value="MUV_MPV">MUV / MPV</SelectItem>
+                        <SelectItem value="MUV">MUV / MPV</SelectItem>
                         <SelectItem value="COMPACT_SUV">Compact SUV</SelectItem>
                         <SelectItem value="BIKE">Bike</SelectItem>
                       </SelectContent>
@@ -1106,7 +1118,16 @@ export function EditVehicleDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

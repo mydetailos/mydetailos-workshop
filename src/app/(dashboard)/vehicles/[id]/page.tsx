@@ -67,6 +67,7 @@ export default function VehicleDetailPage() {
   const user = useAuthStore((s) => s.user);
   const vehicleList = useVehicleStore((s) => s.vehicles);
   const setVehicleList = useVehicleStore((s) => s.setVehicles);
+  const updateVehicle = useVehicleStore((s) => s.updateVehicle);
   const storeJobCards = useJobCardStore((s) => s.jobCards);
   const customers = useCustomerStore((s) => s.customers);
 
@@ -344,10 +345,16 @@ export default function VehicleDetailPage() {
           setExtraBrands={setExtraBrands}
           extraModels={extraModels}
           setExtraModels={setExtraModels}
-          onSave={(updated) => {
-            setVehicleList((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
+          onSave={async (updated) => {
+            const res = await updateVehicle(updated.id, updated);
+            if (!res) {
+              toast.error("Failed to update vehicle", {
+                description: "Please check your network connection and verify vehicle details.",
+              });
+              return;
+            }
             setEditOpen(false);
-            toast.success("Vehicle updated", { description: `${updated.registrationNumber} has been updated.` });
+            toast.success("Vehicle updated", { description: `${res.registrationNumber} has been updated.` });
           }}
         />
       )}
