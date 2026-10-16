@@ -21,6 +21,19 @@ interface CustomerAuthState {
     password: string,
     organizationSlug?: string | null
   ) => Promise<{ ok: true } | { ok: false; message: string }>;
+
+  /** Send OTP via WhatsApp to customer mobile (tenant-scoped via organizationSlug). */
+  sendOtp: (
+    phone: string,
+    organizationSlug?: string | null
+  ) => Promise<{ ok: true; delivery?: string; hint?: string } | { ok: false; message: string }>;
+
+  /** Login with mobile and OTP (tenant-scoped via organizationSlug). */
+  loginWithOtp: (
+    phone: string,
+    otp: string,
+    organizationSlug?: string | null
+  ) => Promise<{ ok: true } | { ok: false; message: string }>;
   
   /** Verify and apply JWT session */
   applyAuthPayload: (data: CustomerAuthSessionPayload) => void;
@@ -79,6 +92,108 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
             return {
               ok: false,
               message: body.error?.message ?? "Invalid phone or password",
+            };
+          }
+
+          const { accessToken, user: apiUser } = body.data;
+          const user: CustomerUser = {
+            ...apiUser,
+            customerId: apiUser.id,
+            role: "CUSTOMER",
+          };
+          set({
+            accessToken,
+            user,
+            isAuthenticated: true,
+          });
+
+          return { ok: true };
+        } catch {
+          return {
+            ok: false,
+            message: "Network error — is the API running?",
+          };
+        }
+      },
+
+      sendOtp: async (phone: string, organizationSlug?: string | null) => {
+        const digits = phone.replace(/\D/g, "");
+        if (digits.length !== 10) {
+          return { ok: false, message: "Enter a valid 10-digit mobile number" };
+        }
+        const slug = typeof organizationSlug === "string" ? organizationSlug.trim() : "";
+        if (!slug) {
+          return {
+            ok: false,
+            message: "Open your workshop customer portal link to request an OTP.",
+          };
+        }
+
+        try {
+          const res = await fetch(buildApiUrl("/api/auth/customer/otp/send"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: digits, organizationSlug: slug }),
+          });
+
+          const body = (await res.json()) as {
+            data?: { success?: boolean; delivery?: string; hint?: string } | null;
+            error?: { message?: string } | null;
+          };
+
+          if (!res.ok || body.error || !body.data) {
+            return {
+              ok: false,
+              message: body.error?.message ?? "Unable to send OTP. Please try again.",
+            };
+          }
+
+          return {
+            ok: true,
+            delivery: body.data.delivery,
+            hint: body.data.hint,
+          };
+        } catch {
+          return {
+            ok: false,
+            message: "Network error — is the API running?",
+          };
+        }
+      },
+
+      loginWithOtp: async (phone: string, otp: string, organizationSlug?: string | null) => {
+        const digits = phone.replace(/\D/g, "");
+        if (digits.length !== 10) {
+          return { ok: false, message: "Enter a valid 10-digit mobile number" };
+        }
+        const otpDigits = otp.replace(/\D/g, "");
+        if (otpDigits.length !== 6 && otpDigits.length !== 4) {
+          return { ok: false, message: "Enter a valid verification code" };
+        }
+        const slug = typeof organizationSlug === "string" ? organizationSlug.trim() : "";
+        if (!slug) {
+          return {
+            ok: false,
+            message: "Open your workshop customer portal link to sign in.",
+          };
+        }
+
+        try {
+          const res = await fetch(buildApiUrl("/api/auth/customer/login"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: digits, otp: otpDigits, organizationSlug: slug }),
+          });
+
+          const body = (await res.json()) as {
+            data?: { accessToken: string; user: Omit<CustomerUser, "role" | "customerId"> } | null;
+            error?: { message?: string } | null;
+          };
+
+          if (!res.ok || body.error || !body.data) {
+            return {
+              ok: false,
+              message: body.error?.message ?? "Invalid or expired verification code",
             };
           }
 
