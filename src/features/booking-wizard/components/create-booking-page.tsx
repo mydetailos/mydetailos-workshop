@@ -3017,9 +3017,9 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         className={cn(
           useBookingWizard
             ? cn(
-                "flex min-h-0 flex-1 flex-col overflow-x-hidden",
+                "flex min-h-0 flex-1 flex-col",
                 isDesktopWide
-                  ? "h-full overflow-hidden lg:flex-row lg:items-stretch lg:justify-between lg:gap-6"
+                  ? "min-h-0 flex-1 lg:flex-row lg:items-start lg:justify-between lg:gap-6"
                   : "h-auto overflow-visible"
               )
             : "lg:flex lg:flex-row lg:items-start lg:gap-8",
@@ -3033,11 +3033,11 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
             "min-w-0 flex-1 lg:min-w-0",
             !useBookingWizard && "space-y-6",
             useBookingWizard &&
-              "flex flex-col overflow-x-hidden px-3 py-2 sm:px-6 sm:pt-3 sm:pb-0",
+              "flex flex-col px-3 py-2 sm:px-4 sm:pt-2 sm:pb-0",
             useBookingWizard &&
               isDesktopWide &&
-              "min-h-0 flex-1 gap-2 overflow-hidden py-2 sm:px-4 sm:pt-2 sm:pb-0 max-lg:overflow-y-auto max-lg:overflow-x-hidden lg:min-w-0",
-            useBookingWizard && !isDesktopWide && "min-h-0 flex-1 overflow-x-hidden"
+              "min-h-0 flex-1 gap-3 lg:min-w-0",
+            useBookingWizard && !isDesktopWide && "min-h-0 flex-1"
           )}
         >
           {isDesktopWide && (
@@ -3060,10 +3060,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           <div
             className={cn(
               useBookingWizard ? "space-y-4" : "space-y-6",
-              useBookingWizard &&
-                isDesktopWide &&
-                "lg:flex lg:min-h-0 lg:flex-1 lg:basis-0 lg:flex-col lg:space-y-0 lg:gap-2.5 lg:overflow-y-auto lg:overflow-x-auto lg:overscroll-y-contain lg:pr-0.5 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5",
-              useBookingWizard && "max-lg:shrink-0 max-lg:overflow-visible"
+              useBookingWizard && "flex flex-col space-y-4"
             )}
           >
           {showJobWizardStep("customer") && (
@@ -4828,7 +4825,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           <div
             className={cn(
               "hidden shrink-0 flex-nowrap items-center justify-between gap-3 border-t border-border md:flex w-full",
-              compactJobCardDesktop ? "pt-2 pb-0.5" : "pt-2.5 pb-0.5"
+              "sticky bottom-0 z-20 bg-background/95 backdrop-blur-sm py-2.5 mt-2",
+              compactJobCardDesktop ? "pt-2 pb-1" : "pt-2.5 pb-1"
             )}
           >
             {/* Left: Back button + Summary */}
@@ -4907,14 +4905,9 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
 
         <aside
           className={cn(
-            "mt-4 w-full shrink-0 sm:mt-6 lg:mt-0 lg:min-h-0 lg:w-[min(100%,460px)] lg:shrink-0 lg:ml-auto lg:pr-1",
+            "mt-4 w-full shrink-0 sm:mt-6 lg:mt-0 lg:w-[min(100%,460px)] lg:shrink-0 lg:ml-auto lg:pr-1",
             useBookingWizard &&
-              cn(
-                "hidden lg:flex lg:flex-col lg:overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5",
-                compactJobCardDesktop
-                  ? "lg:h-full lg:self-stretch"
-                  : "lg:sticky lg:top-4 lg:z-20 lg:self-start"
-              )
+              "hidden lg:flex lg:flex-col lg:sticky lg:top-4 lg:z-20 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5"
           )}
         >
           {renderSummaryCard("booking-branch-select-block")}
@@ -4999,8 +4992,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
   return (
     <>
       {isDesktopWide ? (
-        <div className="flex h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 overflow-hidden">{bookingForm}</div>
+        <div className="flex min-h-0 flex-1 flex-col pb-8">
+          {bookingForm}
         </div>
       ) : (
         <Dialog
