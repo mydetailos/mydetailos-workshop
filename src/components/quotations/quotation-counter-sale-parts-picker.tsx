@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Minus, Plus, Search, Trash2 } from "lucide-react";
+import { Minus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -44,26 +44,53 @@ export function QuotationCounterSalePartsPicker({
   const parts = useInventoryStore((s) => s.parts);
   const [partSearch, setPartSearch] = useState("");
   const [catalogueUnits, setCatalogueUnits] = useState<Record<string, string>>({});
+  const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
+  const [priceDraft, setPriceDraft] = useState("");
 
   const eligibleParts = useMemo(
     () => catalogForCounterSale(parts).filter((p) => partMatchesInventorySearch(p, partSearch)),
     [parts, partSearch]
   );
 
+  const commitCustomPrice = (index: number) => {
+    const line = lines[index];
+    if (!line) return;
+    const n = Number.parseFloat(priceDraft.replace(/,/g, "").trim());
+    const part = parts.find((p) => p.id === line.partId);
+    const catalogPrice = line.catalogPrice ?? (part ? getUnitPrice(part, line.unit) : line.unitPrice);
+    const newPrice = Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : catalogPrice;
+    const isCustomPrice = Math.abs(newPrice - catalogPrice) > 0.005;
+    onLinesChange(
+      lines.map((l, i) =>
+        i === index
+          ? {
+              ...l,
+              unitPrice: newPrice,
+              catalogPrice,
+              isCustomPrice,
+              lineTotal: quotationPartLineTotal({ quantity: l.quantity, unitPrice: newPrice }),
+            }
+          : l
+      )
+    );
+    setEditingPriceIndex(null);
+  };
+
   const addPart = (partId: string) => {
     const part = parts.find((p) => p.id === partId);
     if (!part) return;
     const unit = catalogueUnits[partId] ?? getSelectableUnits(part)[0] ?? part.primaryUnit;
-    const unitPrice = getUnitPrice(part, unit);
-    const existing = lines.find((line) => line.partId === partId && line.unit === unit);
-    if (existing) {
+    const catalogPrice = getUnitPrice(part, unit);
+    const existingIndex = lines.findIndex((line) => line.partId === partId && line.unit === unit);
+    if (existingIndex >= 0) {
+      const existing = lines[existingIndex]!;
       if (existing.quantity >= MAX_QUOTATION_PART_QTY) {
         toast.error(`Maximum ${MAX_QUOTATION_PART_QTY} per part on a quotation`);
         return;
       }
       onLinesChange(
-        lines.map((line) =>
-          line.partId === partId && line.unit === unit
+        lines.map((line, i) =>
+          i === existingIndex
             ? {
                 ...line,
                 quantity: line.quantity + 1,
@@ -82,8 +109,10 @@ export function QuotationCounterSalePartsPicker({
         sku: part.sku,
         quantity: 1,
         unit,
-        unitPrice,
-        lineTotal: unitPrice,
+        unitPrice: catalogPrice,
+        catalogPrice,
+        isCustomPrice: false,
+        lineTotal: catalogPrice,
       },
     ]);
   };
@@ -110,6 +139,11 @@ export function QuotationCounterSalePartsPicker({
   };
 
   const removeLine = (index: number) => {
+    if (editingPriceIndex === index) {
+      setEditingPriceIndex(null);
+    } else if (editingPriceIndex != null && editingPriceIndex > index) {
+      setEditingPriceIndex(editingPriceIndex - 1);
+    }
     onLinesChange(lines.filter((_, i) => i !== index));
   };
 
@@ -225,14 +259,65 @@ export function QuotationCounterSalePartsPicker({
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <span className="text-sm font-medium tabular-nums shrink-0 w-20 text-right">
-                  {formatCurrency(line.lineTotal)}
-                </span>
+                <div className="text-right shrink-0 min-w-[110px]">
+                  {editingPriceIndex === index ? (
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <Label className="text-[11px] text-muted-foreground shrink-0">₹/unit</Label>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        className="h-7 w-20 text-xs tabular-nums text-right"
+                        value={priceDraft}
+                        autoFocus
+                        onChange={(e) => setPriceDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            commitCustomPrice(index);
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setEditingPriceIndex(null);
+                          }
+                        }}
+                        onBlur={() => commitCustomPrice(index)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold tabular-nums text-foreground">
+                        {formatCurrency(line.lineTotal)}
+                      </p>
+                      <div className="flex items-center justify-end gap-1">
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
+                          @ {formatCurrency(line.unitPrice)}/{line.unit}
+                        </span>
+                        {line.isCustomPrice && (
+                          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
+                            custom
+                          </span>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setPriceDraft(String(line.unitPrice));
+                            setEditingPriceIndex(index);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground"
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                   onClick={() => removeLine(index)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

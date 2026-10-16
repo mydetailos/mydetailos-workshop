@@ -51,6 +51,7 @@ import {
 import { useVehicleCatalogStore } from "@/store/vehicle-catalog-store";
 import { BrandingThemePanel } from "@/components/settings/branding-theme-panel";
 import { BusinessIdentityCard } from "@/components/settings/business-identity-card";
+import { InvoiceSettingsPanel } from "@/components/settings/invoice-settings-panel";
 import { useDomainDataReady } from "@/components/layout/domain-data-sync";
 import type {
   CompanyTargetTierConfig,
@@ -72,6 +73,7 @@ import {
   Phone,
   MapPin,
   FileText,
+  FileSignature,
   Scale,
   CalendarClock,
   Check,
@@ -186,6 +188,7 @@ const SETTINGS_TABS = new Set([
   "business",
   "branding",
   "tax",
+  "invoice",
   "rewards",
   "terms",
   "incentives",
@@ -692,6 +695,7 @@ export default function SettingsPage() {
           <TabsTrigger value="business" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Business</TabsTrigger>
           <TabsTrigger value="branding" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Branding & Theme</TabsTrigger>
           <TabsTrigger value="tax" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Tax & Billing</TabsTrigger>
+          <TabsTrigger value="invoice" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Invoice Settings</TabsTrigger>
           <TabsTrigger value="rewards" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Rewards Points</TabsTrigger>
           <TabsTrigger value="terms" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Terms & Conditions</TabsTrigger>
           <TabsTrigger value="incentives" className="rounded-lg text-xs font-medium px-3 py-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold">Incentives</TabsTrigger>
@@ -1253,12 +1257,28 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 <Separator />
-                <Button onClick={() => handleSave("Tax & Billing settings")}>
-                  <Save className="w-4 h-4 mr-2" />Save Changes
-                </Button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <Button onClick={() => handleSave("Tax & Billing settings")}>
+                    <Save className="w-4 h-4 mr-2" />Save Changes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSettingsTab("invoice")}
+                    className="text-xs"
+                  >
+                    <FileSignature className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                    Configure Invoice Signature & Box →
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="invoice" className="space-y-4">
+          <InvoiceSettingsPanel />
         </TabsContent>
 
         <TabsContent value="rewards">

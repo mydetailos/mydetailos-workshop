@@ -35,16 +35,30 @@ export type WhatsAppComposerResult = {
 };
 
 export function openWhatsAppComposer(phone: string, message: string): WhatsAppComposerResult {
+  const digits = whatsappDigits(phone);
   const partCount = splitWhatsAppMessage(message).length;
-  if (message.length > WA_ME_PREFILL_SAFE_MAX) {
+  const isTooLong = message.length > WA_ME_PREFILL_SAFE_MAX;
+  if (isTooLong) {
     void navigator.clipboard?.writeText(message).catch(() => {});
-    const url = `https://wa.me/${whatsappDigits(phone)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-    return { usedClipboard: true, partCount };
   }
-  const url = `https://wa.me/${whatsappDigits(phone)}?text=${encodeURIComponent(message)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-  return { usedClipboard: false, partCount };
+  const url = isTooLong
+    ? `https://wa.me/${digits}`
+    : `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+
+  if (typeof window !== "undefined") {
+    const win = window.open(url, "_blank", "noopener,noreferrer");
+    if (!win || win.closed || typeof win.closed === "undefined") {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  }
+
+  return { usedClipboard: isTooLong, partCount };
 }
 
 export function isWhatsAppNotConfiguredError(e: unknown): boolean {

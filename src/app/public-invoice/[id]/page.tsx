@@ -100,6 +100,10 @@ export default function PublicInvoicePage() {
       bankAccountNumber: businessSettings?.bankAccountNumber || "",
       bankIfsc: businessSettings?.bankIfsc || "",
       bankUpi: businessSettings?.bankUpi || "",
+      invoiceSignatureType: businessSettings?.invoiceSignatureType,
+      invoiceSignatureUrl: businessSettings?.invoiceSignatureUrl,
+      invoiceSignatoryTitle: businessSettings?.invoiceSignatoryTitle,
+      invoiceSignatoryName: businessSettings?.invoiceSignatoryName,
     };
 
     const vehicleDetailsLine = formatInvoiceVehicleDetailsLine({

@@ -71,6 +71,8 @@ import { getStaffJobStats } from "@/lib/staff-job-stats";
 import {
   deriveStaffAccessLevel,
   permissionsForStaffAccessLevel,
+  permissionsHavePortalAccess,
+  NO_PORTAL_ACCESS_KEY,
   type StaffAccessLevel,
 } from "@/lib/staff-access";
 import { StaffAccessSelector } from "@/components/staff/staff-access-selector";
@@ -98,9 +100,11 @@ const MONTH_LABELS = [
 
 function StaffPasswordCard({
   member,
+  hasPortalAccess = true,
   resetStaffPassword,
 }: {
   member: User;
+  hasPortalAccess?: boolean;
   resetStaffPassword: (staffId: string, password: string, mustChange: boolean) => Promise<{ ok: boolean }>;
 }) {
   const [passwordInput, setPasswordInput] = useState("");
@@ -157,6 +161,11 @@ function StaffPasswordCard({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!hasPortalAccess && (
+          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200/80 text-xs text-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+            <strong>Portal access is turned off:</strong> This staff member will not be able to log in to the workshop portal unless portal access is enabled in the User Access section below.
+          </div>
+        )}
         <div className="space-y-2 max-w-sm">
           <Label htmlFor="staff-password">New Password</Label>
           <div className="relative">
@@ -396,30 +405,50 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   const [accessLevel, setAccessLevel] = useState<StaffAccessLevel>("withEditAccess");
+  const [hasPortalAccess, setHasPortalAccess] = useState(true);
   const [savingAccess, setSavingAccess] = useState(false);
   const applyAuthPayload = useAuthStore((s) => s.applyAuthPayload);
 
-  useEffect(() => {
-    if (member) {
-      setAccessLevel(deriveStaffAccessLevel(member.permissions));
-    }
-  }, [member]);
-
-  const isEditingAdmin = member?.role === "SUPER_ADMIN" || member?.role === "ADMIN";
+  const initialHasPortalAccess = useMemo(
+    () => permissionsHavePortalAccess(member?.permissions),
+    [member?.permissions]
+  );
 
   const savedAccessLevel = useMemo(
     () => deriveStaffAccessLevel(member?.permissions),
     [member?.permissions]
   );
 
+  useEffect(() => {
+    if (member) {
+      setAccessLevel(deriveStaffAccessLevel(member.permissions));
+      setHasPortalAccess(permissionsHavePortalAccess(member.permissions));
+    }
+  }, [member]);
+
+  const isEditingAdmin = member?.role === "SUPER_ADMIN" || member?.role === "ADMIN";
+
+  const accessChanged =
+    hasPortalAccess !== initialHasPortalAccess ||
+    (hasPortalAccess && accessLevel !== savedAccessLevel);
+
   const handleSaveAccess = async () => {
     if (!member) return;
     setSavingAccess(true);
     try {
-      const permissions = permissionsForStaffAccessLevel(member.permissions, accessLevel, member.role);
+      let permissions: string[];
+      if (!hasPortalAccess) {
+        permissions = [NO_PORTAL_ACCESS_KEY];
+      } else {
+        permissions = permissionsForStaffAccessLevel(member.permissions, accessLevel, member.role);
+      }
       const result = await updateStaff(member.id, { permissions });
       if (result.ok) {
-        toast.success("Access updated successfully.");
+        toast.success(
+          !hasPortalAccess
+            ? "Portal access disabled for this user."
+            : "Access updated successfully."
+        );
       } else {
         toast.error("Failed to update access.");
       }
@@ -1260,6 +1289,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
         <StaffPasswordCard
           key={member.id}
           member={member}
+          hasPortalAccess={hasPortalAccess}
           resetStaffPassword={resetStaffPasswordFn}
         />
       )}
@@ -1268,11 +1298,11 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4 text-primary" />
               User Access
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Control whether this user can edit and delete records. Admins and Super Admins always have full access.
+              Control workshop portal access and record permissions for this user. Admins and Super Admins always have full access.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1281,12 +1311,15 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
               onChange={setAccessLevel}
               disabled={isEditingAdmin || savingAccess}
               name={`staff-access-${member.id}`}
+              showPortalToggle={!isEditingAdmin}
+              portalAccess={isEditingAdmin ? true : hasPortalAccess}
+              onPortalAccessChange={setHasPortalAccess}
             />
             {!isEditingAdmin && (
               <div className="pt-2 border-t border-border flex justify-end">
                 <Button
                   onClick={handleSaveAccess}
-                  disabled={savingAccess || accessLevel === savedAccessLevel}
+                  disabled={savingAccess || !accessChanged}
                 >
                   {savingAccess ? "Saving..." : "Save Access"}
                 </Button>

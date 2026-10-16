@@ -323,7 +323,9 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </Link>
             <div className="min-w-0">
               <p className="text-sm font-bold text-sidebar-accent-foreground truncate leading-tight">{businessName}</p>
-              <p className="text-[11px] text-sidebar-foreground opacity-80">Customer Portal</p>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-500/10 text-teal-600 border border-teal-500/20 mt-0.5">
+                Customer Portal
+              </span>
             </div>
           </div>
           <button
@@ -384,6 +386,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-sidebar-accent-foreground truncate leading-tight">{customerDisplayName}</p>
+              <p className="text-[11px] text-muted-foreground truncate">Customer Account</p>
             </div>
           </div>
           <div className="-mx-2.5 border-t border-sidebar-border my-0.5" />
@@ -418,7 +421,9 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-sidebar-accent-foreground truncate leading-tight">{businessName}</p>
-            <p className="text-[11px] text-sidebar-foreground opacity-80">Customer Portal</p>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-500/10 text-teal-600 border border-teal-500/20 mt-0.5">
+              Customer Portal
+            </span>
           </div>
         </Link>
 
@@ -469,6 +474,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-sidebar-accent-foreground truncate leading-tight">{customerDisplayName}</p>
+              <p className="text-[11px] text-muted-foreground truncate">Customer Account</p>
             </div>
           </div>
           <div className="-mx-2.5 border-t border-sidebar-border my-0.5" />

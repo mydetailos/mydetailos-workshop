@@ -106,15 +106,8 @@ export function generateRandomStaffPassword(): string {
   return arr.join("");
 }
 
-function nextStaffId(existing: User[]): string {
-  const nums = existing
-    .map((s) => {
-      const m = /^usr-(\d+)$/.exec(s.id);
-      return m ? parseInt(m[1], 10) : 0;
-    })
-    .filter((n) => n > 0);
-  const max = nums.length ? Math.max(...nums) : 0;
-  return `usr-${String(max + 1).padStart(3, "0")}`;
+function nextStaffId(_existing?: User[]): string {
+  return `usr-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function allocateAttendancePin(getStaff: () => User[]): string {

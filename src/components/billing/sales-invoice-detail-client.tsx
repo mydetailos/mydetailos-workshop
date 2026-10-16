@@ -425,6 +425,10 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
     bankAccountNumber,
     bankIfsc,
     bankUpi,
+    invoiceSignatureType,
+    invoiceSignatureUrl,
+    invoiceSignatoryTitle,
+    invoiceSignatoryName,
   } = useSettingsStore();
 
   const referralProgram = useReferralSettingsStore();
@@ -1099,6 +1103,10 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
         bankAccountNumber,
         bankIfsc,
         bankUpi,
+        invoiceSignatureType,
+        invoiceSignatureUrl,
+        invoiceSignatoryTitle,
+        invoiceSignatoryName,
       },
       payments,
       totalPaid,
@@ -1132,6 +1140,10 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
     bankAccountNumber,
     bankIfsc,
     bankUpi,
+    invoiceSignatureType,
+    invoiceSignatureUrl,
+    invoiceSignatoryTitle,
+    invoiceSignatoryName,
     referralAdvocateAmount,
     referralBuyerAmount,
     membershipForInvoice?.id,

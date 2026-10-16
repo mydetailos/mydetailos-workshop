@@ -38,6 +38,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set(
     "platform",
     "saas-admin",
     "customer",
+    "customer-login",
     "dashboard",
     "job-cards",
     "bookings",

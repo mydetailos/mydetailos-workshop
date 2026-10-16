@@ -12,7 +12,6 @@ import { useStaffStore } from "@/store/staff-store";
 import { useBranchStore } from "@/store/branch-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useJobCardStore } from "@/store/job-card-store";
-import { Badge } from "@/components/ui/badge";
 import { userCanEdit, userCanDelete } from "@/lib/rbac";
 import { PageHeader } from "@/components/shared/page-header";
 import { MobileFilterSheet } from "@/components/shared/mobile-filter-sheet";
@@ -28,7 +27,7 @@ import { ApiError } from "@/lib/api-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getInitials } from "@/lib/utils";
 import { getStaffJobStats } from "@/lib/staff-job-stats";
-import { getAssignableStaffRoles, canManageStaffUsers, canCreateStaffAccounts, roleDisplayLabel } from "@/lib/rbac";
+import { getAssignableStaffRoles, canCreateStaffAccounts, roleDisplayLabel } from "@/lib/rbac";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +48,6 @@ import {
   UserCog,
   Headset,
   WrenchIcon,
-  ClipboardList,
   IndianRupee,
   Crown,
   Building2,
@@ -62,6 +60,7 @@ import {
   UserX,
   MailCheck,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import type { User, UserRole } from "@/types";
 import { toast } from "sonner";
@@ -69,8 +68,15 @@ import { pushActivityLog } from "@/lib/activity-log-helper";
 import { useDashboardStoresReady } from "@/hooks/use-dashboard-stores-ready";
 import { PageSkeleton, RefreshingBar } from "@/components/shared/skeleton-loader";
 import { StaffAccessSelector } from "@/components/staff/staff-access-selector";
-import type { StaffAccessLevel } from "@/lib/staff-access";
+import { Switch } from "@/components/ui/switch";
+import {
+  permissionsHavePortalAccess,
+  NO_PORTAL_ACCESS_KEY,
+  type StaffAccessLevel,
+} from "@/lib/staff-access";
 import { buildInitialPermissions } from "@/lib/staff-role-defaults";
+import { useCustomRoleStore, type CustomRole } from "@/store/custom-role-store";
+import { CreateRoleDialog } from "@/components/staff/create-role-dialog";
 
 const ROLE_BADGE_MAP: Record<
   UserRole,
@@ -131,7 +137,25 @@ const FALLBACK_ROLE_BADGE = {
   icon: Users,
 } as const;
 
-function roleBadgeFor(role: string | undefined | null) {
+function roleBadgeFor(
+  role: string | undefined | null,
+  designation?: string | null,
+  customRoles?: CustomRole[]
+) {
+  if (designation) {
+    const customMatch = customRoles?.find(
+      (r) => r.name.toLowerCase() === designation.trim().toLowerCase()
+    );
+    if (customMatch) {
+      return {
+        label: customMatch.name,
+        className:
+          customMatch.badgeColor ||
+          "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+        icon: Sparkles,
+      };
+    }
+  }
   if (role && role in ROLE_BADGE_MAP) {
     return ROLE_BADGE_MAP[role as UserRole];
   }
@@ -151,35 +175,41 @@ const ALL_ROLES_FILTER: (UserRole | "ALL")[] = [
   "MECHANIC",
 ];
 
-/** Roles shown in the Add User form (UI only — backend role values unchanged). Super Admin is not assignable here. */
-const ADD_USER_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+/** All system roles assignable by administrators. */
+const ALL_ASSIGNABLE_SYSTEM_ROLES: { value: UserRole; label: string }[] = [
+  { value: "ADMIN", label: "Admin" },
   { value: "BRANCH_MANAGER", label: "Branch Manager" },
   { value: "MANAGER", label: "Manager" },
   { value: "SUPERVISOR", label: "Supervisor" },
   { value: "RECEPTIONIST", label: "Receptionist" },
+  { value: "MECHANIC", label: "Mechanic" },
 ];
 
-/** Users tab directory: office roles + Super Admin (counted as a user, not staff). */
+/** Roles shown in the Add User form. */
+const ADD_USER_ROLE_OPTIONS = ALL_ASSIGNABLE_SYSTEM_ROLES;
+
+/** Users tab directory: office roles + Super Admin. */
 const USER_DIRECTORY_ROLES = new Set<UserRole>([
   "SUPER_ADMIN",
-  ...ADD_USER_ROLE_OPTIONS.map((option) => option.value),
+  "ADMIN",
+  "BRANCH_MANAGER",
+  "MANAGER",
+  "SUPERVISOR",
+  "RECEPTIONIST",
 ]);
 
 const USER_ROLES_FILTER: (UserRole | "ALL")[] = [
   "ALL",
   "SUPER_ADMIN",
-  ...ADD_USER_ROLE_OPTIONS.map((o) => o.value),
+  "ADMIN",
+  "BRANCH_MANAGER",
+  "MANAGER",
+  "SUPERVISOR",
+  "RECEPTIONIST",
+  "MECHANIC",
 ];
 
-const STAFF_ROLES_FILTER: (UserRole | "ALL")[] = ALL_ROLES_FILTER.filter(
-  (role) => role === "ALL" || !USER_DIRECTORY_ROLES.has(role)
-);
-
-/** Roles shown in the Add Staff form (Super Admin cannot be assigned here). */
-const ADD_STAFF_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "ADMIN", label: "Admin" },
-  { value: "MECHANIC", label: "Mechanic" },
-];
+const STAFF_ROLES_FILTER: (UserRole | "ALL")[] = ALL_ROLES_FILTER;
 
 function suggestAddUserEmail(name: string, phoneDigits: string, existingEmails: Set<string>): string {
   const slug = name
@@ -188,7 +218,7 @@ function suggestAddUserEmail(name: string, phoneDigits: string, existingEmails: 
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.+|\.+$/g, "");
   const base = `${slug || "user"}.${phoneDigits}`;
-  let email = `${base}@mydetailos.local`;
+  const email = `${base}@mydetailos.local`;
   if (!existingEmails.has(email.toLowerCase())) return email;
   return `${base}.${Date.now().toString(36)}@mydetailos.local`;
 }
@@ -214,6 +244,8 @@ export default function StaffPage() {
   const addStaff = useStaffStore((s) => s.addStaff);
   const deleteStaff = useStaffStore((s) => s.deleteStaff);
   const jobCards = useJobCardStore((s) => s.jobCards);
+  const { customRoles } = useCustomRoleStore();
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
 
   const [mainTab, setMainTab] = useState<"staff" | "users">("staff");
   const [filterBranch, setFilterBranch] = useState<string>("all");
@@ -237,34 +269,34 @@ export default function StaffPage() {
 
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
-  const [newRole, setNewRole] = useState<UserRole>("BRANCH_MANAGER");
+  const [selectedRoleKey, setSelectedRoleKey] = useState<string>("MECHANIC");
   const [newAccess, setNewAccess] = useState<StaffAccessLevel>("withEditAccess");
+  const [newPortalAccess, setNewPortalAccess] = useState(true);
   const [newBranchId, setNewBranchId] = useState(defaultBranchId);
 
   const assignableRoles = useMemo(() => getAssignableStaffRoles(authRole, authPermissions), [authRole, authPermissions]);
-  const addUserRoleOptions = useMemo(
-    () =>
-      ADD_USER_ROLE_OPTIONS.filter((option) => assignableRoles.includes(option.value)),
-    [assignableRoles]
-  );
-  const addStaffRoleOptions = useMemo(
-    () =>
-      ADD_STAFF_ROLE_OPTIONS.filter((option) => assignableRoles.includes(option.value)),
-    [assignableRoles]
-  );
-  const activeAddRoleOptions =
-    addDialogMode === "users" ? addUserRoleOptions : addStaffRoleOptions;
-  const canManageUsers = canManageStaffUsers(authRole);
+  const allAvailableRoleOptions = useMemo(() => {
+    const system = ALL_ASSIGNABLE_SYSTEM_ROLES.filter((option) =>
+      assignableRoles.includes(option.value)
+    );
+    if (authRole === "SUPER_ADMIN" && !system.some((o) => o.value === "SUPER_ADMIN")) {
+      system.unshift({ value: "SUPER_ADMIN", label: "Super Admin" });
+    }
+    return system;
+  }, [assignableRoles, authRole]);
+  const activeAddRoleOptions = allAvailableRoleOptions;
 
   useEffect(() => {
     if (!dialogOpen) return;
-    if (
-      activeAddRoleOptions.length &&
-      !activeAddRoleOptions.some((option) => option.value === newRole)
-    ) {
-      queueMicrotask(() => setNewRole(activeAddRoleOptions[0]!.value));
+    const isCustom = selectedRoleKey.startsWith("custom:") && customRoles.some((r) => `custom:${r.id}` === selectedRoleKey);
+    const isSystem = allAvailableRoleOptions.some((option) => option.value === selectedRoleKey);
+    if (!isCustom && !isSystem && allAvailableRoleOptions.length > 0) {
+      const fallback = allAvailableRoleOptions[0]!.value;
+      queueMicrotask(() => {
+        setSelectedRoleKey(fallback);
+      });
     }
-  }, [dialogOpen, activeAddRoleOptions, newRole]);
+  }, [dialogOpen, allAvailableRoleOptions, selectedRoleKey, customRoles]);
 
   useEffect(() => {
     if (branchLocked && authUser?.branchId) {
@@ -323,14 +355,17 @@ export default function StaffPage() {
   const resetAddForm = (mode: "staff" | "users" = addDialogMode) => {
     setNewName("");
     setNewPhone("");
-    setNewRole(
+    const defaultRole =
       mode === "users"
-        ? addUserRoleOptions[0]?.value ?? "BRANCH_MANAGER"
-        : addStaffRoleOptions.find((option) => option.value === "MECHANIC")?.value ??
-            addStaffRoleOptions[0]?.value ??
-            "MECHANIC"
-    );
+        ? allAvailableRoleOptions.find((o) => o.value === "BRANCH_MANAGER")?.value ??
+          allAvailableRoleOptions[0]?.value ??
+          "BRANCH_MANAGER"
+        : allAvailableRoleOptions.find((o) => o.value === "MECHANIC")?.value ??
+          allAvailableRoleOptions[0]?.value ??
+          "MECHANIC";
+    setSelectedRoleKey(defaultRole);
     setNewAccess("withEditAccess");
+    setNewPortalAccess(true);
     setNewBranchId(branchLocked && authUser?.branchId ? authUser.branchId : defaultBranchId);
   };
 
@@ -417,7 +452,7 @@ export default function StaffPage() {
         key: "role",
         label: "Role",
         render: (item: User) => {
-          const badge = roleBadgeFor(item.role);
+          const badge = roleBadgeFor(item.role, item.designation, customRoles);
           const Icon = badge.icon;
           return (
             <span
@@ -464,16 +499,26 @@ export default function StaffPage() {
       {
         key: "isActive",
         label: "Status",
-        render: (item: User) => (
-          <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${item.isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${item.isActive ? "bg-emerald-500" : "bg-gray-400"}`}
-            />
-            {item.isActive ? "Active" : "Inactive"}
-          </span>
-        ),
+        render: (item: User) => {
+          const hasPortal = permissionsHavePortalAccess(item.permissions);
+          return (
+            <div className="flex flex-col gap-1 items-start">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${item.isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${item.isActive ? "bg-emerald-500" : "bg-gray-400"}`}
+                />
+                {item.isActive ? "Active" : "Inactive"}
+              </span>
+              {!hasPortal && (
+                <span className="inline-flex items-center text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                  No Portal Access
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         key: "jobs",
@@ -548,7 +593,7 @@ export default function StaffPage() {
         ),
       },
     ],
-    [staff, branches, staffJobStatsById, canManageUsers, deletingUserBusy]
+    [branches, staffJobStatsById, deletingUserBusy, customRoles]
   );
 
   const maxEmployeeCodeAttempts = 20;
@@ -573,7 +618,16 @@ export default function StaffPage() {
       toast.error("Please enter a valid 10-digit mobile number.");
       return;
     }
-    if (!activeAddRoleOptions.some((option) => option.value === newRole)) {
+    const selectedCustomRole = selectedRoleKey.startsWith("custom:")
+      ? customRoles.find((r) => r.id === selectedRoleKey.replace("custom:", ""))
+      : undefined;
+
+    const finalRole: UserRole = selectedCustomRole
+      ? selectedCustomRole.baseRole
+      : (selectedRoleKey as UserRole);
+
+    const validSystemRole = allAvailableRoleOptions.some((option) => option.value === finalRole);
+    if (!selectedCustomRole && !validSystemRole) {
       toast.error("Please select a valid role.");
       return;
     }
@@ -594,10 +648,15 @@ export default function StaffPage() {
       }
     }
     const branchId = branchLocked && authUser?.branchId ? authUser.branchId : newBranchId;
-    const permissions = buildInitialPermissions(
-      newRole,
-      addDialogMode === "users" ? newAccess : "withEditAccess"
-    );
+    const permissions = !newPortalAccess
+      ? [NO_PORTAL_ACCESS_KEY]
+      : selectedCustomRole
+      ? selectedCustomRole.permissions
+      : buildInitialPermissions(
+          finalRole,
+          addDialogMode === "users" ? newAccess : "withEditAccess"
+        );
+    const designation = selectedCustomRole ? selectedCustomRole.name : undefined;
     setCreatingUser(true);
     try {
       let finalEmployeeCode = "";
@@ -609,10 +668,11 @@ export default function StaffPage() {
             name,
             email,
             phone,
-            role: newRole,
+            role: finalRole,
             branchId,
             isActive: true,
             employeeCode: finalEmployeeCode,
+            designation,
             isAttendanceTracked: true,
             ...(permissions.length > 0 ? { permissions } : {}),
           });
@@ -723,34 +783,111 @@ export default function StaffPage() {
               })()}
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="role">{addDialogMode === "users" ? "User Role" : "Staff Role"}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="role">{addDialogMode === "users" ? "User Role" : "Staff Role"}</Label>
+                <button
+                  type="button"
+                  onClick={() => setRoleDialogOpen(true)}
+                  className="text-xs text-teal-600 hover:underline inline-flex items-center gap-1 font-medium"
+                >
+                  <Plus className="size-3" /> Create Role
+                </button>
+              </div>
               <Select
                 required
-                disabled={activeAddRoleOptions.length === 0}
-                value={newRole}
-                onValueChange={(v) => setNewRole(v as UserRole)}
+                disabled={allAvailableRoleOptions.length === 0}
+                value={selectedRoleKey}
+                onValueChange={setSelectedRoleKey}
               >
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
-                <SelectContent>
-                  {activeAddRoleOptions.map((option) => (
+                <SelectContent className="max-h-64">
+                  <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    All Roles
+                  </div>
+                  {allAvailableRoleOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
+                  {customRoles.length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-t mt-1 pt-1">
+                        Custom Roles
+                      </div>
+                      {customRoles.map((cr) => (
+                        <SelectItem key={`custom:${cr.id}`} value={`custom:${cr.id}`}>
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="size-3.5 text-teal-600" />
+                            <span>{cr.name}</span>
+                            <span className="text-xs text-muted-foreground font-normal">
+                              ({roleDisplayLabel(cr.baseRole)})
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
-            {addDialogMode === "users" ? (
+            {!selectedRoleKey.startsWith("custom:") ? (
               <div className="space-y-2 sm:col-span-2">
                 <StaffAccessSelector
                   value={newAccess}
                   onChange={setNewAccess}
                   name="add-user-access"
+                  showPortalToggle
+                  portalAccess={newPortalAccess}
+                  onPortalAccessChange={setNewPortalAccess}
                 />
               </div>
-            ) : null}
+            ) : (
+              <div className="sm:col-span-2 space-y-3">
+                <div className="flex items-center justify-between p-3.5 rounded-xl border bg-muted/30 dark:bg-muted/10 transition-colors">
+                  <div className="space-y-0.5 pr-4">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="add-custom-portal-toggle" className="text-sm font-semibold cursor-pointer">
+                        Portal Access
+                      </Label>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                          newPortalAccess
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
+                            : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400"
+                        }`}
+                      >
+                        {newPortalAccess ? "Active" : "Disabled"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Allow this staff member to log in and use the workshop portal.
+                    </p>
+                  </div>
+                  <Switch
+                    id="add-custom-portal-toggle"
+                    checked={newPortalAccess}
+                    onCheckedChange={setNewPortalAccess}
+                  />
+                </div>
+                {newPortalAccess ? (
+                  <div className="p-2.5 rounded-lg bg-teal-50/70 border border-teal-200/80 text-xs text-teal-800 dark:bg-teal-950/20 dark:text-teal-300">
+                    Custom role &ldquo;{customRoles.find((r) => r.id === selectedRoleKey.replace("custom:", ""))?.name}&rdquo; applies pre-configured module permissions.
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-lg border border-amber-200/80 bg-amber-50/60 dark:bg-amber-950/20 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                    <Shield className="size-4 shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Portal access is turned off</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        This staff member will not be able to log in to the workshop web portal.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={creatingUser}>
@@ -776,6 +913,17 @@ export default function StaffPage() {
         inlineActionsOnMobile
         actions={
           <div className="flex flex-wrap gap-2">
+            {canCreateStaffAccounts(authRole) ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 whitespace-nowrap gap-1.5"
+                onClick={() => setRoleDialogOpen(true)}
+              >
+                <Shield className="w-4 h-4 text-teal-600" />
+                Create Role
+              </Button>
+            ) : null}
             {canCreateStaffAccounts(authRole) && mainTab === "staff" ? (
               <Button
                 size="sm"
@@ -801,6 +949,13 @@ export default function StaffPage() {
       />
 
       {addAccountDialog}
+      <CreateRoleDialog
+        open={roleDialogOpen}
+        onOpenChange={setRoleDialogOpen}
+        onRoleCreated={(id) => {
+          setSelectedRoleKey(`custom:${id}`);
+        }}
+      />
 
       <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "staff" | "users")}>
         <TabsList>
@@ -837,7 +992,7 @@ export default function StaffPage() {
               }
               renderMobileCard={(item) => {
                 const u = item as User;
-                const badge = roleBadgeFor(u.role);
+                const badge = roleBadgeFor(u.role, u.designation, customRoles);
                 const Icon = badge.icon;
                 const branch = branches.find((b) => b.id === u.branchId);
                 return (
@@ -870,6 +1025,11 @@ export default function StaffPage() {
                         <Icon className="size-2.5 shrink-0" />
                         {badge.label}
                       </span>
+                      {!permissionsHavePortalAccess(u.permissions) && (
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-400">
+                          No Portal Access
+                        </span>
+                      )}
                       <span className="text-[11px] text-muted-foreground">
                         {u.phone?.trim() || "No phone"}
                         {showBranchPicker ? ` · ${branch?.name ?? "—"}` : ""}
@@ -1123,7 +1283,7 @@ export default function StaffPage() {
               }
               renderMobileCard={(item) => {
                 const u = item as User;
-                const badge = roleBadgeFor(u.role);
+                const badge = roleBadgeFor(u.role, u.designation, customRoles);
                 const Icon = badge.icon;
                 const branch = branches.find((b) => b.id === u.branchId);
                 return (
@@ -1156,6 +1316,11 @@ export default function StaffPage() {
                         <Icon className="size-2.5 shrink-0" />
                         {badge.label}
                       </span>
+                      {!permissionsHavePortalAccess(u.permissions) && (
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/30 dark:text-amber-400">
+                          No Portal Access
+                        </span>
+                      )}
                       <span className="text-[11px] text-muted-foreground">
                         {u.phone?.trim() || "No phone"}
                         {showBranchPicker ? ` · ${branch?.name ?? "—"}` : ""}

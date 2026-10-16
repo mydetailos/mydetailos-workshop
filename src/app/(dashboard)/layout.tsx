@@ -14,7 +14,11 @@ import { DomainDataSync } from "@/components/layout/domain-data-sync";
 import { Button } from "@/components/ui/button";
 import { navItemForPath } from "@/lib/nav-items";
 import { canAccessNavItem } from "@/lib/rbac";
-import { isHrStaffNavPath, userHasWithoutEditAccess } from "@/lib/staff-access";
+import {
+  isHrStaffNavPath,
+  userHasWithoutEditAccess,
+  userHasPortalAccess,
+} from "@/lib/staff-access";
 import { useSidebarStore } from "@/store/sidebar-store";
 import { cn } from "@/lib/utils";
 import { SubscriptionRenewBanner } from "@/components/billing/subscription-renew-banner";
@@ -117,6 +121,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!authReady || !sessionChecked || !isAuthenticated || !user) return;
     if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") return;
+    if (!userHasPortalAccess(user)) {
+      toast.error("Access Denied", {
+        description: "Portal access is disabled for your account. Please contact your administrator.",
+      });
+      void router.replace(tenantHref("/login"));
+      return;
+    }
     if (userHasWithoutEditAccess(user) && isHrStaffNavPath(appPath)) {
       toast.error("Access Denied", {
         description: "HR & Staff is not available without edit access.",
