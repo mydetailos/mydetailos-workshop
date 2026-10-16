@@ -90,26 +90,28 @@ export default function CustomerLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branding, setBranding] = useState<PublicBranding | null>(null);
+  const [activeOrgSlug, setActiveOrgSlug] = useState<string | null>(orgSlug);
+  const currentSlug = orgSlug || activeOrgSlug;
   const verifyLock = useRef(false);
 
   useEffect(() => {
-    if (!orgSlug) {
-      window.location.replace(marketingHomeUrl());
+    if (orgSlug) {
+      setActiveOrgSlug(orgSlug);
     }
   }, [orgSlug]);
 
   useEffect(() => {
-    if (!orgSlug) return;
     if (isAuthenticated) {
-      router.replace(tenantHref("/customer/dashboard"));
+      const dest = currentSlug ? `/${currentSlug}/customer/dashboard` : "/customer/dashboard";
+      router.replace(dest);
     }
-  }, [isAuthenticated, router, tenantHref, orgSlug]);
+  }, [isAuthenticated, router, currentSlug]);
 
   useEffect(() => {
-    if (!orgSlug) return;
+    if (!currentSlug) return;
     let cancelled = false;
     void apiGet<PublicBranding>(
-      `/api/public/branding?slug=${encodeURIComponent(orgSlug)}`
+      `/api/public/branding?slug=${encodeURIComponent(currentSlug)}`
     )
       .then((data) => {
         if (!cancelled) setBranding(data);
@@ -120,7 +122,7 @@ export default function CustomerLoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [orgSlug]);
+  }, [currentSlug]);
 
   useEffect(() => {
     if (!otpSent || resendCountdown <= 0) return;
@@ -129,14 +131,6 @@ export default function CustomerLoginPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [otpSent, resendCountdown]);
-
-  if (!orgSlug) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="h-10 w-10 rounded-full border-2 border-teal-600/30 border-t-teal-600 animate-spin" />
-      </div>
-    );
-  }
 
   function switchMethod(method: LoginMethod) {
     if (loginMethod === method) return;
@@ -159,10 +153,13 @@ export default function CustomerLoginPage() {
     setOtpHint(null);
     setLoading(true);
 
-    const result = await sendOtp(digits, orgSlug);
+    const result = await sendOtp(digits, currentSlug);
     setLoading(false);
 
     if (result.ok) {
+      if (result.organizationSlug) {
+        setActiveOrgSlug(result.organizationSlug);
+      }
       setOtp("");
       setOtpSent(true);
       setResendCountdown(30);
@@ -188,12 +185,14 @@ export default function CustomerLoginPage() {
     setError(null);
     setLoading(true);
 
-    const result = await loginWithOtp(phone, digits, orgSlug);
+    const result = await loginWithOtp(phone, digits, currentSlug);
     setLoading(false);
 
     if (result.ok) {
       toast.success("Login successful");
-      router.replace(tenantHref("/customer/dashboard"));
+      const targetSlug = result.organizationSlug || currentSlug;
+      const dest = targetSlug ? `/${targetSlug}/customer/dashboard` : "/customer/dashboard";
+      router.replace(dest);
     } else {
       setError(result.message);
       toast.error(result.message);
@@ -216,12 +215,14 @@ export default function CustomerLoginPage() {
     setError(null);
     setLoading(true);
 
-    const result = await login(phone, password, orgSlug);
+    const result = await login(phone, password, currentSlug);
     setLoading(false);
 
     if (result.ok) {
       toast.success("Login successful");
-      router.replace(tenantHref("/customer/dashboard"));
+      const targetSlug = result.organizationSlug || currentSlug;
+      const dest = targetSlug ? `/${targetSlug}/customer/dashboard` : "/customer/dashboard";
+      router.replace(dest);
     } else {
       setError(result.message);
       toast.error(result.message);

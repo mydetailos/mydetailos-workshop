@@ -15,25 +15,25 @@ interface CustomerAuthState {
   isAuthenticated: boolean;
   accessToken: string | null;
 
-  /** Login with phone and password (tenant-scoped via organizationSlug). */
+  /** Login with phone and password (tenant-scoped via organizationSlug or auto-resolved). */
   login: (
     phone: string,
     password: string,
     organizationSlug?: string | null
-  ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  ) => Promise<{ ok: true; organizationSlug?: string } | { ok: false; message: string }>;
 
-  /** Send OTP via WhatsApp to customer mobile (tenant-scoped via organizationSlug). */
+  /** Send OTP via WhatsApp to customer mobile (tenant-scoped via organizationSlug or auto-resolved). */
   sendOtp: (
     phone: string,
     organizationSlug?: string | null
-  ) => Promise<{ ok: true; delivery?: string; hint?: string } | { ok: false; message: string }>;
+  ) => Promise<{ ok: true; delivery?: string; hint?: string; organizationSlug?: string; organizationName?: string } | { ok: false; message: string }>;
 
-  /** Login with mobile and OTP (tenant-scoped via organizationSlug). */
+  /** Login with mobile and OTP (tenant-scoped via organizationSlug or auto-resolved). */
   loginWithOtp: (
     phone: string,
     otp: string,
     organizationSlug?: string | null
-  ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  ) => Promise<{ ok: true; organizationSlug?: string } | { ok: false; message: string }>;
   
   /** Verify and apply JWT session */
   applyAuthPayload: (data: CustomerAuthSessionPayload) => void;
@@ -69,22 +69,23 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
           return { ok: false, message: "Enter your password" };
         }
         const slug = typeof organizationSlug === "string" ? organizationSlug.trim() : "";
-        if (!slug) {
-          return {
-            ok: false,
-            message: "Open your workshop customer portal link to sign in.",
-          };
-        }
+        const payload: Record<string, string> = { phone: digits, password };
+        if (slug) payload.organizationSlug = slug;
 
         try {
           const res = await fetch(buildApiUrl("/api/auth/customer/login"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone: digits, password, organizationSlug: slug }),
+            body: JSON.stringify(payload),
           });
 
           const body = (await res.json()) as {
-            data?: { accessToken: string; user: Omit<CustomerUser, "role" | "customerId"> } | null;
+            data?: {
+              accessToken: string;
+              user: Omit<CustomerUser, "role" | "customerId">;
+              organizationSlug?: string;
+              organizationName?: string;
+            } | null;
             error?: { message?: string } | null;
           };
 
@@ -107,7 +108,7 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
             isAuthenticated: true,
           });
 
-          return { ok: true };
+          return { ok: true, organizationSlug: body.data.organizationSlug };
         } catch {
           return {
             ok: false,
@@ -122,22 +123,24 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
           return { ok: false, message: "Enter a valid 10-digit mobile number" };
         }
         const slug = typeof organizationSlug === "string" ? organizationSlug.trim() : "";
-        if (!slug) {
-          return {
-            ok: false,
-            message: "Open your workshop customer portal link to request an OTP.",
-          };
-        }
+        const payload: Record<string, string> = { phone: digits };
+        if (slug) payload.organizationSlug = slug;
 
         try {
           const res = await fetch(buildApiUrl("/api/auth/customer/otp/send"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone: digits, organizationSlug: slug }),
+            body: JSON.stringify(payload),
           });
 
           const body = (await res.json()) as {
-            data?: { success?: boolean; delivery?: string; hint?: string } | null;
+            data?: {
+              ok?: boolean;
+              delivery?: string;
+              hint?: string;
+              organizationSlug?: string;
+              organizationName?: string;
+            } | null;
             error?: { message?: string } | null;
           };
 
@@ -152,6 +155,8 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
             ok: true,
             delivery: body.data.delivery,
             hint: body.data.hint,
+            organizationSlug: body.data.organizationSlug,
+            organizationName: body.data.organizationName,
           };
         } catch {
           return {
@@ -171,22 +176,23 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
           return { ok: false, message: "Enter a valid verification code" };
         }
         const slug = typeof organizationSlug === "string" ? organizationSlug.trim() : "";
-        if (!slug) {
-          return {
-            ok: false,
-            message: "Open your workshop customer portal link to sign in.",
-          };
-        }
+        const payload: Record<string, string> = { phone: digits, otp: otpDigits };
+        if (slug) payload.organizationSlug = slug;
 
         try {
           const res = await fetch(buildApiUrl("/api/auth/customer/login"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone: digits, otp: otpDigits, organizationSlug: slug }),
+            body: JSON.stringify(payload),
           });
 
           const body = (await res.json()) as {
-            data?: { accessToken: string; user: Omit<CustomerUser, "role" | "customerId"> } | null;
+            data?: {
+              accessToken: string;
+              user: Omit<CustomerUser, "role" | "customerId">;
+              organizationSlug?: string;
+              organizationName?: string;
+            } | null;
             error?: { message?: string } | null;
           };
 
@@ -209,7 +215,7 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
             isAuthenticated: true,
           });
 
-          return { ok: true };
+          return { ok: true, organizationSlug: body.data.organizationSlug };
         } catch {
           return {
             ok: false,
