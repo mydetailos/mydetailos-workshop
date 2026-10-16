@@ -28,6 +28,12 @@ export function OtpInput({
     inputsRef.current[0]?.focus();
   }, []);
 
+  useEffect(() => {
+    if (value === "") {
+      inputsRef.current[0]?.focus();
+    }
+  }, [value]);
+
   const commit = (next: string) => {
     const cleaned = next.replace(/\D/g, "").slice(0, length);
     onChange(cleaned);
@@ -106,9 +112,9 @@ export function OtpInput({
           onKeyDown={(e) => handleKeyDown(index, e)}
           onFocus={(e) => e.target.select()}
           className={cn(
-            "h-12 w-12 sm:h-14 sm:w-14 rounded-xl border border-slate-200 bg-white text-center text-xl font-semibold font-mono tabular-nums",
-            "transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none",
-            "dark:border-slate-700 dark:bg-slate-800/50",
+            "h-11 w-11 sm:h-12 sm:w-12 rounded-xl border-2 border-slate-300 bg-white text-center text-xl font-semibold font-mono tabular-nums text-slate-900",
+            "transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 focus:outline-none",
+            "dark:border-slate-700 dark:bg-slate-800/50 dark:text-white",
             disabled && "opacity-50 cursor-not-allowed"
           )}
         />
