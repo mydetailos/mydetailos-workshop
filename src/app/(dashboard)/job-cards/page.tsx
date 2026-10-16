@@ -51,6 +51,10 @@ import { RecordPaymentDialog } from "@/components/billing/record-payment-dialog"
 import { createOrGetInvoiceForJob } from "@/lib/invoice-from-job-card";
 import { buildJobCardTemplateMessage, defaultWhatsAppTemplateForStatus } from "@/lib/job-card-whatsapp-templates";
 import { sendCustomerWhatsApp, openWhatsAppComposer } from "@/lib/whatsapp-send";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildJobCardCreatedVariables,
+} from "@/lib/twilio-templates-config";
 import { buildJobCardPhotosWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
 import { getCustomerPortalAbsoluteUrl, getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
@@ -312,9 +316,25 @@ export default function JobCardsPage() {
       return;
     }
 
+    const template =
+      (jc.status === "RECEIVED" || jc.status === "INSPECTION" || templateId === "vehicle_arrived") &&
+      TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED
+        ? {
+            contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED,
+            contentVariables: buildJobCardCreatedVariables({
+              customerName: jc.customerName,
+              businessName,
+              jobNumber: jc.jobNumber,
+              vehicleStr: `${jc.vehicleMakeModel || ""} ${jc.vehicleRegNumber ? `(${jc.vehicleRegNumber})` : ""}`.trim() || "Vehicle",
+              services: jc.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service",
+              portalUrl: getCustomerPortalLoginUrl(),
+            }),
+          }
+        : undefined;
+
     const toastId = toast.loading("Sending WhatsApp message...");
     try {
-      await sendCustomerWhatsApp(phone, body);
+      await sendCustomerWhatsApp(phone, body, template);
       toast.success("WhatsApp message sent successfully", { id: toastId });
     } catch (e) {
       console.error(e);

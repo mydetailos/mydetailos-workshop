@@ -8,10 +8,11 @@
 
 export const TWILIO_TEMPLATE_SIDS = {
   // Customer & Portal
-  CUSTOMER_WELCOME: "HX2656ed64ee960fb6995f9211b4b71c72", // customer_portal_login_v2
+  CUSTOMER_WELCOME: "HXc25b2ea428f2a532f4356c73ff02e76c", // customer_welcome_utility (approved UTILITY)
   AUTH_VERIFICATION: "HXf1c8e1cbd228b0ab0700445712169f1e", // WhatsApp authentication (OTP)
 
   // Service & Reminders
+  JOB_CARD_CREATED: "HXbc4e0ac2bdef379fe6acc1b3a7f128c1", // job_card_created_v3 (UTILITY)
   SERVICE_REMINDER: "HX7eb233c8252b14bee9403c8eb4bd1fea", // service_reminder_exact
   INSPECTION_REPORT: "HXe3ca0b811651060e2d338d598eef2270", // inspection_report_v2
 
@@ -19,14 +20,50 @@ export const TWILIO_TEMPLATE_SIDS = {
   PAYMENT_PENDING: "HX429538b3d8638a6ef9c0aff78dc0c933", // payment_pending_exact_v2
 
   // SaaS / Studio Owner
-  OWNER_TRIAL_LOGIN: "HXe75d4fd3589625f967fd09cb3dd4cad8", // owner_trial_started_login
+  OWNER_TRIAL_LOGIN: "HX017ae6f1929692e858e682d6ce214cc4", // owner_trial_started_utility (approved UTILITY)
   OWNER_PLAN_ACTIVATED: "HX6614aca21b384ae0eb0089e30eb11981", // owner_plan_activated_exact
   OWNER_PAYMENT_LINK: "HX1bede6b642ec0b693a58bb793bb99558", // owner_payment_link_exact
 };
 
 /**
- * Customer Welcome (customer_portal_login_v2: HX2656ed64ee960fb6995f9211b4b71c72)
- * Template: "Hi {{1}}, your customer account for {{2}} is now active 🚗..."
+ * Job Card Created (job_card_created_v3: HXbc4e0ac2bdef379fe6acc1b3a7f128c1)
+ * Template:
+ * "Hi {{1}}! 👋
+ *  Your job card has been created at {{2}}. 🚗
+ * 
+ *  📋 Job: {{3}}
+ *  🟢 Status: Received
+ *  🚗 Vehicle: {{4}}
+ *  🔧 Services: {{5}}
+ * 
+ *  Track your live status online:
+ *  🔗 {{6}}
+ * 
+ *  Thank you,
+ *  {{2}} team."
+ */
+export function buildJobCardCreatedVariables(opts: {
+  customerName: string;
+  businessName: string;
+  jobNumber: string;
+  vehicleStr: string;
+  services: string;
+  portalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.jobNumber,
+    "4": opts.vehicleStr,
+    "5": opts.services,
+    "6": opts.portalUrl,
+  };
+}
+
+/**
+ * Customer Welcome (customer_welcome_utility: HXc25b2ea428f2a532f4356c73ff02e76c)
+ * Template: "Hi {{1}}, your customer account for {{2}} is now active..."
  */
 export function buildCustomerWelcomeVariables(
   customerName: string,

@@ -27,6 +27,10 @@ import { executeCustomerWhatsAppAutomation } from "@/lib/whatsapp-automation-flo
 import { useJobCardStore } from "@/store/job-card-store";
 import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildJobCardCreatedVariables,
+} from "@/lib/twilio-templates-config";
 
 function branchIdForJobCardId(jobCardId: string | undefined): string | undefined {
   if (!jobCardId) return undefined;
@@ -40,16 +44,36 @@ export function notifyBeforePhotosReadyWhatsApp(
 ): void {
   const phone = job.customerPhone?.trim();
   if (!phone) return;
+  const workshopName = resolveWorkshopDisplayName({ businessName });
   const portalUrl = getCustomerPortalLoginUrl();
   const message = buildBeforePhotosReadyWhatsAppMessage(job, {
-    businessName: resolveWorkshopDisplayName({ businessName }),
+    businessName: workshopName,
     portalUrl,
     temporaryPassword: opts?.temporaryPassword,
     customerPhone: phone,
   });
+
+  const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+  const serviceList = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service";
+
+  const template = TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED,
+        contentVariables: buildJobCardCreatedVariables({
+          customerName: job.customerName,
+          businessName: workshopName,
+          jobNumber: job.jobNumber,
+          vehicleStr,
+          services: serviceList,
+          portalUrl,
+        }),
+      }
+    : undefined;
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message,
+    template,
     titles: {
       api: "Check-in photos — WhatsApp sent",
       composer: "Check-in photos — WhatsApp composer",

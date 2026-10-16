@@ -12,6 +12,7 @@ import {
 export async function executeCustomerWhatsAppAutomation(opts: {
   phone: string;
   message: string;
+  template?: { contentSid?: string; contentVariables?: Record<string, string> };
   titles: { api: string; composer: string };
   /** Staff notification summary line */
   notificationSummary: string;
@@ -42,7 +43,7 @@ export async function executeCustomerWhatsAppAutomation(opts: {
   };
 
   try {
-    await sendCustomerWhatsApp(phone, opts.message);
+    await sendCustomerWhatsApp(phone, opts.message, opts.template);
     pushStaffNotify("api");
     if (opts.activityLog) {
       pushActivityLog({

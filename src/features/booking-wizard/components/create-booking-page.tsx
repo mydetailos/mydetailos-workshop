@@ -30,6 +30,12 @@ import {
   appendAdvanceAckToJobMessage,
   buildJobCardCustomerWhatsAppMessage,
 } from "@/lib/whatsapp-customer-messages";
+import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
+import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildJobCardCreatedVariables,
+} from "@/lib/twilio-templates-config";
 import { format } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -238,7 +244,26 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       });
     };
     try {
-      await sendCustomerWhatsApp(phone, message);
+      const currentBusinessName = useSettingsStore.getState().businessName;
+      const workshopName = resolveWorkshopDisplayName({ businessName: currentBusinessName });
+      const portalUrl = getCustomerPortalLoginUrl();
+      const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+      const serviceList = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service";
+      const template = TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED
+        ? {
+            contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED,
+            contentVariables: buildJobCardCreatedVariables({
+              customerName: job.customerName,
+              businessName: workshopName,
+              jobNumber: job.jobNumber,
+              vehicleStr,
+              services: serviceList,
+              portalUrl,
+            }),
+          }
+        : undefined;
+
+      await sendCustomerWhatsApp(phone, message, template);
       toast.success("WhatsApp sent to customer", { description: phone });
       notify("api");
     } catch (e) {
@@ -2136,12 +2161,27 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     }
   };
 
-  const dismissCheckIn = () => {
+  const dismissCheckIn = async () => {
     setCheckInPhotos((prev) => {
       prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       return [];
     });
     const jid = checkInJobIdRef.current;
+    if (jid) {
+      const existingJob = useJobCardStore.getState().jobCards.find((j) => j.id === jid);
+      if (existingJob) {
+        const lsKey = `checkin-whatsapp-sent:${existingJob.id}`;
+        const alreadySent = typeof localStorage !== "undefined" && localStorage.getItem(lsKey) === "1";
+        if (!alreadySent) {
+          if (typeof localStorage !== "undefined") localStorage.setItem(lsKey, "1");
+          const { notifyBeforePhotosReadyWhatsApp } = await import("@/lib/whatsapp-automation-triggers");
+          notifyBeforePhotosReadyWhatsApp(existingJob, businessName, {
+            temporaryPassword: newCustomerTempPassRef.current,
+          });
+          newCustomerTempPassRef.current = undefined;
+        }
+      }
+    }
     checkInJobIdRef.current = null;
     setCheckInOpen(false);
     setCheckInJob(null);

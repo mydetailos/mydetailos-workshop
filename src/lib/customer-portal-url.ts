@@ -40,11 +40,26 @@ export function getCustomerPortalAbsoluteUrl(
 
 function resolveAppOrigin(override?: string | null): string {
   const fromOpt = typeof override === "string" ? override.trim().replace(/\/$/, "") : "";
-  if (fromOpt) return fromOpt;
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin.replace(/\/$/, "");
+  let origin = fromOpt;
+  if (!origin && typeof window !== "undefined" && window.location?.origin) {
+    origin = window.location.origin.replace(/\/$/, "");
   }
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  if (!origin) {
+    origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  }
+  // Sanitize: ensure portal link never points to the marketing site root (www.mydetailos.com or mydetailos.com)
+  if (
+    origin &&
+    (origin.includes("www.mydetailos.com") ||
+      origin === "https://mydetailos.com" ||
+      origin === "http://mydetailos.com")
+  ) {
+    origin = "https://app.mydetailos.com";
+  }
+  if (!origin && typeof window === "undefined" && process.env.NODE_ENV === "production") {
+    origin = "https://app.mydetailos.com";
+  }
+  return origin;
 }
 
 function normalizeSlug(value: unknown): string | null {
