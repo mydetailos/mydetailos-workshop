@@ -11,6 +11,12 @@ import { ApiError } from "@/lib/api-client";
 import { useNotificationStore } from "@/store/notification-store";
 import { useJobCardStore } from "@/store/job-card-store";
 import { pushActivityLog } from "@/lib/activity-log-helper";
+import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
+import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildPaymentReceivedVariables,
+} from "@/lib/twilio-templates-config";
 
 /**
  * Sends a WhatsApp payment confirmation after `recordPayment` succeeds.
@@ -28,6 +34,9 @@ export async function notifyCustomerPaymentRecordedWhatsApp(params: {
   const phone = params.invoice.customerPhone?.trim();
   if (!phone) return;
 
+  const workshopName = resolveWorkshopDisplayName({ businessName: params.businessName });
+  const portalUrl = getCustomerPortalLoginUrl();
+
   const message = buildInvoicePaymentReceivedWhatsAppMessage(
     params.invoice,
     {
@@ -37,8 +46,25 @@ export async function notifyCustomerPaymentRecordedWhatsApp(params: {
       paidAt: params.paidAt,
     },
     params.remainingBalanceAfter,
-    { businessName: params.businessName }
+    { businessName: workshopName }
   );
+
+  const vehicleStr = params.invoice.vehicleRegNumber || "Vehicle";
+  const template = TWILIO_TEMPLATE_SIDS.PAYMENT_RECEIVED
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.PAYMENT_RECEIVED,
+        contentVariables: buildPaymentReceivedVariables({
+          customerName: params.invoice.customerName,
+          businessName: workshopName,
+          invoiceNumber: params.invoice.invoiceNumber,
+          vehicleStr,
+          amountPaid: formatCurrency(params.amount),
+          method: params.method,
+          remainingBalance: formatCurrency(Math.max(0, params.remainingBalanceAfter)),
+          portalUrl,
+        }),
+      }
+    : undefined;
 
   const billingHref = `/billing/${params.invoice.id}`;
   const branchId = useJobCardStore
@@ -68,7 +94,7 @@ export async function notifyCustomerPaymentRecordedWhatsApp(params: {
   };
 
   try {
-    await sendCustomerWhatsApp(phone, message);
+    await sendCustomerWhatsApp(phone, message, template);
     notify("api");
     logPaymentWa(`payment confirmation sent via WhatsApp to ${params.invoice.customerName}`);
   } catch (err) {

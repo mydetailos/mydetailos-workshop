@@ -8,15 +8,19 @@
 
 export const TWILIO_TEMPLATE_SIDS = {
   // Customer & Portal
-  CUSTOMER_WELCOME: "HXc25b2ea428f2a532f4356c73ff02e76c", // customer_welcome_utility (approved UTILITY)
+  CUSTOMER_WELCOME: "HXa15928c2342c1604e358f8152a79dd45", // cust_welcome_utility_v2 (approved UTILITY)
   AUTH_VERIFICATION: "HXf1c8e1cbd228b0ab0700445712169f1e", // WhatsApp authentication (OTP)
 
   // Service & Reminders
-  JOB_CARD_CREATED: "HXbc4e0ac2bdef379fe6acc1b3a7f128c1", // job_card_created_v3 (UTILITY)
+  JOB_CARD_CREATED: "HXbc4e0ac2bdef379fe6acc1b3a7f128c1", // job_card_created_v3 (approved UTILITY)
+  JOB_CARD_READY: "HX67fe4e7fead33acd40e482197767bdf8", // job_card_ready_for_pickup (UTILITY)
+  JOB_DELIVERED: "HXf36d3b11526768d4623e917fd9b52b3c", // job_delivered_confirmation (UTILITY)
   SERVICE_REMINDER: "HX7eb233c8252b14bee9403c8eb4bd1fea", // service_reminder_exact
   INSPECTION_REPORT: "HXe3ca0b811651060e2d338d598eef2270", // inspection_report_v2
 
   // Invoices & Billing
+  INVOICE_CREATED: "HX80046e56ada2f400631a63e821f530f9", // invoice_created_collect_car (UTILITY)
+  PAYMENT_RECEIVED: "HX8f6f9a652fe4e845e48f3305d3a212d3", // payment_received_invoice_link (UTILITY)
   PAYMENT_PENDING: "HX429538b3d8638a6ef9c0aff78dc0c933", // payment_pending_exact_v2
 
   // SaaS / Studio Owner
@@ -62,18 +66,185 @@ export function buildJobCardCreatedVariables(opts: {
 }
 
 /**
- * Customer Welcome (customer_welcome_utility: HXc25b2ea428f2a532f4356c73ff02e76c)
- * Template: "Hi {{1}}, your customer account for {{2}} is now active..."
+ * Job Card Ready for Pickup (job_card_ready_for_pickup: HX67fe4e7fead33acd40e482197767bdf8)
+ * Template:
+ * "Hi {{1}}! 🎉
+ *  Your vehicle is ready for pickup from {{2}}. 🚗✨
+ * 
+ *  📋 Job: {{3}}
+ *  🟢 Status: Ready for Pickup
+ *  🚗 Vehicle: {{4}}
+ *  🔧 Services Completed: {{5}}
+ * 
+ *  Track your vehicle status & invoice online:
+ *  🔗 {{6}}
+ * 
+ *  Please collect your vehicle at your convenience.
+ * 
+ *  Thank you,
+ *  {{2}} team."
+ */
+export function buildJobReadyForPickupVariables(opts: {
+  customerName: string;
+  businessName: string;
+  jobNumber: string;
+  vehicleStr: string;
+  services: string;
+  portalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.jobNumber,
+    "4": opts.vehicleStr,
+    "5": opts.services,
+    "6": opts.portalUrl,
+  };
+}
+
+/**
+ * Invoice Created / Collect Car (invoice_created_collect_car: HX80046e56ada2f400631a63e821f530f9)
+ * Template:
+ * "Hi {{1}}! 🧾
+ *  Your invoice has been generated for your vehicle at {{2}}.
+ * 
+ *  📋 Invoice: {{3}}
+ *  🚗 Vehicle: {{4}}
+ *  💰 Total Amount: {{5}}
+ *  💳 Balance Due: {{6}}
+ * 
+ *  View your invoice and payment details:
+ *  🔗 {{7}}
+ * 
+ *  Your car is ready. Please collect your vehicle at your convenience.
+ * 
+ *  Thank you,
+ *  {{2}} team."
+ */
+export function buildInvoiceCreatedVariables(opts: {
+  customerName: string;
+  businessName: string;
+  invoiceNumber: string;
+  vehicleStr: string;
+  totalAmount: string;
+  balanceDue: string;
+  portalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.invoiceNumber,
+    "4": opts.vehicleStr,
+    "5": opts.totalAmount,
+    "6": opts.balanceDue,
+    "7": opts.portalUrl,
+  };
+}
+
+/**
+ * Payment Received (payment_received_invoice_link: HX8f6f9a652fe4e845e48f3305d3a212d3)
+ * Template:
+ * "Hi {{1}}! ✅
+ *  We have received your payment for {{2}}.
+ * 
+ *  📋 Invoice: {{3}}
+ *  🚗 Vehicle: {{4}}
+ *  💰 Amount Paid: {{5}} ({{6}})
+ *  💳 Remaining Balance: {{7}}
+ * 
+ *  View your paid invoice and receipt online:
+ *  🔗 {{8}}
+ * 
+ *  Thank you for your payment!
+ * 
+ *  Best regards,
+ *  {{2}} team."
+ */
+export function buildPaymentReceivedVariables(opts: {
+  customerName: string;
+  businessName: string;
+  invoiceNumber: string;
+  vehicleStr: string;
+  amountPaid: string;
+  method: string;
+  remainingBalance: string;
+  portalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.invoiceNumber,
+    "4": opts.vehicleStr,
+    "5": opts.amountPaid,
+    "6": opts.method,
+    "7": opts.remainingBalance,
+    "8": opts.portalUrl,
+  };
+}
+
+/**
+ * Job Delivered (job_delivered_confirmation: HXf36d3b11526768d4623e917fd9b52b3c)
+ * Template:
+ * "Hi {{1}}! 🎉
+ *  Your vehicle {{3}} has been successfully delivered from {{2}}.
+ * 
+ *  📋 Job: {{4}}
+ *  🟢 Status: Delivered
+ * 
+ *  Track your service history and invoices anytime:
+ *  🔗 {{5}}
+ * 
+ *  Thank you for choosing {{2}}. We look forward to serving you again!
+ * 
+ *  Best regards,
+ *  {{2}} team."
+ */
+export function buildJobDeliveredVariables(opts: {
+  customerName: string;
+  businessName: string;
+  vehicleStr: string;
+  jobNumber: string;
+  portalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.vehicleStr,
+    "4": opts.jobNumber,
+    "5": opts.portalUrl,
+  };
+}
+
+/**
+ * Customer Welcome (cust_welcome_utility_v2: HXa15928c2342c1604e358f8152a79dd45)
+ * Template:
+ * "Hi {{1}}!
+ *  Welcome to {{2}}. 🚗
+ * 
+ *  Here are your account details to track your service:
+ *  📱 Registered Phone: {{3}}
+ *  🔗 Track your vehicle: {{4}}
+ * 
+ *  Thank you for choosing {{2}} team."
  */
 export function buildCustomerWelcomeVariables(
   customerName: string,
-  businessName: string
+  businessName: string,
+  phone?: string,
+  portalUrl?: string
 ): Record<string, string> {
   const firstName = customerName.trim().split(/\s+/)[0] || customerName;
-  return {
+  const vars: Record<string, string> = {
     "1": firstName,
     "2": businessName,
   };
+  if (phone) vars["3"] = phone.trim();
+  if (portalUrl) vars["4"] = portalUrl.trim();
+  return vars;
 }
 
 /**
@@ -152,3 +323,5 @@ export function buildInspectionReportVariables(opts: {
     "8": opts.phone,
   };
 }
+
+

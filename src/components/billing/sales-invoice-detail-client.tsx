@@ -78,6 +78,11 @@ import { filterCounterSaleParts } from "@/lib/inventory/part-used-in";
 import { formatAvailableStock, getSelectableUnits, getUnitPrice, partMatchesInventorySearch } from "@/lib/inventory/multi-unit";
 import { ServiceSearchInput } from "@/components/services/searchable-service-select";
 import { buildInvoiceWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
+import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildInvoiceCreatedVariables,
+} from "@/lib/twilio-templates-config";
 import {
   sendCustomerWhatsApp,
   openWhatsAppComposer,
@@ -1384,8 +1389,24 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
         details: `Invoice ${invoice.invoiceNumber} shared with ${invoice.customerName} via WhatsApp`,
       });
     };
+    const vehicleStr = invoice.vehicleRegNumber?.trim() || "Vehicle";
+    const template = TWILIO_TEMPLATE_SIDS.INVOICE_CREATED
+      ? {
+          contentSid: TWILIO_TEMPLATE_SIDS.INVOICE_CREATED,
+          contentVariables: buildInvoiceCreatedVariables({
+            customerName: invoice.customerName,
+            businessName,
+            invoiceNumber: invoice.invoiceNumber,
+            vehicleStr,
+            totalAmount: formatCurrency(invoice.grandTotal),
+            balanceDue: formatCurrency(remainingBalance),
+            portalUrl: getCustomerPortalLoginUrl(),
+          }),
+        }
+      : undefined;
+
     try {
-      await sendCustomerWhatsApp(phone, message);
+      await sendCustomerWhatsApp(phone, message, template);
       toast.success("Invoice sent via WhatsApp", { description: phone });
       notify("api");
       logSent();

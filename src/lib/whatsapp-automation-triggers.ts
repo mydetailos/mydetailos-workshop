@@ -27,9 +27,13 @@ import { executeCustomerWhatsAppAutomation } from "@/lib/whatsapp-automation-flo
 import { useJobCardStore } from "@/store/job-card-store";
 import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
+import { formatCurrency } from "@/lib/utils";
 import {
   TWILIO_TEMPLATE_SIDS,
   buildJobCardCreatedVariables,
+  buildJobReadyForPickupVariables,
+  buildInvoiceCreatedVariables,
+  buildJobDeliveredVariables,
 } from "@/lib/twilio-templates-config";
 
 function branchIdForJobCardId(jobCardId: string | undefined): string | undefined {
@@ -93,23 +97,44 @@ export function notifyBeforePhotosReadyWhatsApp(
 export function notifyJobReadyWhatsApp(job: JobCard, businessName: string): void {
   const phone = job.customerPhone?.trim();
   if (!phone) return;
+  const workshopName = resolveWorkshopDisplayName({ businessName });
+  const portalUrl = getCustomerPortalLoginUrl();
   // Retrieve temp password stored during new customer creation (same browser session only)
   const sessionKey = `customer-temp-pass:${job.customerId}`;
   const temporaryPassword = typeof sessionStorage !== "undefined"
     ? sessionStorage.getItem(sessionKey) ?? undefined
     : undefined;
   const message = buildJobReadyForPickupWhatsAppMessage(job, {
-    businessName: resolveWorkshopDisplayName({ businessName }),
-    portalUrl: getCustomerPortalLoginUrl(),
+    businessName: workshopName,
+    portalUrl,
     temporaryPassword,
   });
   // Clear after use
   if (temporaryPassword && typeof sessionStorage !== "undefined") {
     sessionStorage.removeItem(sessionKey);
   }
+
+  const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+  const serviceList = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "Completed Services";
+
+  const template = TWILIO_TEMPLATE_SIDS.JOB_CARD_READY
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_READY,
+        contentVariables: buildJobReadyForPickupVariables({
+          customerName: job.customerName,
+          businessName: workshopName,
+          jobNumber: job.jobNumber,
+          vehicleStr,
+          services: serviceList,
+          portalUrl,
+        }),
+      }
+    : undefined;
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message,
+    template,
     titles: {
       api: "Ready for pickup — WhatsApp sent",
       composer: "Ready for pickup — WhatsApp composer",
@@ -129,6 +154,7 @@ export function notifyJobReadyWhatsApp(job: JobCard, businessName: string): void
 export function notifyJobDeliveredWhatsApp(job: JobCard, businessName: string): void {
   const phone = job.customerPhone?.trim();
   if (!phone) return;
+  const workshopName = resolveWorkshopDisplayName({ businessName });
   const portalUrl = getCustomerPortalLoginUrl();
   // Retrieve stored temp password if still in session (cleared after use)
   const sessionKey = `customer-temp-pass:${job.customerId}`;
@@ -141,14 +167,31 @@ export function notifyJobDeliveredWhatsApp(job: JobCard, businessName: string): 
   // Optional review URL can be wired from settings once a dedicated field exists.
   const googleReviewUrl: string | undefined = undefined;
   const message = buildJobDeliveredWhatsAppMessage(job, {
-    businessName,
+    businessName: workshopName,
     portalUrl,
     temporaryPassword,
     googleReviewUrl,
   });
+
+  const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+
+  const template = TWILIO_TEMPLATE_SIDS.JOB_DELIVERED
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.JOB_DELIVERED,
+        contentVariables: buildJobDeliveredVariables({
+          customerName: job.customerName,
+          businessName: workshopName,
+          vehicleStr,
+          jobNumber: job.jobNumber,
+          portalUrl,
+        }),
+      }
+    : undefined;
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message,
+    template,
     titles: {
       api: "Delivered — WhatsApp sent",
       composer: "Delivered — WhatsApp composer",
@@ -168,17 +211,38 @@ export function notifyJobDeliveredWhatsApp(job: JobCard, businessName: string): 
 export function notifyInvoiceCreatedWhatsApp(inv: Invoice, businessName: string): void {
   const phone = inv.customerPhone?.trim();
   if (!phone) return;
+  const workshopName = resolveWorkshopDisplayName({ businessName });
+  const portalUrl = getCustomerPortalLoginUrl();
   const totalPaid = inv.payments.reduce((s, p) => s + p.amount, 0) + (inv.walletAmountUsed || 0);
   const remainingBalance = Math.max(0, inv.grandTotal - totalPaid);
   const invoiceLabel = inv.taxRate > 0 ? "tax invoice" : "invoice";
   const message = buildInvoiceWhatsAppMessage(inv, {
-    businessName,
+    businessName: workshopName,
     remainingBalance,
     invoiceLabel,
   });
+
+  const vehicleStr = `${inv.vehicleRegNumber || ""}`.trim() || "Vehicle";
+
+  const template = TWILIO_TEMPLATE_SIDS.INVOICE_CREATED
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.INVOICE_CREATED,
+        contentVariables: buildInvoiceCreatedVariables({
+          customerName: inv.customerName,
+          businessName: workshopName,
+          invoiceNumber: inv.invoiceNumber,
+          vehicleStr,
+          totalAmount: formatCurrency(inv.grandTotal),
+          balanceDue: formatCurrency(remainingBalance),
+          portalUrl,
+        }),
+      }
+    : undefined;
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message,
+    template,
     titles: {
       api: "New invoice — WhatsApp sent",
       composer: "New invoice — WhatsApp composer",

@@ -301,8 +301,16 @@ export function RecordPaymentDialog({
         entityLabel: invoice.invoiceNumber,
         details: `${formatCurrency(amount)} received on ${invoice.invoiceNumber}`,
       });
-      // Payment recorded WhatsApp disabled — payment details are included in the Delivered message
-      // void notifyCustomerPaymentRecordedWhatsApp({ invoice: latestInvoice, amount, method: paymentMethod, referenceNumber: referenceNumber.trim() || undefined, paidAt, remainingBalanceAfter: remainingAfter, businessName });
+      // Payment recorded WhatsApp notification with invoice link
+      void notifyCustomerPaymentRecordedWhatsApp({
+        invoice: latestInvoice,
+        amount,
+        method: paymentMethod,
+        referenceNumber: referenceNumber.trim() || undefined,
+        paidAt,
+        remainingBalanceAfter: remainingAfter,
+        businessName,
+      });
 
       onOpenChange(false);
       onSuccess?.(invoice.id);

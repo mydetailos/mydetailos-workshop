@@ -54,6 +54,8 @@ import { sendCustomerWhatsApp, openWhatsAppComposer } from "@/lib/whatsapp-send"
 import {
   TWILIO_TEMPLATE_SIDS,
   buildJobCardCreatedVariables,
+  buildJobReadyForPickupVariables,
+  buildJobDeliveredVariables,
 } from "@/lib/twilio-templates-config";
 import { buildJobCardPhotosWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
 import { getCustomerPortalAbsoluteUrl, getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
@@ -316,21 +318,56 @@ export default function JobCardsPage() {
       return;
     }
 
-    const template =
+    const vehicleStr = `${jc.vehicleMakeModel || ""} ${jc.vehicleRegNumber ? `(${jc.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+    const serviceList = jc.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service";
+    const portalUrl = getCustomerPortalLoginUrl();
+
+    let template: { contentSid: string; contentVariables: Record<string, string> } | undefined;
+    if (
       (jc.status === "RECEIVED" || jc.status === "INSPECTION" || templateId === "vehicle_arrived") &&
       TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED
-        ? {
-            contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED,
-            contentVariables: buildJobCardCreatedVariables({
-              customerName: jc.customerName,
-              businessName,
-              jobNumber: jc.jobNumber,
-              vehicleStr: `${jc.vehicleMakeModel || ""} ${jc.vehicleRegNumber ? `(${jc.vehicleRegNumber})` : ""}`.trim() || "Vehicle",
-              services: jc.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service",
-              portalUrl: getCustomerPortalLoginUrl(),
-            }),
-          }
-        : undefined;
+    ) {
+      template = {
+        contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED,
+        contentVariables: buildJobCardCreatedVariables({
+          customerName: jc.customerName,
+          businessName,
+          jobNumber: jc.jobNumber,
+          vehicleStr,
+          services: serviceList,
+          portalUrl,
+        }),
+      };
+    } else if (
+      (jc.status === "READY" || templateId === "ready_for_pickup") &&
+      TWILIO_TEMPLATE_SIDS.JOB_CARD_READY
+    ) {
+      template = {
+        contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_READY,
+        contentVariables: buildJobReadyForPickupVariables({
+          customerName: jc.customerName,
+          businessName,
+          jobNumber: jc.jobNumber,
+          vehicleStr,
+          services: serviceList,
+          portalUrl,
+        }),
+      };
+    } else if (
+      (jc.status === "DELIVERED" || templateId === "job_closed") &&
+      TWILIO_TEMPLATE_SIDS.JOB_DELIVERED
+    ) {
+      template = {
+        contentSid: TWILIO_TEMPLATE_SIDS.JOB_DELIVERED,
+        contentVariables: buildJobDeliveredVariables({
+          customerName: jc.customerName,
+          businessName,
+          vehicleStr,
+          jobNumber: jc.jobNumber,
+          portalUrl,
+        }),
+      };
+    }
 
     const toastId = toast.loading("Sending WhatsApp message...");
     try {
