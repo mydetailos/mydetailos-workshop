@@ -463,6 +463,18 @@ export default function CustomerLoginPage() {
               />
             </div>
 
+            <div className="rounded-lg bg-teal-50/80 border border-teal-200/80 p-3 text-left text-xs text-teal-900 leading-relaxed shadow-xs">
+              <p className="font-semibold text-teal-950 flex items-center gap-1.5 mb-1">
+                <span>💡</span> Default Password:
+              </p>
+              <p className="text-slate-600">
+                Your first name in <span className="font-semibold text-slate-900">CAPITAL</span> letters + first 4 digits of your mobile number.
+              </p>
+              <p className="mt-1.5 text-teal-800 font-mono text-[11px] bg-teal-100/70 rounded px-1.5 py-0.5 inline-block">
+                Example: Alok (8305123211) → <strong>ALOK8305</strong>
+              </p>
+            </div>
+
             <Button
               type="submit"
               size="lg"
