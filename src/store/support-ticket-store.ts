@@ -27,7 +27,14 @@ interface SupportTicketStore {
 export const useSupportTicketStore = create<SupportTicketStore>((set, get) => ({
   tickets: [],
 
-  setTickets: (items) => set({ tickets: items }),
+  setTickets: (items) =>
+    set({
+      tickets: (items ?? []).map((t) => ({
+        ...t,
+        messages: Array.isArray(t.messages) ? t.messages : [],
+        attachments: Array.isArray(t.attachments) ? t.attachments : [],
+      })),
+    }),
 
   addTicket: async (ticket) => {
     await putCollectionDocument("supportTickets", ticket.id, ticket);
@@ -67,8 +74,9 @@ export const useSupportTicketStore = create<SupportTicketStore>((set, get) => ({
     }
     if (!prev) return;
 
-    const already = prev.messages.some((m) => m.id === message.id);
-    const messages = already ? prev.messages : [...prev.messages, message];
+    const prevMsgs = prev.messages ?? [];
+    const already = prevMsgs.some((m) => m.id === message.id);
+    const messages = already ? prevMsgs : [...prevMsgs, message];
     const attachments = newAttachments?.length
       ? [...(prev.attachments ?? []), ...newAttachments]
       : prev.attachments ?? [];

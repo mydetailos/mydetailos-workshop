@@ -163,7 +163,8 @@ export default function SupportPage() {
     const q = listSearch.trim().toLowerCase();
     if (!q) return sortedTickets;
     return sortedTickets.filter((t) => {
-      const last = t.messages[t.messages.length - 1];
+      const msgs = t.messages ?? [];
+      const last = msgs[msgs.length - 1];
       const hay = [t.subject, t.description, last?.body ?? "", t.status]
         .join(" ")
         .toLowerCase();
@@ -188,7 +189,7 @@ export default function SupportPage() {
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selected?.messages.length, selectedId]);
+  }, [selected?.messages?.length, selectedId]);
 
   useEffect(() => {
     const tick = () => {
@@ -504,7 +505,8 @@ export default function SupportPage() {
             ) : (
               filteredTickets.map((t) => {
                 const active = t.id === selectedId;
-                const last = t.messages[t.messages.length - 1];
+                const msgs = t.messages ?? [];
+                const last = msgs[msgs.length - 1];
                 const waitingOnUs = last?.author === "SUPPORT";
                 return (
                   <button
@@ -552,15 +554,15 @@ export default function SupportPage() {
                           {last?.author === "WORKSHOP" ? (
                             <span className="inline-flex items-center gap-1">
                               <CheckCheck className="h-3.5 w-3.5 text-sky-500" />
-                              {last.body}
+                              {last?.body}
                             </span>
                           ) : (
-                            last?.body || CATEGORY_LABEL[t.category]
+                            last?.body || t.description || CATEGORY_LABEL[t.category]
                           )}
                         </p>
                         {waitingOnUs ? (
                           <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground">
-                            {Math.max(1, t.messages.filter((m) => m.author === "SUPPORT").length)}
+                            {Math.max(1, msgs.filter((m) => m.author === "SUPPORT").length)}
                           </span>
                         ) : (
                           <Badge
@@ -601,7 +603,7 @@ export default function SupportPage() {
                   <h2 className="truncate text-[15px] font-semibold">{selected.subject}</h2>
                   <p className="truncate text-xs text-muted-foreground">
                     {CATEGORY_LABEL[selected.category]} · {PRIORITY_LABEL[selected.priority]} ·{" "}
-                    {selected.messages.length} messages
+                    {(selected.messages ?? []).length} messages
                   </p>
                 </div>
                 <Badge variant={STATUS_VARIANT[selected.status]}>
@@ -618,12 +620,13 @@ export default function SupportPage() {
                   </div>
                 ) : null}
 
-                {selected.messages.map((m, idx) => {
+                {(selected.messages ?? []).map((m, idx) => {
                   const mine = m.author === "WORKSHOP";
+                  const attachments = selected.attachments ?? [];
                   const linked = (m.attachmentIds ?? [])
-                    .map((id) => selected.attachments.find((a) => a.id === id))
+                    .map((id) => attachments.find((a) => a.id === id))
                     .filter(Boolean) as SupportTicketAttachment[];
-                  const isLast = idx === selected.messages.length - 1;
+                  const isLast = idx === (selected.messages ?? []).length - 1;
                   return (
                     <div
                       key={m.id}

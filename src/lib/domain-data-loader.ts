@@ -335,8 +335,13 @@ async function loadOne(resource: DomainResource): Promise<void> {
       return;
     }
     case "supportTickets": {
+      const raw = await getCollectionItems<SupportTicket>("supportTickets");
       useSupportTicketStore.setState({
-        tickets: await getCollectionItems<SupportTicket>("supportTickets"),
+        tickets: (raw ?? []).map((t) => ({
+          ...t,
+          messages: Array.isArray(t.messages) ? t.messages : [],
+          attachments: Array.isArray(t.attachments) ? t.attachments : [],
+        })),
       });
       return;
     }
