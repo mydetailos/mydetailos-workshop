@@ -68,6 +68,7 @@ import {
   ListChecks,
   Pencil,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1690,14 +1691,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         sessionStorage.setItem(`customer-temp-pass:${custId}`, newCustomerTempPass);
       }
 
-      // Show temporary password to staff if WhatsApp delivery was skipped
-      const tempPass = (createdWalkIn as any)._temporaryPassword as string | undefined;
-      if (tempPass) {
-        toast.info("Share login credentials manually", {
-          description: `Phone: ${customerPhone}  |  Password: ${tempPass}`,
-          duration: 20000,
-        });
-      }      if (isJobCard && referrerInfo) {
+      if (isJobCard && referrerInfo) {
         toast.success("Referral code saved", {
           description:
             "Wallet rewards for both customers apply on the first qualifying invoice (Referrals rules).",
@@ -1715,7 +1709,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       }
     }
 
-    const seg = vehicleSegment as VehicleSegment;
+    const seg = (matchedVehicle?.segment ?? vehicleSegment) as VehicleSegment;
     let resolvedVehicleId: string;
     if (matchedVehicle) {
       resolvedVehicleId = matchedVehicle.id;
@@ -1901,7 +1895,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           registrationNumber: regStored,
           make: vehicleBrand.trim(),
           model: vehicleModel.trim() || "—",
-          segment: seg,
+          // Vehicle type should never change once created
+          segment: matchedVehicle.segment,
           ...(odometerReading.trim()
             ? { odometer: Number.parseInt(odometerReading, 10) || matchedVehicle.odometer }
             : {}),
@@ -3981,75 +3976,137 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
               <CardTitle className="text-lg">Service Selection</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="rounded-xl border-2 border-sky-200 bg-sky-50/60 p-4 dark:border-sky-800 dark:bg-sky-950/25">
-                <div className="flex items-start gap-2">
-                  <Car className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">Vehicle Type (for pricing)</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Select the vehicle type to see applicable prices
-                    </p>
+              {(() => {
+                const isVehicleTypeLocked = Boolean(
+                  selectedVehicleId ||
+                  matchedVehicle ||
+                  (isJobCard && vehicleSegment) ||
+                  (vehicleBrand.trim() && vehicleSegment)
+                );
+                return (
+                  <div className="rounded-xl border-2 border-sky-200 bg-sky-50/60 p-4 dark:border-sky-800 dark:bg-sky-950/25">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <Car className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground">Vehicle Type (for pricing)</p>
+                            {isVehicleTypeLocked && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-1 text-xs font-normal border-sky-300 bg-sky-100/90 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200"
+                              >
+                                <Lock className="w-3 h-3" /> Locked to vehicle
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {isVehicleTypeLocked
+                              ? "Vehicle type is set from the selected vehicle and cannot be changed while creating a job card."
+                              : "Select the vehicle type to see applicable prices"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    {vehicleBrand.trim() && vehicleSegment && (
+                      <p className="mt-3 text-xs text-muted-foreground rounded-md border border-emerald-200/80 bg-emerald-50/80 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                        <span className="font-medium text-emerald-900 dark:text-emerald-100">From vehicle: </span>
+                        {vehicleBrand} {vehicleModel || ""} —{" "}
+                        <span className="capitalize">{segmentBannerLabel(vehicleSegment)}</span>
+                        {isVehicleTypeLocked ? (
+                          <span className="font-medium text-emerald-800 dark:text-emerald-300"> (Fixed)</span>
+                        ) : OTHER_PRICING_SEGMENTS.some((o) => o.segment === vehicleSegment) ? (
+                          <span className="text-muted-foreground"> (use buttons below to match)</span>
+                        ) : null}
+                      </p>
+                    )}
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {SERVICE_TYPE_PRIMARY.map(({ segment, label, hint, icon }) => {
+                        const selected = vehicleSegment === segment;
+                        return (
+                          <button
+                            key={segment}
+                            type="button"
+                            disabled={isVehicleTypeLocked}
+                            onClick={() => {
+                              if (!isVehicleTypeLocked) setVehicleSegment(segment);
+                            }}
+                            title={
+                              isVehicleTypeLocked
+                                ? "Vehicle type cannot be changed while creating a job card"
+                                : undefined
+                            }
+                            className={cn(
+                              "rounded-xl border-2 bg-card p-3 text-left transition-all",
+                              selected
+                                ? "border-sky-600 bg-white shadow-md ring-1 ring-sky-600/20 dark:bg-card"
+                                : isVehicleTypeLocked
+                                  ? "border-border/60 bg-muted/40 opacity-40 cursor-not-allowed"
+                                  : "border-border hover:border-sky-300/80 hover:bg-sky-50/50 dark:hover:bg-sky-950/40"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-2xl leading-none" aria-hidden>
+                                {icon}
+                              </span>
+                              {selected && isVehicleTypeLocked && (
+                                <Lock className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm font-semibold">{label}</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug">{hint}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <details
+                      className="mt-4 group"
+                      open={OTHER_PRICING_SEGMENTS.some((o) => o.segment === vehicleSegment)}
+                    >
+                      <summary className="cursor-pointer list-none text-sm font-medium text-primary flex items-center gap-1 [&::-webkit-details-marker]:hidden">
+                        <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                        More vehicle types (Luxury, MUV, Compact SUV)
+                      </summary>
+                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 border-t border-sky-200/80 pt-3 dark:border-sky-800">
+                        {OTHER_PRICING_SEGMENTS.map(({ segment, label, hint }) => {
+                          const selected = vehicleSegment === segment;
+                          return (
+                            <button
+                              key={segment}
+                              type="button"
+                              disabled={isVehicleTypeLocked}
+                              onClick={() => {
+                                if (!isVehicleTypeLocked) setVehicleSegment(segment);
+                              }}
+                              title={
+                                isVehicleTypeLocked
+                                  ? "Vehicle type cannot be changed while creating a job card"
+                                  : undefined
+                              }
+                              className={cn(
+                                "rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-colors",
+                                selected
+                                  ? "border-primary bg-primary/10"
+                                  : isVehicleTypeLocked
+                                    ? "border-border/60 bg-muted/40 opacity-40 cursor-not-allowed"
+                                    : "border-border hover:bg-muted/60"
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{label}</span>
+                                {selected && isVehicleTypeLocked && (
+                                  <Lock className="w-3 h-3 text-primary shrink-0" />
+                                )}
+                              </div>
+                              <span className="block text-[10px] text-muted-foreground">{hint}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </details>
                   </div>
-                </div>
-                {vehicleBrand.trim() && vehicleSegment && (
-                  <p className="mt-3 text-xs text-muted-foreground rounded-md border border-emerald-200/80 bg-emerald-50/80 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                    <span className="font-medium text-emerald-900 dark:text-emerald-100">From vehicle: </span>
-                    {vehicleBrand} {vehicleModel || ""} —{" "}
-                    <span className="capitalize">{segmentBannerLabel(vehicleSegment)}</span>
-                    {OTHER_PRICING_SEGMENTS.some((o) => o.segment === vehicleSegment) ? (
-                      <span className="text-muted-foreground"> (use buttons below to match)</span>
-                    ) : null}
-                  </p>
-                )}
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {SERVICE_TYPE_PRIMARY.map(({ segment, label, hint, icon }) => {
-                    const selected = vehicleSegment === segment;
-                    return (
-                      <button
-                        key={segment}
-                        type="button"
-                        onClick={() => setVehicleSegment(segment)}
-                        className={cn(
-                          "rounded-xl border-2 bg-card p-3 text-left transition-all",
-                          selected
-                            ? "border-sky-600 bg-white shadow-md ring-1 ring-sky-600/20 dark:bg-card"
-                            : "border-border hover:border-sky-300/80 hover:bg-sky-50/50 dark:hover:bg-sky-950/40"
-                        )}
-                      >
-                        <span className="text-2xl leading-none" aria-hidden>
-                          {icon}
-                        </span>
-                        <p className="mt-2 text-sm font-semibold">{label}</p>
-                        <p className="text-[10px] text-muted-foreground leading-snug">{hint}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <details className="mt-4 group">
-                  <summary className="cursor-pointer list-none text-sm font-medium text-primary flex items-center gap-1 [&::-webkit-details-marker]:hidden">
-                    <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                    More vehicle types (Luxury, MUV, Compact SUV)
-                  </summary>
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 border-t border-sky-200/80 pt-3 dark:border-sky-800">
-                    {OTHER_PRICING_SEGMENTS.map(({ segment, label, hint }) => (
-                      <button
-                        key={segment}
-                        type="button"
-                        onClick={() => setVehicleSegment(segment)}
-                        className={cn(
-                          "rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-colors",
-                          vehicleSegment === segment
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:bg-muted/60"
-                        )}
-                      >
-                        <span className="font-medium">{label}</span>
-                        <span className="block text-[10px] text-muted-foreground">{hint}</span>
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              </div>
+                );
+              })()}
 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge

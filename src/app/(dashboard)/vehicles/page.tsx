@@ -1,7 +1,7 @@
 "use client";
 
 import type { Vehicle, FuelType, VehicleSegment } from "@/types";
-import { Plus, User, Upload, Download, ChevronDown, Loader2, Edit, Trash2, LayoutGrid, List, Fuel, Car, Calendar, Palette, Search, X } from "lucide-react";
+import { Plus, User, Upload, Download, ChevronDown, Loader2, Edit, Trash2, LayoutGrid, List, Fuel, Car, Calendar, Palette, Search, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -789,7 +789,8 @@ export function EditVehicleDialog({
         model: data.model,
         variant: data.variant?.trim() || undefined,
         fuelType: data.fuelType,
-        segment: (data.segment === ("MUV_MPV" as any) ? "MUV" : data.segment),
+        // Vehicle type cannot be changed once created
+        segment: vehicle.segment,
         color: data.color?.trim() || "—",
         year: data.year ? Number(data.year) : new Date().getFullYear(),
         notes: data.notes?.trim() || undefined,
@@ -1019,18 +1020,17 @@ export function EditVehicleDialog({
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="edit-segment">Segment</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-segment">Segment</Label>
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-normal">
+                        <Lock className="w-3 h-3 text-muted-foreground" /> Locked
+                      </span>
+                    </div>
                     <Select
                       value={watchSegment}
-                      onValueChange={(value) =>
-                        setValue("segment", value as VehicleSegment, {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        })
-                      }
+                      disabled={true}
                     >
-                      <SelectTrigger id="edit-segment">
+                      <SelectTrigger id="edit-segment" disabled className="bg-muted/60 cursor-not-allowed opacity-80">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
