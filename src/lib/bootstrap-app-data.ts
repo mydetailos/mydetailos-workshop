@@ -39,7 +39,11 @@ export async function bootstrapAppData(): Promise<void> {
   const data = await apiGet<BootstrapPayload>("/api/bootstrap");
 
   useBranchStore.setState({ branches: data.branches ?? [] });
-  useOrganizationStore.getState().setEntitlement(data.entitlement ?? null);
+  if (data.entitlement) {
+    useOrganizationStore.getState().setEntitlement(data.entitlement);
+  } else {
+    void useOrganizationStore.getState().refreshEntitlement();
+  }
 
   const auth = useAuthStore.getState();
   if (auth.user) {

@@ -77,7 +77,23 @@ function resolveOrgSlug(override?: string | null): string | null {
     if (fromPath) return fromPath;
   }
 
-  return normalizeSlug(
+  const fromStore = normalizeSlug(
     useOrganizationStore.getState().entitlement?.organization?.slug
   );
+  if (fromStore) return fromStore;
+
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem("mdos-organization-store");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const storedSlug = normalizeSlug(parsed?.state?.entitlement?.organization?.slug);
+        if (storedSlug) return storedSlug;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
 }

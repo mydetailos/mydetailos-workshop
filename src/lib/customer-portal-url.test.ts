@@ -56,6 +56,43 @@ describe("customer portal URLs", () => {
     ).toBe("http://localhost:3002/acme-detailers/customer/login");
   });
 
+  it("uses persisted localStorage entitlement organization.slug when store has none", () => {
+    vi.mocked(useOrganizationStore.getState).mockReturnValue({
+      entitlement: null,
+    } as ReturnType<typeof useOrganizationStore.getState>);
+
+    const mockStorage: Record<string, string> = {
+      "mdos-organization-store": JSON.stringify({
+        state: {
+          entitlement: {
+            organization: { id: "o1", name: "Apex Auto", slug: "apex-auto" },
+          },
+        },
+      }),
+    };
+
+    const originalWindow = globalThis.window;
+    (globalThis as any).window = {
+      location: { origin: "http://localhost:3002", pathname: "/job-cards" },
+    };
+    const originalLocalStorage = globalThis.localStorage;
+    (globalThis as any).localStorage = {
+      getItem: (key: string) => mockStorage[key] ?? null,
+    };
+
+    try {
+      expect(
+        getCustomerPortalLoginUrl({
+          origin: "http://localhost:3002",
+          orgSlug: null,
+        })
+      ).toBe("http://localhost:3002/apex-auto/customer/login");
+    } finally {
+      globalThis.window = originalWindow;
+      globalThis.localStorage = originalLocalStorage;
+    }
+  });
+
   it("builds tenant photo URLs", () => {
     expect(
       getCustomerPortalAbsoluteUrl("/customer/job-card/tok/photos", {

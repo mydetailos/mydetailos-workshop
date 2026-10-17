@@ -494,9 +494,19 @@ export default function CustomerLoginPage() {
             {error ? (
               <div
                 role="alert"
-                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 space-y-2"
               >
-                {error}
+                <p>{error}</p>
+                <div className="pt-1 border-t border-red-200/60 flex items-center justify-between text-xs text-red-800">
+                  <span>Having trouble with password?</span>
+                  <button
+                    type="button"
+                    onClick={() => switchMethod("otp")}
+                    className="font-semibold underline hover:text-teal-900 text-teal-700"
+                  >
+                    Use Mobile OTP →
+                  </button>
+                </div>
               </div>
             ) : null}
           </form>
