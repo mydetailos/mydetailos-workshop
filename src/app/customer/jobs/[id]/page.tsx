@@ -9,6 +9,7 @@ import { ArrowLeft, Car, CalendarDays, Gauge, ClipboardList, CheckCircle2, Circl
 import Link from "next/link";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { resolveUploadsPublicUrl } from "@/lib/api-base";
+import { filterCustomerFacingNotes } from "@/lib/tax-invoice-format";
 
 const STATUS_COLORS: Record<string, string> = {
   RECEIVED: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -186,16 +187,24 @@ export default function JobDetailPage() {
       )}
 
       {/* Workshop Notes */}
-      {job.notes && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Workshop Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.notes}</p>
-          </CardContent>
-        </Card>
-      )}
+      {(() => {
+        const customerNotes = filterCustomerFacingNotes(job.notes);
+        if (customerNotes.length === 0) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Workshop Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                {customerNotes.map((note, idx) => (
+                  <li key={idx}>{note}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Services */}
       {(job.services || []).length > 0 && (

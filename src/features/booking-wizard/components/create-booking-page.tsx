@@ -1928,10 +1928,28 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       });
     }
 
+    const formattedCustomerNotes = customerNotes.trim()
+      ? customerNotes
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => (/^customer\s*[:\-–—]/i.test(line) ? line : `Customer: ${line}`))
+          .join("\n")
+      : "";
+
+    const formattedInternalNotes = internalNotes.trim()
+      ? internalNotes
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => (/^internal\s*[:\-–—]/i.test(line) ? line : `Internal: ${line}`))
+          .join("\n")
+      : "";
+
     const bookingNote =
       [
-        customerNotes && `Customer: ${customerNotes}`,
-        internalNotes && `Internal: ${internalNotes}`,
+        formattedCustomerNotes,
+        formattedInternalNotes,
         couponApplied &&
           appliedCouponCode &&
           `Coupon: ${appliedCouponCode}${discountAmount > 0 ? ` (−${formatCurrency(discountAmount)})` : ""}`,

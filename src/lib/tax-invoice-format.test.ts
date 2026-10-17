@@ -53,19 +53,23 @@ describe("buildTaxInvoicePrintHtml signature options", () => {
   const dummyOpts = {
     invoice: {
       id: "inv-1",
+      invoiceNumber: "INV-2026-0001",
+      customerId: "c-1",
       jobNumber: "JOB-101",
       customerName: "John Doe",
       customerPhone: "9876543210",
-      vehicleMakeModel: "Hyundai Creta",
       vehicleRegNumber: "KA01AB1234",
       lineItems: [],
       subtotal: 1000,
       taxRate: 0.18,
       taxAmount: 180,
+      discountAmount: 0,
+      rewardDiscount: 0,
+      walletAmountUsed: 0,
       grandTotal: 1180,
       status: "ISSUED" as const,
+      payments: [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     },
     jobCard: null,
     customerName: "John Doe",
@@ -151,6 +155,158 @@ describe("buildTaxInvoicePrintHtml signature options", () => {
       { includePrintScript: false }
     );
     expect(html).toContain("Computer-generated invoice. No signature required.");
+  });
+});
+
+describe("filterCustomerFacingNotes", () => {
+  it("filters out internal notes with various prefixes and keeps customer notes", async () => {
+    const { filterCustomerFacingNotes } = await import("@/lib/tax-invoice-format");
+    const raw = [
+      "Customer: Scratch on bumper",
+      "Low fuel",
+      "Customer waiting",
+      "Scratch on bumper",
+      "Internal: Yayayahaan",
+      "Internal Note: Staff confidential",
+      "[Internal] Check underbody",
+    ].join("\n");
+
+    const filtered = filterCustomerFacingNotes(raw);
+    expect(filtered).toEqual(["Scratch on bumper", "Low fuel", "Customer waiting"]);
+    expect(filtered).not.toContain("Yayayahaan");
+    expect(filtered).not.toContain("Internal: Yayayahaan");
+  });
+
+  it("handles multi-line internal note blocks until next section", async () => {
+    const { filterCustomerFacingNotes } = await import("@/lib/tax-invoice-format");
+    const raw = [
+      "Customer: Please wash carefully",
+      "Internal:",
+      "Staff note line 1",
+      "Staff note line 2",
+      "",
+      "Coupon: DISC10 (-₹500)",
+    ].join("\n");
+
+    const filtered = filterCustomerFacingNotes(raw);
+    expect(filtered).toEqual(["Please wash carefully", "Coupon: DISC10 (-₹500)"]);
+  });
+
+  it("returns empty array when only internal notes are present", async () => {
+    const { filterCustomerFacingNotes } = await import("@/lib/tax-invoice-format");
+    expect(filterCustomerFacingNotes("Internal: Yayayahaan")).toEqual([]);
+    expect(filterCustomerFacingNotes("")).toEqual([]);
+    expect(filterCustomerFacingNotes(null)).toEqual([]);
+  });
+});
+
+describe("buildTaxInvoicePrintHtml notes filtering", () => {
+  const dummyOpts = {
+    invoice: {
+      id: "inv-2026-0002",
+      invoiceNumber: "INV-2026-0002",
+      customerId: "c-1",
+      jobNumber: "JOB-2026-0002",
+      customerName: "John Doe",
+      customerPhone: "9876543210",
+      vehicleRegNumber: "KA01AB1234",
+      lineItems: [],
+      subtotal: 1000,
+      taxRate: 0.18,
+      taxAmount: 180,
+      discountAmount: 0,
+      rewardDiscount: 0,
+      walletAmountUsed: 0,
+      grandTotal: 1180,
+      status: "ISSUED" as const,
+      payments: [],
+      notes: "Customer: Scratch on bumper\nLow fuel\nCustomer waiting\nInternal: Yayayahaan",
+      termsAndConditions: "Vehicle will be kept in secure parking.",
+      createdAt: new Date().toISOString(),
+    },
+    jobCard: {
+      id: "jc-1",
+      jobNumber: "JOB-2026-0002",
+      branchId: "b-1",
+      customerId: "c-1",
+      customerName: "John Doe",
+      customerPhone: "9876543210",
+      vehicleId: "v-1",
+      vehicleRegNumber: "KA01AB1234",
+      vehicleMakeModel: "Hyundai Creta",
+      vehicleSegment: "SUV" as const,
+      status: "READY" as const,
+      reportedIssues: "None",
+      expectedDelivery: new Date().toISOString(),
+      services: [],
+      estimatedAmount: 1000,
+      incentivePercent: 0,
+      incentiveAmount: 0,
+      notes: "Customer: Scratch on bumper\nLow fuel\nCustomer waiting\nInternal: Yayayahaan",
+      termsAndConditions: "Vehicle will be kept in secure parking.",
+    },
+    customerName: "John Doe",
+    customerPhone: "9876543210",
+    customerEmail: "john@example.com",
+    customerAddress: "Bangalore",
+    vehicleMakeModel: "Hyundai Creta",
+    business: {
+      businessName: "PRIME DETAILING",
+      businessTagline: "Premium Auto Spa",
+      businessAddress: "123 Main St, Bangalore",
+      businessPhone: "9999999999",
+      businessWhatsApp: "9999999999",
+      businessEmail: "info@prime.com",
+      businessWebsite: "www.prime.com",
+      gstin: "29AAAAA0000A1Z5",
+      companyPan: "AAAAA0000A",
+      bankName: "HDFC Bank",
+      bankBranch: "Koramangala",
+      bankAccountNumber: "123456789",
+      bankIfsc: "HDFC0001234",
+      bankUpi: "prime@upi",
+    },
+    payments: [],
+    totalPaid: 0,
+    remainingBalance: 1180,
+  };
+
+  it("does not render internal notes in the invoice HTML", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(dummyOpts, { includePrintScript: false });
+
+    // Internal notes must NEVER be visible
+    expect(html).not.toContain("Yayayahaan");
+    expect(html).not.toContain("Internal:");
+
+    // Customer notes must be present
+    expect(html).toContain("NOTES & SPECIAL INSTRUCTIONS");
+    expect(html).toContain("Scratch on bumper");
+    expect(html).toContain("Low fuel");
+    expect(html).toContain("Customer waiting");
+
+    // Must not duplicate items between invoice and jobCard
+    const scratchMatches = html.match(/Scratch on bumper/g);
+    expect(scratchMatches?.length).toBe(1);
+  });
+
+  it("omits the notes section if only internal notes exist", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...dummyOpts,
+        invoice: {
+          ...dummyOpts.invoice,
+          notes: "Internal: Staff note only",
+          termsAndConditions: undefined,
+        },
+        jobCard: null,
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).not.toContain("NOTES & SPECIAL INSTRUCTIONS");
+    expect(html).not.toContain("Staff note only");
   });
 });
 

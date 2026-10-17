@@ -48,6 +48,28 @@ describe("Job Card Parts Integration", () => {
         { partId: "part-brush", quantity: 2, unit: "PCS" },
       ]);
     });
+
+    it("maps JobCardPartItem array with custom price to SelectedPartLine array", () => {
+      const parts: JobCardPartItem[] = [
+        {
+          id: "jp-jc1-part-brush",
+          jobCardId: "jc1",
+          partId: "part-brush",
+          name: "brush",
+          sku: "brush",
+          quantity: 2,
+          unit: "PCS",
+          unitPrice: 250,
+          lineTotal: 500,
+          isCustomPrice: true,
+          catalogPrice: 200,
+        },
+      ];
+      const lines = selectedLinesFromJobParts(parts);
+      expect(lines).toEqual([
+        { partId: "part-brush", quantity: 2, unit: "PCS", customUnitPrice: 250 },
+      ]);
+    });
   });
 
   describe("buildJobCardPartItems", () => {
@@ -70,6 +92,9 @@ describe("Job Card Parts Integration", () => {
         unit: "PCS",
         unitPrice: 200,
         lineTotal: 400,
+        isCustomPrice: false,
+        catalogPrice: undefined,
+        priceSource: "CATALOG",
       });
 
       // Second item: 1 Pack @ 2000 = 2000
@@ -83,6 +108,31 @@ describe("Job Card Parts Integration", () => {
         unit: "Pack",
         unitPrice: 2000,
         lineTotal: 2000,
+        isCustomPrice: false,
+        catalogPrice: undefined,
+        priceSource: "CATALOG",
+      });
+    });
+
+    it("builds JobCardPartItem array with custom unit price when provided", () => {
+      const lines = [
+        { partId: "part-brush", quantity: 2, unit: "PCS", customUnitPrice: 250 },
+      ];
+      const items = buildJobCardPartItems("jc1", lines, [mockPart]);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toEqual({
+        id: "jp-jc1-part-brush",
+        jobCardId: "jc1",
+        partId: "part-brush",
+        name: "brush",
+        sku: "brush",
+        quantity: 2,
+        unit: "PCS",
+        unitPrice: 250,
+        lineTotal: 500,
+        isCustomPrice: true,
+        catalogPrice: 200,
+        priceSource: "CUSTOM",
       });
     });
   });

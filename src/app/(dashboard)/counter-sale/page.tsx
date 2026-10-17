@@ -542,12 +542,22 @@ export default function CounterSalePage() {
                            {(() => {
                             const units = getSelectableUnits(part);
                             const selected = catalogueUnits[part.id] ?? units[0] ?? part.primaryUnit;
-                            const price = getUnitPrice(part, selected);
+                            const catalogPrice = getUnitPrice(part, selected);
+                            const cartItem = cart.find((l) => l.partId === part.id && l.unit === selected);
+                            const unitPrice = cartItem ? cartItem.unitPrice : catalogPrice;
+                            const isCustom = cartItem ? Math.abs(cartItem.unitPrice - catalogPrice) > 0.005 : false;
                             return (
                               <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-                                <span className="text-sm font-medium tabular-nums">
-                                  {formatCurrency(price)}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-medium tabular-nums">
+                                    {formatCurrency(unitPrice)}
+                                  </span>
+                                  {isCustom && (
+                                    <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
+                                      custom
+                                    </span>
+                                  )}
+                                </div>
                                 {units.length > 1 && (
                                   <Select
                                     value={selected}
@@ -568,7 +578,6 @@ export default function CounterSalePage() {
                                   </Select>
                                 )}
                                 {(() => {
-                                  const cartItem = cart.find((l) => l.partId === part.id && l.unit === selected);
                                   if (cartItem) {
                                     return (
                                       <div className="flex items-center gap-1.5 border rounded-md px-1 py-0.5 bg-card">
@@ -622,6 +631,19 @@ export default function CounterSalePage() {
                                           }}
                                         >
                                           <Plus className="h-2.5 w-2.5" />
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                                          title="Edit unit price"
+                                          onClick={() => {
+                                            setPriceDraft(String(cartItem.unitPrice));
+                                            setEditingPriceKey(`${cartItem.partId}-${cartItem.unit}`);
+                                          }}
+                                        >
+                                          <Pencil className="h-3 w-3" />
                                         </Button>
                                       </div>
                                     );

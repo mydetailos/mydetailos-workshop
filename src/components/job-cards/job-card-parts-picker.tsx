@@ -189,6 +189,42 @@ export function JobCardPartsPicker({
     onSelectedLinesChange([...selectedLines, { partId, quantity: 1, unit }]);
   };
 
+  const selectPartAndEditPrice = (part: Part) => {
+    const existing = selectedLines.find((l) => l.partId === part.id);
+    if (existing) {
+      const catalogPrice = getUnitPrice(part, existing.unit);
+      const currentPrice = existing.customUnitPrice ?? catalogPrice;
+      setPriceDraft(currentPrice > 0 ? String(currentPrice) : "");
+      setEditingPricePartId(part.id);
+      return;
+    }
+    const units = getSelectableUnits(part);
+    let unit = units[0] || part.primaryUnit || "Piece";
+    let hasStock = checkBranchStockAvailable(part, 1, unit);
+    if (!hasStock && units.length > 1) {
+      for (const u of units.slice(1)) {
+        if (checkBranchStockAvailable(part, 1, u)) {
+          unit = u;
+          hasStock = true;
+          break;
+        }
+      }
+    }
+    if (!hasStock) {
+      const canonical = getBranchCanonicalQty(branchStocks, part, branchId);
+      const qtyVal = canonicalSecondaryToUnitQty(part, canonical, unit);
+      const formatted = Number.isInteger(qtyVal) ? qtyVal.toLocaleString("en-IN") : qtyVal.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+      toast.error(`Insufficient stock for ${part.name}`, {
+        description: `Only ${formatted} ${unit} available in ${viewingLabel || "branch"}`
+      });
+      return;
+    }
+    const catalogPrice = getUnitPrice(part, unit);
+    setPriceDraft(catalogPrice > 0 ? String(catalogPrice) : "");
+    setEditingPricePartId(part.id);
+    onSelectedLinesChange([...selectedLines, { partId: part.id, quantity: 1, unit }]);
+  };
+
   const updateLine = (partId: string, patch: Partial<SelectedPartLine>) => {
     const part = partsById.get(partId);
     if (!part) return;
@@ -247,6 +283,16 @@ export function JobCardPartsPicker({
     });
     onSelectedLinesChange(selectedLines.filter((l) => l.partId !== partId));
   };
+
+  const selectedPartsSubtotal = useMemo(
+    () =>
+      selectedPartRows.reduce((sum, { line, part }) => {
+        const qty = effectiveQuantity(part.id, line.quantity);
+        const pr = line.customUnitPrice ?? getUnitPrice(part, line.unit);
+        return sum + Math.round(qty * pr * 100) / 100;
+      }, 0),
+    [selectedPartRows, qtyDrafts]
+  );
 
   const renderSelectedPartRow = ({
     part,
@@ -391,18 +437,33 @@ export function JobCardPartsPicker({
                 <p className="text-sm font-semibold tabular-nums text-emerald-600">
                   {formatCurrency(lineTotal)}
                 </p>
-                <div className="flex items-center justify-end gap-0.5">
+                <div className="flex items-center justify-end gap-1 flex-wrap">
                   <p className="text-[10px] text-muted-foreground whitespace-nowrap">
                     @ {formatCurrency(unitPrice)}/{line.unit}
                   </p>
                   {isCustomPrice && (
-                    <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1 rounded ml-1">custom</span>
+                    <>
+                      <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
+                        custom
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[10px] text-muted-foreground hover:text-foreground hover:underline ml-0.5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateLine(part.id, { customUnitPrice: undefined });
+                        }}
+                      >
+                        Reset
+                      </button>
+                    </>
                   )}
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 text-muted-foreground -mr-1"
+                    title="Edit custom price"
                     onClick={(e) => {
                       e.stopPropagation();
                       setPriceDraft(String(unitPrice));
@@ -442,11 +503,18 @@ export function JobCardPartsPicker({
                 onClick={() => setSelectedExpanded((v) => !v)}
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Selected parts ({selectedPartRows.length})
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Selected parts ({selectedPartRows.length})
+                    </p>
+                    <span className="text-xs font-bold text-emerald-600 tabular-nums">
+                      {formatCurrency(selectedPartsSubtotal)}
+                    </span>
+                  </div>
                   {!selectedExpanded && selectedPartRows[0] && (
-                    <p className="text-sm font-medium truncate mt-0.5">{selectedPartRows[0].part.name}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {selectedPartRows.map((r) => r.part.name).join(", ")}
+                    </p>
                   )}
                 </div>
                 {selectedExpanded ? (
@@ -551,9 +619,18 @@ export function JobCardPartsPicker({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {filteredParts.map((part) => {
-            const on = selectedLines.some((l) => l.partId === part.id);
+            const line = selectedLines.find((l) => l.partId === part.id);
+            const on = Boolean(line);
             const stock = getStockStatus(part);
             const equivalent = formatDualUnitStockEquivalent(part);
+            const units = getSelectableUnits(part);
+            const activeUnit = line?.unit ?? units[0] ?? part.primaryUnit;
+            const catalogPrice = getUnitPrice(part, activeUnit);
+            const unitPrice = line?.customUnitPrice ?? catalogPrice;
+            const isCustomPrice =
+              line?.customUnitPrice != null && Math.abs(line.customUnitPrice - catalogPrice) > 0.005;
+            const qtyNumeric = line ? effectiveQuantity(part.id, line.quantity) : 1;
+            const lineTotal = Math.round(qtyNumeric * unitPrice * 100) / 100;
             return (
               <div
                 key={part.id}
@@ -585,14 +662,46 @@ export function JobCardPartsPicker({
                 <p className="text-xs text-muted-foreground mt-1 font-mono">SKU: {part.sku}</p>
                 <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
                   <div>
-                    <p className="text-base font-bold text-emerald-600 tabular-nums">
-                      {formatCurrency(part.unitPrice)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">per {part.primaryUnit}</p>
-                    {hasDualUnitPart(part) && (
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatCurrency(getUnitPrice(part, part.secondaryUnit))}/{part.secondaryUnit}
-                      </p>
+                    {on && line ? (
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-base font-bold text-emerald-600 tabular-nums">
+                            {formatCurrency(unitPrice)}
+                          </p>
+                          {isCustomPrice && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1 py-0 border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30"
+                            >
+                              custom
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">per {line.unit}</p>
+                        {isCustomPrice ? (
+                          <p className="text-[10px] text-muted-foreground line-through">
+                            {formatCurrency(catalogPrice)}/{line.unit}
+                          </p>
+                        ) : (
+                          hasDualUnitPart(part) && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatCurrency(getUnitPrice(part, part.secondaryUnit))}/{part.secondaryUnit}
+                            </p>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-base font-bold text-emerald-600 tabular-nums">
+                          {formatCurrency(part.unitPrice)}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">per {part.primaryUnit}</p>
+                        {hasDualUnitPart(part) && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatCurrency(getUnitPrice(part, part.secondaryUnit))}/{part.secondaryUnit}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
@@ -605,38 +714,52 @@ export function JobCardPartsPicker({
                     )}
                   </div>
                 </div>
-                {on && (
+
+                {!on && (
+                  <div className="mt-3 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-medium text-primary flex items-center gap-1">
+                      <Plus className="h-3 w-3" /> Select
+                    </span>
+                    <button
+                      type="button"
+                      className="text-[11px] font-medium text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectPartAndEditPrice(part);
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Set Custom Price
+                    </button>
+                  </div>
+                )}
+
+                {on && line && (
                   <div
-                    className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2"
+                    className="mt-3 pt-3 border-t border-border/60 space-y-2.5"
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                   >
-                    {(() => {
-                      const units = getSelectableUnits(part);
-                      const line = selectedLines.find((l) => l.partId === part.id);
-                      if (!line || units.length <= 1) return null;
-                      return (
-                        <Select
-                          value={line.unit}
-                          onValueChange={(unit) => updateLine(part.id, { unit })}
-                        >
-                          <SelectTrigger className="h-7 w-[4.5rem] text-[11px] px-1.5 focus:ring-0 bg-background">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {units.map((u) => (
-                              <SelectItem key={u} value={u} className="text-xs">
-                                {u}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      );
-                    })()}
-                    {(() => {
-                      const line = selectedLines.find((l) => l.partId === part.id);
-                      if (!line) return null;
-                      return (
-                        <div className="flex items-center gap-1 ml-auto">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {units.length > 1 && (
+                          <Select
+                            value={line.unit}
+                            onValueChange={(unit) => updateLine(part.id, { unit, customUnitPrice: undefined })}
+                          >
+                            <SelectTrigger className="h-7 w-[4.5rem] text-[11px] px-1.5 focus:ring-0 bg-background">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {units.map((u) => (
+                                <SelectItem key={u} value={u} className="text-xs">
+                                  {u}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <div className="flex items-center gap-1">
                           <Button
                             type="button"
                             variant="outline"
@@ -667,8 +790,118 @@ export function JobCardPartsPicker({
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                      );
-                    })()}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-semibold tabular-nums text-emerald-600">
+                          Total: {formatCurrency(lineTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {editingPricePartId === part.id ? (
+                      <div className="pt-2 border-t border-border/40 space-y-1.5">
+                        <Label className="text-[11px] text-muted-foreground font-medium block">
+                          Custom price (₹/{line.unit})
+                        </Label>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            className="h-7 flex-1 min-w-0 text-xs tabular-nums text-right bg-background"
+                            value={priceDraft}
+                            autoFocus
+                            placeholder="0"
+                            onChange={(e) => setPriceDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                commitCustomPrice(part, line);
+                              }
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                setEditingPricePartId(null);
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 text-xs px-2.5 shrink-0"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => commitCustomPrice(part, line)}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground shrink-0"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setEditingPricePartId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border/40 text-xs">
+                        {isCustomPrice ? (
+                          <>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className="text-[11px] text-muted-foreground">Price:</span>
+                              <span className="text-xs font-semibold tabular-nums text-foreground">
+                                {formatCurrency(unitPrice)}/{line.unit}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                className="text-[11px] text-primary hover:underline font-medium flex items-center gap-0.5"
+                                onClick={() => {
+                                  setPriceDraft(String(unitPrice));
+                                  setEditingPricePartId(part.id);
+                                }}
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Edit
+                              </button>
+                              <span className="text-muted-foreground text-[10px]">|</span>
+                              <button
+                                type="button"
+                                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                                onClick={() => {
+                                  onSelectedLinesChange(
+                                    selectedLines.map((l) =>
+                                      l.partId === part.id ? { ...l, customUnitPrice: undefined } : l
+                                    )
+                                  );
+                                }}
+                              >
+                                Reset
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[11px] text-muted-foreground">
+                              Price: {formatCurrency(catalogPrice)}/{line.unit}
+                            </span>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                              onClick={() => {
+                                setPriceDraft(catalogPrice > 0 ? String(catalogPrice) : "");
+                                setEditingPricePartId(part.id);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Set Custom Price
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

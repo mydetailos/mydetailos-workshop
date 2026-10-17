@@ -15,6 +15,7 @@ import { useMembershipStore } from "@/store/membership-store";
 import { useServiceCatalogStore } from "@/store/service-catalog-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { computeGstFromSubtotal } from "@/lib/gst-tax";
+import { filterCustomerFacingNotes } from "@/lib/tax-invoice-format";
 
 function currentInvoiceTaxTotals(subtotal: number) {
   const gstStatus = useSettingsStore.getState().gstRegistrationStatus;
@@ -256,7 +257,7 @@ export function buildInvoiceFromJobCard(
     payments,
     termsAndConditions: job.termsAndConditions ?? DEFAULT_TERMS,
     mechanicName: job.mechanicName,
-    notes: job.notes,
+    notes: job.notes ? (filterCustomerFacingNotes(job.notes).join("\n") || undefined) : undefined,
     createdAt,
     membershipId: job.membershipActivationId ?? membership?.id,
     membershipPackageName: job.membershipActivationPackageName ?? membershipPackageName,
