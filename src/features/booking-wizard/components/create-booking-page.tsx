@@ -3077,7 +3077,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
             : "lg:flex lg:flex-row lg:items-start lg:gap-8",
           useBookingWizard &&
             !isDesktopWide &&
-            "pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] md:pb-0"
+            "pb-28 max-md:pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-0"
         )}
       >
         <div
@@ -5014,6 +5014,9 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           </div>
         )}
 
+        {useBookingWizard && (
+          <div className="h-28 shrink-0 md:hidden" aria-hidden="true" />
+        )}
         </div>
 
         <aside
@@ -5128,7 +5131,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           <DialogContent
             mobileVariant="fullscreen"
             showMobileHandle={false}
-            className="flex h-[min(92vh,880px)] w-[min(100vw-1rem,1200px)] max-w-[min(100vw-1rem,1200px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
+            className="flex h-[min(92vh,880px)] w-[min(100vw-1rem,1200px)] max-w-[min(100vw-1rem,1200px)] flex-col gap-0 max-sm:overflow-hidden max-sm:pb-0 overflow-hidden p-0 sm:max-w-5xl"
           >
             <DialogHeader className="shrink-0 space-y-1 border-b border-border px-4 pb-2.5 pt-3 text-left sm:space-y-1.5 sm:px-6 sm:pb-3 sm:pt-4">
               <DialogTitle className="pr-10 text-base leading-tight sm:pr-8 sm:text-xl">

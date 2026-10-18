@@ -1768,7 +1768,7 @@ export default function JobCardDetailPage() {
       className={cn(
         "min-w-0 max-w-full overflow-x-hidden space-y-4 sm:space-y-6",
         showMobileActionBar
-          ? "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-12"
+          ? "pb-24 max-md:pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-12"
           : "pb-10 sm:pb-12"
       )}
     >
