@@ -258,17 +258,21 @@ export function filterCustomerFacingNotes(raw?: string | null): string[] {
   const result: string[] = [];
   let inInternalBlock = false;
 
-  const isInternalHeader = (line: string): boolean => {
-    return /^\s*(\*{0,2}\[?\s*internal(\s+notes?)?\s*\]?\*{0,2}\s*([:\-–—]|$))/i.test(line);
+  const isInternalLine = (line: string): boolean => {
+    return /^\s*(\*{0,2}[\[(]?\s*(internal|staff|private)(\s+notes?)?\s*[\])]?\*{0,2}\s*([:\-–—]|\s|$))/i.test(line);
+  };
+
+  const isInternalHeaderOnly = (line: string): boolean => {
+    return /^\s*(\*{0,2}[\[(]?\s*(internal|staff|private)(\s+notes?)?\s*[\])]?\*{0,2}\s*[:\-–—]?\s*)$/i.test(line);
   };
 
   const isCustomerOrOtherHeader = (line: string): boolean => {
-    return /^\s*(\*{0,2}\[?\s*(customer|client|public|coupon|direct discount|note|notes|special instruction|special instructions|instructions?|terms)\s*\]?\*{0,2}\s*([:\-–—]|$))/i.test(line);
+    return /^\s*(\*{0,2}[\[(]?\s*(customer|client|public|coupon|direct discount|note|notes|special instruction|special instructions|instructions?|terms)\s*[\])]?\*{0,2}\s*([:\-–—]|$))/i.test(line);
   };
 
   const cleanCustomerNote = (line: string): string => {
     return line
-      .replace(/^\s*\*{0,2}\[?\s*customer(\s+notes?)?\s*\]?\*{0,2}\s*[:\-–—]\s*/i, "")
+      .replace(/^\s*\*{0,2}[\[(]?\s*customer(\s+notes?)?\s*[\])]?\*{0,2}\s*[:\-–—]\s*/i, "")
       .trim();
   };
 
@@ -278,16 +282,16 @@ export function filterCustomerFacingNotes(raw?: string | null): string[] {
       continue;
     }
 
-    if (isInternalHeader(line)) {
-      inInternalBlock = true;
-      continue;
-    }
-
     if (isCustomerOrOtherHeader(line)) {
       inInternalBlock = false;
     }
 
-    if (inInternalBlock) {
+    if (isInternalHeaderOnly(line)) {
+      inInternalBlock = true;
+      continue;
+    }
+
+    if (isInternalLine(line) || inInternalBlock) {
       continue;
     }
 

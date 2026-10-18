@@ -1375,11 +1375,8 @@ export default function CustomerDetailPage() {
                           });
                           return;
                         }
-                        const sent = body.data.credentialsSent;
-                        const wasSent = sent === true;
-                        toast.success(`Password set for ${customer.name}`, {
-                          description: `Phone: ${customer.phone}  |  Password: ${portalNewPassword}  |  WhatsApp: ${wasSent ? "✓ Sent" : "⚠ Not sent (share manually)"}`,
-                          duration: 20000,
+                        toast.success(`Password updated for ${customer.name}`, {
+                          description: `Portal password has been saved for ${customer.phone}.`,
                         });
                         setPortalNewPassword("");
                       } catch {

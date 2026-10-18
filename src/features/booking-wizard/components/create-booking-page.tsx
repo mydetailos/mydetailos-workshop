@@ -3997,7 +3997,6 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
               {(() => {
                 const isVehicleTypeLocked = Boolean(
                   selectedVehicleId ||
-                  matchedVehicle ||
                   (isJobCard && vehicleSegment) ||
                   (vehicleBrand.trim() && vehicleSegment)
                 );
