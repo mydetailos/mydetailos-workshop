@@ -25,6 +25,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatDate, formatDateTime, cn } from "@/lib/utils";
+import { parseTemplateMessage } from "@/lib/whatsapp-template-renderer";
 import type { CustomerMessage } from "@/types";
 
 export default function MessagesLogPage() {
@@ -46,12 +47,15 @@ export default function MessagesLogPage() {
     return messages.filter((msg) => {
       // 1. Search matching
       const s = search.toLowerCase().trim();
+      const parsed = parseTemplateMessage(msg.body);
       const matchSearch =
         !s ||
         msg.recipient.toLowerCase().includes(s) ||
         (msg.customerName && msg.customerName.toLowerCase().includes(s)) ||
         (msg.subject && msg.subject.toLowerCase().includes(s)) ||
-        msg.body.toLowerCase().includes(s);
+        msg.body.toLowerCase().includes(s) ||
+        parsed.renderedText.toLowerCase().includes(s) ||
+        Boolean(parsed.templateName && parsed.templateName.toLowerCase().includes(s));
 
       // 2. Type matching
       const matchType = typeFilter === "all" || msg.type === typeFilter;
@@ -182,11 +186,13 @@ export default function MessagesLogPage() {
             const isEmail = msg.type === "email";
             const isWhatsApp = msg.type === "whatsapp";
             const isExpanded = expandedIds[msg.id];
+            const parsed = parseTemplateMessage(msg.body);
+            const contentText = isEmail ? msg.body : parsed.renderedText;
             const displayBody = isEmail
               ? msg.body
-              : msg.body.length > 250 && !isExpanded
-              ? `${msg.body.slice(0, 250)}...`
-              : msg.body;
+              : contentText.length > 350 && !isExpanded
+              ? `${contentText.slice(0, 350)}...`
+              : contentText;
 
             return (
               <div
@@ -219,6 +225,11 @@ export default function MessagesLogPage() {
                         <span className="font-semibold text-sm capitalize">
                           {msg.type} Channel
                         </span>
+                        {parsed.isTemplate && parsed.templateName && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
+                            {parsed.templateName}
+                          </span>
+                        )}
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full",
@@ -293,7 +304,7 @@ export default function MessagesLogPage() {
                       <div className="text-sm text-foreground/90 whitespace-pre-wrap border border-border/50 rounded-lg p-3 bg-muted/20">
                         {displayBody}
                       </div>
-                      {msg.body.length > 250 && (
+                      {contentText.length > 350 && (
                         <Button
                           variant="ghost"
                           size="sm"

@@ -60,11 +60,8 @@ import { sortByNewest } from "@/lib/sort-by-date";
 import { referredByFromOptionalInput } from "@/lib/referral-eligibility";
 import { NewCustomerReferralCodeField } from "@/components/customers/new-customer-referral-code-field";
 import { buildQuotationWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
-import {
-  sendCustomerWhatsApp,
-  openWhatsAppComposer,
-  isWhatsAppNotConfiguredError,
-} from "@/lib/whatsapp-send";
+import { openWhatsAppComposer } from "@/lib/whatsapp-send";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { useNotificationStore } from "@/store/notification-store";
 import { ApiError, apiPost } from "@/lib/api-client";
 import { notifyQuotationConvertedWhatsApp } from "@/lib/whatsapp-automation-triggers";
@@ -832,39 +829,27 @@ export default function QuotationsPage() {
     });
   };
 
-  const handleSendWhatsApp = async (q: Quotation, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const message = buildQuotationWhatsAppMessage(q);
-    const phone = q.customerPhone;
-    const notify = (channel: "api" | "composer") => {
-      useNotificationStore.getState().addNotification({
-        type: "whatsapp_sent",
-        title: channel === "api" ? "Quotation sent via WhatsApp" : "Quotation — WhatsApp composer",
-        message: `${q.quotationNumber} → ${phone}`,
-        href: "/quotations",
-      });
-    };
-    try {
-      await sendCustomerWhatsApp(phone, message);
-      finalizeQuotationWhatsApp(q);
-      toast.success("Quotation sent via WhatsApp", {
-        description: `${q.customerName} · ${phone}`,
-      });
-      notify("api");
-    } catch (err) {
-      if (isWhatsAppNotConfiguredError(err)) {
-        openWhatsAppComposer(phone, message);
-        finalizeQuotationWhatsApp(q);
-        toast.info("WhatsApp opened", {
-          description: "Finish sending in the app, or configure Twilio WhatsApp on the server.",
-        });
-        notify("composer");
-        return;
-      }
-      toast.error("WhatsApp failed", {
-        description: err instanceof ApiError ? err.message : "Could not send",
-      });
+  const handleOpenWhatsAppComposer = (q: Quotation, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const phone = q.customerPhone?.trim();
+    if (!phone) {
+      toast.error("Customer has no phone number");
+      return;
     }
+    const message = buildQuotationWhatsAppMessage(q);
+    const { usedClipboard } = openWhatsAppComposer(phone, message);
+    finalizeQuotationWhatsApp(q);
+    useNotificationStore.getState().addNotification({
+      type: "whatsapp_sent",
+      title: "Quotation — WhatsApp opened",
+      message: `${q.quotationNumber} → ${phone}`,
+      href: "/quotations",
+    });
+    toast.success("WhatsApp opened", {
+      description: usedClipboard
+        ? "Quotation copied to clipboard — paste and send in WhatsApp."
+        : `Ready to send to ${q.customerName} (${phone}).`,
+    });
   };
 
   const handleConvertToJobCard = async (q: Quotation, e?: React.MouseEvent) => {
@@ -1128,28 +1113,27 @@ export default function QuotationsPage() {
                       Edit
                     </DropdownMenuItem>
                   )}
+                  {item.customerPhone?.trim() && (
+                    <DropdownMenuItem
+                      onClick={(e) => handleOpenWhatsAppComposer(item, e)}
+                      className="text-emerald-700 dark:text-emerald-400 font-medium"
+                    >
+                      <WhatsAppIcon className="mr-2 h-4 w-4 text-[#25D366]" />
+                      Open in WhatsApp Web
+                    </DropdownMenuItem>
+                  )}
                   {quotationCanConvertToJob(item.status) && !isCounterSaleOnlyQuotation(item) && (
-                    <>
-                      <DropdownMenuItem
-                        onClick={(e) => handleSendWhatsApp(item, e)}
-                      >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        {item.status === "SENT" && !item.sentViaWhatsApp
-                          ? "Re-send via WhatsApp"
-                          : "Send via WhatsApp"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={convertingQuotationId === item.id}
-                        onClick={(e) => void handleConvertToJobCard(item, e)}
-                      >
-                        {convertingQuotationId === item.id ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <ClipboardList className="mr-2 h-4 w-4" />
-                        )}
-                        Convert to Job Card
-                      </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem
+                      disabled={convertingQuotationId === item.id}
+                      onClick={(e) => void handleConvertToJobCard(item, e)}
+                    >
+                      {convertingQuotationId === item.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                      )}
+                      Convert to Job Card
+                    </DropdownMenuItem>
                   )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -2068,17 +2052,17 @@ export default function QuotationsPage() {
                       Edit
                     </Button>
                   )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={(e) => void handleSendWhatsApp(selectedQuotation, e)}
-                  >
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    {selectedQuotation.status === "SENT" && !selectedQuotation.sentViaWhatsApp
-                      ? "Re-send via WhatsApp"
-                      : "Send via WhatsApp"}
-                  </Button>
+                  {selectedQuotation.customerPhone?.trim() && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-medium"
+                      onClick={(e) => void handleOpenWhatsAppComposer(selectedQuotation, e)}
+                    >
+                      <WhatsAppIcon className="mr-2 h-4 w-4 text-[#25D366]" />
+                      Open in WhatsApp Web
+                    </Button>
+                  )}
                   {!isCounterSaleOnlyQuotation(selectedQuotation) && (
                     <Button
                       type="button"

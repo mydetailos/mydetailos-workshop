@@ -47,6 +47,7 @@ import {
   openWhatsAppComposer,
   isWhatsAppNotConfiguredError,
 } from "@/lib/whatsapp-send";
+import { parseTemplateMessage } from "@/lib/whatsapp-template-renderer";
 import { useNotificationStore } from "@/store/notification-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
@@ -1606,6 +1607,8 @@ function CustomerCommunications({ customerId }: { customerId: string }) {
           {customerMessages.map((msg) => {
             const isEmail = msg.type === "email";
             const isWhatsApp = msg.type === "whatsapp";
+            const parsed = parseTemplateMessage(msg.body);
+            const contentText = isEmail ? msg.body : parsed.renderedText;
             return (
               <div key={msg.id} className="p-4 rounded-xl border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
                 <div className="flex items-start justify-between gap-4">
@@ -1628,6 +1631,11 @@ function CustomerCommunications({ customerId }: { customerId: string }) {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm capitalize">{msg.type}</span>
+                        {parsed.isTemplate && parsed.templateName && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
+                            {parsed.templateName}
+                          </span>
+                        )}
                         <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
                           msg.status === "sent" 
                             ? "bg-emerald-150 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400" 
@@ -1653,7 +1661,7 @@ function CustomerCommunications({ customerId }: { customerId: string }) {
                   />
                 ) : (
                   <div className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap border border-border/50 rounded-lg p-3 bg-background/50">
-                    {msg.body}
+                    {contentText}
                   </div>
                 )}
 

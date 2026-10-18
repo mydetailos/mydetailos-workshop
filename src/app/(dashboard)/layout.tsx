@@ -205,6 +205,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <BootOverlay />;
   }
 
+  const isInternalScrollPage =
+    appPath === "/support" ||
+    appPath === "/job-cards/new" ||
+    appPath === "/bookings/walk-in";
+
   return (
     <TenantGuard mode="staff">
       <div className="fixed inset-0 z-0 flex flex-col overflow-hidden bg-background">
@@ -222,8 +227,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ref={mainScrollRef}
             className={cn(
               "min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6 md:[scrollbar-gutter:stable]",
-              // Support chat: lock page scroll so only the thread/list scroll internally.
-              appPath === "/support"
+              // Support chat & wizard flows: lock page scroll so content scrolls internally.
+              isInternalScrollPage
                 ? "flex flex-col overflow-hidden"
                 : "overflow-y-auto"
             )}
@@ -249,7 +254,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ) : null}
             <AppDataSync />
             <DomainDataSync />
-            {appPath === "/support" ? (
+            {isInternalScrollPage ? (
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
             ) : (
               children

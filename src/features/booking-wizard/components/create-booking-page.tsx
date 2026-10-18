@@ -69,6 +69,7 @@ import {
   Pencil,
   Loader2,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -495,6 +496,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     "Vehicle will be kept in secure parking. Not responsible for valuables left in vehicle. Warranty: 30 days on parts replaced."
   );
   const [selectedHighEndIds, setSelectedHighEndIds] = useState<string[]>([]);
+  /** Only one high-end service card can be expanded at a time (accordion). */
+  const [expandedHighEndId, setExpandedHighEndId] = useState<string | null>(null);
   const [highEndFirstFollowUpById, setHighEndFirstFollowUpById] = useState<Record<string, number>>({});
   /** Planned completion time (minutes) per selected high-end program. */
   const [highEndCompletionMinutesById, setHighEndCompletionMinutesById] = useState<
@@ -548,6 +551,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
 
   const [jobCreateStep, setJobCreateStep] = useState(0);
   const [isDesktopWide, setIsDesktopWide] = useState(false);
+  const stepContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     const apply = () => setIsDesktopWide(mq.matches);
@@ -555,6 +559,12 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+
+  useEffect(() => {
+    if (stepContainerRef.current) {
+      stepContainerRef.current.scrollTop = 0;
+    }
+  }, [jobCreateStep]);
 
   /** Desktop wizard: fit dashboard main without page scroll; compact density */
   const compactJobCardDesktop = useBookingWizard && isDesktopWide;
@@ -616,6 +626,12 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         }
       }
       return changed ? next : prev;
+    });
+    setExpandedHighEndId((prev) => {
+      if (prev && !selectedHighEndIds.includes(prev)) {
+        return null;
+      }
+      return prev;
     });
   }, [selectedHighEndIds]);
 
@@ -3069,9 +3085,9 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         className={cn(
           useBookingWizard
             ? cn(
-                "flex min-h-0 flex-1 flex-col",
+                "flex min-h-0 flex-1 flex-col overflow-hidden",
                 isDesktopWide
-                  ? "min-h-0 flex-1 lg:flex-row lg:items-start lg:justify-between lg:gap-6"
+                  ? "min-h-0 flex-1 lg:flex-row lg:items-stretch lg:justify-between lg:gap-6"
                   : "h-auto overflow-visible"
               )
             : "lg:flex lg:flex-row lg:items-start lg:gap-8",
@@ -3088,7 +3104,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
               "flex flex-col px-3 py-2 sm:px-4 sm:pt-2 sm:pb-0",
             useBookingWizard &&
               isDesktopWide &&
-              "min-h-0 flex-1 gap-3 lg:min-w-0",
+              "min-h-0 flex-1 overflow-hidden lg:min-w-0",
             useBookingWizard && !isDesktopWide && "min-h-0 flex-1"
           )}
         >
@@ -3110,9 +3126,11 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           )}
 
           <div
+            ref={stepContainerRef}
             className={cn(
-              useBookingWizard ? "space-y-4" : "space-y-6",
-              useBookingWizard && "flex flex-col space-y-4"
+              useBookingWizard
+                ? "flex-1 min-h-0 overflow-y-auto pr-2 pb-6 space-y-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5"
+                : "space-y-6"
             )}
           >
           {showJobWizardStep("customer") && (
@@ -4358,7 +4376,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                   onChange={setHighEndSearch}
                   placeholder="Search high-end services..."
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
                   {filteredHighEndServices.length === 0 ? (
                     <p className="col-span-full text-sm text-muted-foreground py-6 text-center">
                       No high-end services match.
@@ -4366,7 +4384,37 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                   ) : (
                   filteredHighEndServices.map((hes) => {
                     const isSelected = selectedHighEndIds.includes(hes.id);
+                    const isExpanded = isSelected && expandedHighEndId === hes.id;
                     const comparisonTag = highEndComparisonTag(hes.name);
+
+                    const handleCardClick = () => {
+                      if (!isSelected) {
+                        setSelectedHighEndIds((prev) => [...prev, hes.id]);
+                        setExpandedHighEndId(hes.id);
+                      } else {
+                        // Toggle accordion: expand if collapsed, collapse if already open
+                        setExpandedHighEndId((prev) => (prev === hes.id ? null : hes.id));
+                      }
+                    };
+
+                    const handleRemove = (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      setSelectedHighEndIds((prev) => prev.filter((id) => id !== hes.id));
+                      setHighEndFirstFollowUpById((prev) => {
+                        const next = { ...prev };
+                        delete next[hes.id];
+                        return next;
+                      });
+                      setHighEndCompletionMinutesById((prev) => {
+                        const next = { ...prev };
+                        delete next[hes.id];
+                        return next;
+                      });
+                      if (expandedHighEndId === hes.id) {
+                        setExpandedHighEndId(null);
+                      }
+                    };
+
                     return (
                       <div
                         key={hes.id}
@@ -4379,12 +4427,9 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                       >
                         <button
                           type="button"
-                          onClick={() =>
-                            setSelectedHighEndIds((prev) =>
-                              isSelected ? prev.filter((id) => id !== hes.id) : [...prev, hes.id]
-                            )
-                          }
-                          className="flex items-start gap-2.5 p-3 w-full text-left"
+                          onClick={handleCardClick}
+                          aria-expanded={isExpanded}
+                          className="flex items-start gap-2.5 p-3 w-full text-left cursor-pointer"
                         >
                           <Sparkles
                             className={cn(
@@ -4411,10 +4456,23 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                                 </Badge>
                               )}
                               {isSelected && (
-                                <Badge className="text-[9px] bg-amber-500 text-white px-1.5 py-0">
-                                  <Check className="h-2.5 w-2.5 mr-0.5" />
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={handleRemove}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleRemove(e as unknown as React.MouseEvent);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[9px] font-semibold bg-amber-500 hover:bg-amber-600 text-white px-1.5 py-0.5 rounded transition-colors shadow-xs"
+                                  title="Click to remove from job"
+                                >
+                                  <Check className="h-2.5 w-2.5" />
                                   Selected
-                                </Badge>
+                                  <X className="h-2.5 w-2.5 opacity-80 hover:opacity-100" />
+                                </span>
                               )}
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -4425,8 +4483,17 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                               +{formatCurrency(highEndPriceForSegment(hes, vehicleSegment || undefined))} est. (excl. GST)
                             </p>
                           </div>
+                          {isSelected && (
+                            <div className="shrink-0 text-muted-foreground self-center ml-1">
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </div>
+                          )}
                         </button>
-                        {isSelected && (
+                        {isExpanded && (
                           <div className="px-3 pb-3 pt-0 space-y-3 border-t border-amber-200/60 dark:border-amber-900/40">
                             {hes.reminderIntervals.length > 0 && (
                               <div className="space-y-1.5">
@@ -4627,6 +4694,24 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                               <p className="text-[10px] text-muted-foreground leading-snug">
                                 Plan turnaround time.
                               </p>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-amber-200/40 dark:border-amber-900/30">
+                              <button
+                                type="button"
+                                onClick={handleRemove}
+                                className="text-[11px] text-rose-600 hover:text-rose-700 dark:text-rose-400 font-medium inline-flex items-center gap-1 hover:underline cursor-pointer"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Remove service
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedHighEndId(null)}
+                                className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 cursor-pointer"
+                              >
+                                Collapse
+                                <ChevronUp className="w-3 h-3" />
+                              </button>
                             </div>
                           </div>
                         )}
@@ -4931,15 +5016,25 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
             />
           )}
 
-          {useBookingWizard && showJobWizardStep("jobSummary") && renderWizardReviewSections()}
+          {useBookingWizard && showJobWizardStep("jobSummary") && (
+            <>
+              {renderWizardReviewSections()}
+              <div className="mt-4 w-full shrink-0 pb-2 lg:hidden">
+                {renderSummaryCard("booking-branch-select-block-mobile")}
+              </div>
+            </>
+          )}
+
+          {useBookingWizard && (
+            <div className="h-28 shrink-0 md:hidden" aria-hidden="true" />
+          )}
         </div>
 
         {useBookingWizard && (
           <div
             className={cn(
-              "hidden shrink-0 flex-nowrap items-center justify-between gap-3 border-t border-border md:flex w-full",
-              "sticky bottom-0 z-20 bg-background/95 backdrop-blur-sm py-2.5 mt-2",
-              compactJobCardDesktop ? "pt-2 pb-1" : "pt-2.5 pb-1"
+              "hidden shrink-0 flex-nowrap items-center justify-between gap-3 border-t border-border md:flex w-full bg-background z-10",
+              "py-3 mt-auto"
             )}
           >
             {/* Left: Back button + Summary */}
@@ -5007,23 +5102,13 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
             </div>
           </div>
         )}
-
-        {useBookingWizard && jobWizardStepId === "jobSummary" && (
-          <div className="mt-4 w-full shrink-0 pb-2 lg:hidden">
-            {renderSummaryCard("booking-branch-select-block-mobile")}
-          </div>
-        )}
-
-        {useBookingWizard && (
-          <div className="h-28 shrink-0 md:hidden" aria-hidden="true" />
-        )}
         </div>
 
         <aside
           className={cn(
             "mt-4 w-full shrink-0 sm:mt-6 lg:mt-0 lg:w-[min(100%,460px)] lg:shrink-0 lg:ml-auto lg:pr-1",
             useBookingWizard &&
-              "hidden lg:flex lg:flex-col lg:sticky lg:top-4 lg:z-20 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5"
+              "hidden lg:flex lg:flex-col lg:max-h-full lg:overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5"
           )}
         >
           {renderSummaryCard("booking-branch-select-block")}
@@ -5108,7 +5193,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
   return (
     <>
       {isDesktopWide ? (
-        <div className="flex min-h-0 flex-1 flex-col pb-8">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {bookingForm}
         </div>
       ) : (
