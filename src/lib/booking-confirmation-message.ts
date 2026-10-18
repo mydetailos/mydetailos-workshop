@@ -1,24 +1,9 @@
 import { format, parseISO } from "date-fns";
 import type { Appointment, JobCard } from "@/types";
 
-const OUR_SERVICES_LINE =
-  "Foam Wash | Steam Wash | Underbody Cleaning | Interior Deep Dry Clean | Odour Removal | Rubbing Polish | Clay Bar Treatment | Headlight Restoration | Nitrogen Fill | Teflon Coating | 9H Ceramic | 3M Ceramic | Meguiar's Ceramic | 10H Ceramic | Graphene | PPF (TPU).";
-
-const PRODUCTS_LINE =
-  "We use 100% original products from 3M, Meguiar's, Puris, SystemX, PaintGuard, Garware, XPEL, Llumar, Saint-Gobain, etc.";
-
-const EXTRA_SERVICES_LINE = "Denting-Painting & Mechanical Services";
-
-const BRAND_TAGLINE = [
-  "Quality Never Goes Out of Cost – Don't Be Cheap!",
-  "Choose Fair Pricing with Guaranteed Quality & Original Products!",
-].join("\n");
-
-const DISCLAIMER = `No car wash or detailing is perfect. Most complaints arise from pre-existing conditions that become noticeable after cleaning. Our team is not liable for any mechanical or electrical issues revealed post-service. We avoid cleaning sensitive areas like the engine, infotainment screen, cameras, etc. Your presence during the service is mandatory. We are not liable once our team leaves your premises. Please remove all valuables before handing over your vehicle.`;
-
 function buildTermsLine(termsUrl?: string): string {
   const base =
-    "(a) A GST invoice will be provided online. (b) Services are subject to availability and feasibility. (c) Advance payment is non-refundable and non-transferable in case of customer rescheduling or cancellation. (d) Visiting/pick-up charges: Rs. 200 minimum, plus Rs. 10/km beyond 10 km from our office.";
+    "(a) A GST invoice will be provided digitally. (b) Services are subject to vehicle inspection and feasibility. (c) Advance payments, if collected, are adjusted against the final invoice.";
   if (termsUrl?.trim()) {
     return `${base} For full terms and disclaimers, please visit: ${termsUrl.trim()}`;
   }
@@ -39,7 +24,7 @@ function firstName(apt: Appointment): string {
 }
 
 function greetingName(apt: Appointment): string {
-  return firstName(apt).toUpperCase();
+  return firstName(apt);
 }
 
 /** Vehicle line for booking details — make/model (COLOUR), registration omitted when colour is set. */
@@ -59,8 +44,8 @@ function bookingDetailsLine(apt: Appointment): string {
     apt.serviceType?.trim(),
     apt.bookingPricingLine?.trim(),
   ].filter((x): x is string => Boolean(x && x.length > 0));
-  if (parts.length > 0) return parts.join(" ");
-  return "Pricing and package details will be confirmed at the outlet.";
+  if (parts.length > 0) return parts.join(" · ");
+  return "Pricing and package details will be confirmed at the workshop.";
 }
 
 function bookingDateLine(apt: Appointment): string {
@@ -78,16 +63,14 @@ function expectedDeliveryFormatted(apt: Appointment): string {
 
 function bookingScheduleBlock(apt: Appointment): string {
   const delivery = expectedDeliveryFormatted(apt);
-  const note =
-    apt.deliveryExpectationNote?.trim() ||
-    "we will try our 100% to deliver it on Saturday Evening.";
-  return `*${bookingDateLine(apt)}* | Expected Delivery time: ${delivery} (${note})`;
+  const note = apt.deliveryExpectationNote?.trim();
+  return note
+    ? `*${bookingDateLine(apt)}* | Expected Delivery: ${delivery} (${note})`
+    : `*${bookingDateLine(apt)}* | Expected Delivery: ${delivery}`;
 }
 
 function priceDetailsBlock(apt: Appointment): string {
-  const advanceNote =
-    apt.advancePolicyNote?.trim() ||
-    "An advance payment of 30% is required to confirm and pre-schedule your service slot.";
+  const advanceNote = apt.advancePolicyNote?.trim();
 
   if (
     apt.priceSubtotalExGst != null &&
@@ -102,7 +85,7 @@ function priceDetailsBlock(apt: Appointment): string {
       `*PRICE DETAILS:*`,
       priceLine,
       apt.advancePaid != null ? `Advance: ${formatRs(apt.advancePaid)}` : "",
-      `Note: ${advanceNote}`,
+      advanceNote ? `Note: ${advanceNote}` : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -110,9 +93,9 @@ function priceDetailsBlock(apt: Appointment): string {
 
   return [
     `*PRICE DETAILS:*`,
-    `Pricing will be confirmed at the outlet before work begins.`,
+    `Pricing will be confirmed at the workshop before work begins.`,
     apt.advancePaid != null ? `Advance: ${formatRs(apt.advancePaid)}` : "",
-    `Note: ${advanceNote}`,
+    advanceNote ? `Note: ${advanceNote}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -124,22 +107,22 @@ function regardsTeamLine(business: BookingConfirmationBusiness): string {
 }
 
 function outletAtLine(business: BookingConfirmationBusiness): string {
-  return (business.acceptanceOutlet ?? business.studioName ?? "Visit Outlet").trim();
+  return (business.acceptanceOutlet ?? business.studioName ?? "Workshop").trim();
 }
 
 export type BookingConfirmationBusiness = {
-  /** Label after @ in opening line (e.g. "Visit Outlet"). */
+  /** Label after @ in opening line (e.g. "Workshop"). */
   acceptanceOutlet?: string;
-  /** Branch / studio label (legacy; not used in @ line when acceptanceOutlet is set). */
+  /** Branch / studio label. */
   branchName: string;
-  /** Business / studio name for Regards block (e.g. "The Detailing Gang"). */
+  /** Business / studio name for Regards block. */
   businessName?: string;
   /** @deprecated Use acceptanceOutlet */
   studioName?: string;
   address: string;
   phone: string;
   email: string;
-  /** Full terms URL (e.g. https://www.thedetailinggang.com/terms-conditions) */
+  /** Full terms URL */
   termsUrl?: string;
 };
 
@@ -161,8 +144,8 @@ export function getBookingConfirmationBusiness(opts: {
     termsUrl = /terms/i.test(normalized) ? normalized : `${normalized}/terms-conditions`;
   }
   return {
-    acceptanceOutlet: opts.acceptanceOutlet ?? "Visit Outlet",
-    branchName: opts.branchLabel?.trim() || "Visit Outlet",
+    acceptanceOutlet: opts.acceptanceOutlet ?? opts.branchLabel ?? "Workshop",
+    branchName: opts.branchLabel?.trim() || opts.businessName || "Workshop",
     businessName: opts.businessName,
     address: opts.businessAddress,
     phone: opts.businessPhone,
@@ -176,16 +159,16 @@ export function buildBookingConfirmationMessage(
   business: BookingConfirmationBusiness
 ): string {
   const name = greetingName(apt);
-  const outlet = outletAtLine(business);
+  const brand = business.businessName?.trim() || business.branchName?.trim() || "our workshop";
   const wa = (apt.whatsappPhone ?? apt.customerPhone).trim();
   const mobile = apt.customerPhone.trim();
   const terms = buildTermsLine(business.termsUrl);
   const team = regardsTeamLine(business);
 
   return [
-    `Hi *${name},*`,
+    `Hi *${name}*! 👋`,
     ``,
-    `Your booking request *(No: ${apt.bookingId})* has been successfully accepted @${outlet}.`,
+    `Your booking request *(No: ${apt.bookingId})* has been successfully confirmed at *${brand}*. 🚗`,
     ``,
     `*BOOKING DETAILS:*`,
     bookingDetailsLine(apt),
@@ -194,31 +177,27 @@ export function buildBookingConfirmationMessage(
     ``,
     `*BOOKING DATE & TIME:*`,
     bookingScheduleBlock(apt),
-    `Kindly visit our Studio Outlet before 30 min, we can start job accordingly, subject to feasibility.`,
+    `Kindly visit our workshop 15-30 minutes before your slot to facilitate vehicle intake.`,
     ``,
     `*CUSTOMER DETAILS:*`,
     `Name: ${apt.customerName}`,
-    `Mobile No: ${mobile} WhatsApp: ${wa}`,
-    `Address: ${apt.customerAddress ?? "—"}`,
+    `Mobile No: ${mobile}${wa && wa !== mobile ? ` | WhatsApp: ${wa}` : ""}`,
+    apt.customerAddress ? `Address: ${apt.customerAddress}` : "",
     ``,
-    `*OUR SERVICES:* ${OUR_SERVICES_LINE}`,
-    PRODUCTS_LINE,
-    `&`,
-    EXTRA_SERVICES_LINE,
+    `*PLEASE NOTE:*`,
+    `Please remove all personal valuables before handing over your vehicle. Our team will perform an initial vehicle inspection with you before starting work.`,
     ``,
-    BRAND_TAGLINE,
-    ``,
-    `*DISCLAIMER:*`,
-    DISCLAIMER,
-    ``,
-    `*STANDARD TERMS & CONDITIONS:* ${terms}`,
+    `*TERMS & CONDITIONS:*`,
+    terms,
     ``,
     `Regards,`,
     team,
-    business.address,
-    business.phone,
-    business.email,
-  ].join("\n");
+    business.address ? business.address : "",
+    business.phone ? `Phone: ${business.phone}` : "",
+    business.email ? `Email: ${business.email}` : "",
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
 }
 
 /**
@@ -247,7 +226,7 @@ export type JobCardCreationConfirmationInput = {
   bookingPricingLine?: string;
 };
 
-/** Full TDG-style confirmation when a job card is created (same template as bookings). */
+/** Full confirmation message when a job card is created (same template as bookings). */
 export function buildJobCardCreationConfirmationMessage(
   input: JobCardCreationConfirmationInput
 ): string {
@@ -289,8 +268,7 @@ export function buildJobCardCreationConfirmationMessage(
     advancePolicyNote:
       "An advance payment of 30% is required to confirm and pre-schedule your service slot.",
     expectedDeliveryDate,
-    deliveryExpectationNote:
-      "we will try our 100% to deliver it on Saturday Evening.",
+    deliveryExpectationNote: undefined,
   };
 
   return buildBookingWhatsAppMessageCompact(apt, input.business);

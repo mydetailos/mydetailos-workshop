@@ -34,6 +34,8 @@ import {
   buildJobReadyForPickupVariables,
   buildInvoiceCreatedVariables,
   buildJobDeliveredVariables,
+  buildBookingConfirmedVariables,
+  buildMembershipWelcomeVariables,
 } from "@/lib/twilio-templates-config";
 
 function branchIdForJobCardId(jobCardId: string | undefined): string | undefined {
@@ -267,9 +269,33 @@ export function notifyReservationConfirmedWhatsApp(
   if (!phone) return;
   const message = buildReservationConfirmedMessage(apt, business);
   const ref = getAppointmentDisplayId(apt);
+  const workshopName =
+    typeof business === "string"
+      ? business
+      : business.businessName?.trim() || business.branchName || "Workshop";
+  const vehicleStr = apt.vehicleMakeModel
+    ? `${apt.vehicleMakeModel} ${apt.vehicleRegNumber ? `(${apt.vehicleRegNumber})` : ""}`.trim()
+    : "Vehicle";
+
+  const template = TWILIO_TEMPLATE_SIDS.BOOKING_CONFIRMED
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.BOOKING_CONFIRMED,
+        contentVariables: buildBookingConfirmedVariables({
+          customerName: apt.customerName,
+          businessName: workshopName,
+          bookingId: ref,
+          vehicleStr,
+          services: apt.serviceType || "Service Booking",
+          dateTimeStr: `${apt.date} ${apt.time}`.trim(),
+          portalUrl: getCustomerPortalLoginUrl(),
+        }),
+      }
+    : undefined;
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message,
+    template,
     titles: {
       api: "Confirmation sent — WhatsApp",
       composer: "Confirmation — WhatsApp composer",
@@ -368,9 +394,25 @@ export function notifyMembershipWelcomeWhatsApp(opts: {
     vehicleReg: opts.vehicleReg,
     includedServiceNames: opts.includedServiceNames,
   });
+  const template = TWILIO_TEMPLATE_SIDS.MEMBERSHIP_WELCOME
+    ? {
+        contentSid: TWILIO_TEMPLATE_SIDS.MEMBERSHIP_WELCOME,
+        contentVariables: buildMembershipWelcomeVariables({
+          customerName: opts.customerName,
+          businessName: opts.businessName,
+          packageName: opts.packageName,
+          planTier: opts.tier ? opts.tier.charAt(0).toUpperCase() + opts.tier.slice(1).toLowerCase().replace(/_/g, " ") : "Active",
+          validUntil: opts.validUntilIso,
+          customerPhone: opts.customerPhone,
+          portalUrl: getCustomerPortalLoginUrl(),
+        }),
+      }
+    : undefined;
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message,
+    template,
     titles: {
       api: "Membership welcome — WhatsApp sent",
       composer: "Membership welcome — WhatsApp composer",
@@ -382,7 +424,8 @@ export function notifyMembershipWelcomeWhatsApp(opts: {
       entityId: opts.customerId,
       entityLabel: opts.customerName,
       details: `Membership welcome WhatsApp — ${opts.packageName}`,
-    }  });
+    },
+  });
 }
 
 export function notifyHighEndAdvanceRecordedWhatsApp(

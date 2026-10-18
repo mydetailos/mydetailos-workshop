@@ -12,6 +12,8 @@ export const TWILIO_TEMPLATE_SIDS = {
   AUTH_VERIFICATION: "HXf1c8e1cbd228b0ab0700445712169f1e", // WhatsApp authentication (OTP)
 
   // Service & Reminders
+  BOOKING_CONFIRMED: "HX5cce05db094a51b93ca5341691275165", // booking_confirmed_v2 (UTILITY)
+  MEMBERSHIP_WELCOME: "HXc44af52a93227efe07cb3d1707fc71aa", // membership_welcome_v2 (UTILITY)
   JOB_CARD_CREATED: "HXbc4e0ac2bdef379fe6acc1b3a7f128c1", // job_card_created_v3 (approved UTILITY)
   JOB_CARD_READY: "HX67fe4e7fead33acd40e482197767bdf8", // job_card_ready_for_pickup (UTILITY)
   JOB_DELIVERED: "HXf36d3b11526768d4623e917fd9b52b3c", // job_delivered_confirmation (UTILITY)
@@ -25,6 +27,10 @@ export const TWILIO_TEMPLATE_SIDS = {
 
   // SaaS / Studio Owner
   OWNER_TRIAL_LOGIN: "HX017ae6f1929692e858e682d6ce214cc4", // owner_trial_started_utility (approved UTILITY)
+  OWNER_TRIAL_EXPIRING_REMINDER: "HX45af808870cab6c07b1fbee3f5b4f80a", // trial_expiring_reminder_v1 (UTILITY)
+  OWNER_TRIAL_EXPIRED: "HX0d17b4d75645d165b231a0d86b32e876", // trial_expired_v1 (UTILITY)
+  OWNER_SUBSCRIPTION_EXPIRING_REMINDER: "HX25e04dd54564f85f7a27b1269952d8db", // sub_expiring_reminder_v1 (UTILITY)
+  OWNER_SUBSCRIPTION_EXPIRED: "HX54f7800d178682b39fdbfe1e3f329497", // subscription_expired_v1 (UTILITY)
   OWNER_PLAN_ACTIVATED: "HX6614aca21b384ae0eb0089e30eb11981", // owner_plan_activated_exact
   OWNER_PAYMENT_LINK: "HX1bede6b642ec0b693a58bb793bb99558", // owner_payment_link_exact
 };
@@ -323,5 +329,201 @@ export function buildInspectionReportVariables(opts: {
     "8": opts.phone,
   };
 }
+
+/**
+ * Booking Confirmed (booking_confirmed_v2: HX5cce05db094a51b93ca5341691275165)
+ * Template:
+ * "Hi {{1}}! 👋
+ *  Your booking has been confirmed at {{2}}. 🚗
+ * 
+ *  📋 Booking ID: {{3}}
+ *  🚗 Vehicle: {{4}}
+ *  🔧 Service: {{5}}
+ *  📅 Date & Time: {{6}}
+ * 
+ *  Thank you for choosing {{2}} team."
+ */
+export function buildBookingConfirmedVariables(opts: {
+  customerName: string;
+  businessName: string;
+  bookingId: string;
+  vehicleStr: string;
+  services: string;
+  dateTimeStr: string;
+  portalUrl?: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.bookingId,
+    "4": opts.vehicleStr || "Vehicle",
+    "5": opts.services || "General Service",
+    "6": opts.dateTimeStr || "Scheduled Slot",
+  };
+}
+
+/**
+ * Membership Welcome (membership_welcome_v2: HXc44af52a93227efe07cb3d1707fc71aa)
+ * Template:
+ * "Hi {{1}}! 🎉
+ *  Your {{3}} membership is now active at {{2}}! ⭐
+ * 
+ *  📅 Plan: {{4}}
+ *  ✅ Valid until: {{5}}
+ * 
+ *  Thank you for choosing {{2}} team."
+ */
+export function buildMembershipWelcomeVariables(opts: {
+  customerName: string;
+  businessName: string;
+  packageName: string;
+  planTier?: string;
+  validUntil?: string;
+  customerPhone?: string;
+  portalUrl?: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  let validStr = opts.validUntil?.trim() || "1 Year";
+  if (opts.validUntil) {
+    try {
+      const d = new Date(opts.validUntil);
+      if (!isNaN(d.getTime())) {
+        validStr = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      }
+    } catch {
+      // keep fallback
+    }
+  }
+
+  return {
+    "1": firstName,
+    "2": opts.businessName,
+    "3": opts.packageName,
+    "4": opts.planTier || "Active",
+    "5": validStr,
+  };
+}
+
+/**
+ * Trial Expired (trial_expired_v1: HX0d17b4d75645d165b231a0d86b32e876)
+ * Template:
+ * "Hi {{1}}! ⚠️
+ *  Your free trial for {{2}} on My Detail OS has expired.
+ * 
+ *  📅 Expiration Date: {{3}}
+ *  🔗 Upgrade to an active plan to keep your operations running:
+ *  {{4}}
+ * 
+ *  Thank you,
+ *  Team My Detail OS."
+ */
+export function buildOwnerTrialExpiredVariables(opts: {
+  ownerName: string;
+  organizationName: string;
+  expirationDate: string;
+  upgradeUrl: string;
+}): Record<string, string> {
+  const firstName = opts.ownerName.trim().split(/\s+/)[0] || opts.ownerName;
+  return {
+    "1": firstName,
+    "2": opts.organizationName,
+    "3": opts.expirationDate,
+    "4": opts.upgradeUrl.replace(/\/$/, ""),
+  };
+}
+
+/**
+ * Subscription Expired (subscription_expired_v1: HX54f7800d178682b39fdbfe1e3f329497)
+ * Template:
+ * "Hi {{1}}! ⚠️
+ *  Your {{3}} subscription for {{2}} on My Detail OS has expired.
+ * 
+ *  📅 Expiration Date: {{4}}
+ *  🔗 Renew your subscription to restore full access:
+ *  {{5}}
+ * 
+ *  Thank you,
+ *  Team My Detail OS."
+ */
+export function buildOwnerSubscriptionExpiredVariables(opts: {
+  ownerName: string;
+  organizationName: string;
+  planName: string;
+  expirationDate: string;
+  renewalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.ownerName.trim().split(/\s+/)[0] || opts.ownerName;
+  return {
+    "1": firstName,
+    "2": opts.organizationName,
+    "3": opts.planName,
+    "4": opts.expirationDate,
+    "5": opts.renewalUrl.replace(/\/$/, ""),
+  };
+}
+
+/**
+ * Trial Expiring Reminder (trial_expiring_reminder_v1: HX45af808870cab6c07b1fbee3f5b4f80a)
+ * Template:
+ * "Hi {{1}}! ⏳
+ *  Friendly reminder: your free trial for {{2}} on My Detail OS is expiring in {{3}}.
+ * 
+ *  📅 Expiration Date: {{4}}
+ *  🔗 Upgrade your plan to maintain uninterrupted garage operations:
+ *  {{5}}
+ * 
+ *  Thank you,
+ *  Team My Detail OS."
+ */
+export function buildOwnerTrialExpiringReminderVariables(opts: {
+  ownerName: string;
+  organizationName: string;
+  timeRemaining: string;
+  expirationDate: string;
+  upgradeUrl: string;
+}): Record<string, string> {
+  const firstName = opts.ownerName.trim().split(/\s+/)[0] || opts.ownerName;
+  return {
+    "1": firstName,
+    "2": opts.organizationName,
+    "3": opts.timeRemaining,
+    "4": opts.expirationDate,
+    "5": opts.upgradeUrl.replace(/\/$/, ""),
+  };
+}
+
+/**
+ * Subscription Expiring Reminder (sub_expiring_reminder_v1: HX25e04dd54564f85f7a27b1269952d8db)
+ * Template:
+ * "Hi {{1}}! ⏳
+ *  Friendly reminder: your {{3}} subscription for {{2}} on My Detail OS is expiring in {{4}}.
+ * 
+ *  📅 Expiration Date: {{5}}
+ *  🔗 Renew your subscription to maintain uninterrupted service:
+ *  {{6}}
+ * 
+ *  Thank you,
+ *  Team My Detail OS."
+ */
+export function buildOwnerSubscriptionExpiringReminderVariables(opts: {
+  ownerName: string;
+  organizationName: string;
+  planName: string;
+  timeRemaining: string;
+  expirationDate: string;
+  renewalUrl: string;
+}): Record<string, string> {
+  const firstName = opts.ownerName.trim().split(/\s+/)[0] || opts.ownerName;
+  return {
+    "1": firstName,
+    "2": opts.organizationName,
+    "3": opts.planName,
+    "4": opts.timeRemaining,
+    "5": opts.expirationDate,
+    "6": opts.renewalUrl.replace(/\/$/, ""),
+  };
+}
+
 
 

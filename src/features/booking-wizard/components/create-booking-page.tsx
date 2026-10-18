@@ -2027,8 +2027,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         advancePolicyNote:
           "An advance payment of 30% is required to confirm and pre-schedule your service slot.",
         expectedDeliveryDate: expectedDelDate,
-        deliveryExpectationNote:
-          "we will try our 100% to deliver it on Saturday Evening.",
+        deliveryExpectationNote: undefined,
       };
 
       await addAppointment(newBooking);
@@ -2040,7 +2039,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           businessPhone,
           businessEmail,
           businessWebsite,
-          acceptanceOutlet: "Visit Outlet",
+          acceptanceOutlet: businessName || "Workshop",
         })
       );
 

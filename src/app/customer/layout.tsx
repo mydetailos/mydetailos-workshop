@@ -316,9 +316,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logoUrl} alt={businessName} className="h-9 w-9 rounded-lg object-cover shrink-0 border border-sidebar-border" />
               ) : (
-                <div className="h-9 w-9 rounded-lg bg-sidebar-active flex items-center justify-center shrink-0">
-                  <Car className="h-5 w-5 text-sidebar-active-foreground" />
-                </div>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/my-detail-os-mark.png" alt={businessName} className="h-9 w-9 rounded-lg object-cover shrink-0 border border-sidebar-border" />
               )}
             </Link>
             <div className="min-w-0">
@@ -415,9 +414,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt={businessName} className="h-9 w-9 rounded-lg object-cover shrink-0 border border-sidebar-border" />
           ) : (
-            <div className="h-9 w-9 rounded-lg bg-sidebar-active flex items-center justify-center shrink-0">
-              <Car className="h-5 w-5 text-sidebar-active-foreground" />
-            </div>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/my-detail-os-mark.png" alt={businessName} className="h-9 w-9 rounded-lg object-cover shrink-0 border border-sidebar-border" />
           )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-sidebar-accent-foreground truncate leading-tight">{businessName}</p>
