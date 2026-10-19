@@ -55,6 +55,8 @@ interface StaffStoreState {
   addStaff: (input: AddStaffInput) => Promise<{
     temporaryPassword?: string;
     credentialsEmailSent?: boolean;
+    attendancePin?: string;
+    user?: User;
   }>;
   updateStaff: (
     id: string,
@@ -191,7 +193,12 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
       ...(input.permissions ? { permissions: input.permissions } : {}),
     });
     set({ staff: [user, ...list] });
-    return { temporaryPassword, credentialsEmailSent };
+    return {
+      temporaryPassword,
+      credentialsEmailSent,
+      attendancePin: user.attendancePin,
+      user,
+    };
   },
 
   updateStaff: async (id, updates) => {

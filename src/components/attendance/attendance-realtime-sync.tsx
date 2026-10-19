@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAttendanceStore } from "@/store/attendance-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useAppBootstrapStore } from "@/store/app-bootstrap-store";
+import { stripOrgSlugFromPath } from "@/lib/tenant";
 
 const POLL_OK_MS = 2000;
 const POLL_FAIL_MAX_MS = 30_000;
@@ -20,7 +21,8 @@ export function AttendanceRealtimeSync() {
   const bootstrapReady = useAppBootstrapStore((s) => s.ready);
   const [authReady, setAuthReady] = useState(false);
 
-  const onAttendanceDashboard = pathname === "/attendance";
+  const appPath = stripOrgSlugFromPath(pathname);
+  const onAttendanceDashboard = appPath === "/attendance";
 
   useEffect(() => {
     if (useAuthStore.persist.hasHydrated()) {

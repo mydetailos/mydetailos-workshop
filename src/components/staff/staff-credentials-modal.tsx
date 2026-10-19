@@ -31,6 +31,7 @@ export interface StaffCredentialsInfo {
   role: string;
   designation?: string;
   temporaryPassword?: string;
+  attendancePin?: string;
   isNewUser?: boolean;
 }
 
@@ -80,6 +81,11 @@ export function StaffCredentialsModal({
     } else {
       lines.push("");
       lines.push("Please sign in using your existing password.");
+    }
+
+    if (credentials.attendancePin) {
+      lines.push("");
+      lines.push(`• Attendance PIN: ${credentials.attendancePin} (use this to punch in/out with the branch QR code)`);
     }
 
     return lines.join("\n");
@@ -232,6 +238,31 @@ export function StaffCredentialsModal({
               </div>
             )}
           </div>
+
+          {/* Attendance PIN */}
+          {credentials.attendancePin && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Attendance PIN (QR Code / Kiosk Punch)</Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-md border bg-background px-3 py-2 text-xs font-mono font-bold tracking-widest text-foreground select-all">
+                  {credentials.attendancePin}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  title="Copy attendance PIN"
+                  onClick={() => copyToClipboard(credentials.attendancePin!, "Attendance PIN")}
+                >
+                  {copiedField === "Attendance PIN" ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Staff member enters this 4-digit PIN after scanning the branch QR code to punch in or out.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">

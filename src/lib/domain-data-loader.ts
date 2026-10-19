@@ -48,6 +48,7 @@ import {
   useAdvancedReportSchedulesStore,
 } from "@/store/advanced-report-schedules-store";
 import { useAppointmentStore } from "@/store/appointment-store";
+import { useAttendanceStore } from "@/store/attendance-store";
 import {
   mergeBalanceSheetManualPayload,
   useBalanceSheetLedgerStore,
@@ -541,6 +542,10 @@ async function loadOne(resource: DomainResource): Promise<void> {
       if (brands && brands.length > 0) {
         useVehicleCatalogStore.getState().hydrateFromBootstrap(brands);
       }
+      return;
+    }
+    case "attendance": {
+      await useAttendanceStore.getState().sync();
       return;
     }
     default: {

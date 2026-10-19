@@ -46,7 +46,8 @@ export type DomainResource =
   | "balanceSheetManual"
   | "highEndServices"
   | "reportSchedules"
-  | "vehicleCatalog";
+  | "vehicleCatalog"
+  | "attendance";
 
 /** First-paint dashboard pack — keep small so login → shell feels fast. */
 const DASHBOARD_CORE: DomainResource[] = [
@@ -87,7 +88,7 @@ const ROUTE_PACKS: { prefix: string; resources: DomainResource[] }[] = [
   { prefix: "/payroll", resources: ["payroll", "staff", "staffDirectory", "staffRewards"] },
   { prefix: "/cash-bank", resources: ["cashBank", "invoices", "expenses"] },
   { prefix: "/staff", resources: ["staff", "customers", "jobCards", "staffRewards", "invoices"] },
-  { prefix: "/attendance", resources: ["staffDirectory", "staff"] },
+  { prefix: "/attendance", resources: ["staffDirectory", "staff", "attendance"] },
   { prefix: "/leave", resources: ["leave", "staff", "staffDirectory"] },
   { prefix: "/rewards", resources: ["staffRewards", "staff", "staffDirectory", "jobCards"] },
   {

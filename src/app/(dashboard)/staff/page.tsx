@@ -503,6 +503,16 @@ export default function StaffPage() {
         },
       },
       {
+        key: "attendancePin",
+        label: "PIN",
+        className: "hidden md:table-cell",
+        render: (item: User) => (
+          <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-muted/60 text-foreground">
+            {item.attendancePin?.trim() || "—"}
+          </span>
+        ),
+      },
+      {
         key: "isActive",
         label: "Status",
         render: (item: User) => {
@@ -715,7 +725,7 @@ export default function StaffPage() {
         }
       }
       if (!createResult) throw new Error("Could not create the staff account. Please try again.");
-      const { temporaryPassword, credentialsEmailSent } = createResult;
+      const { temporaryPassword, credentialsEmailSent, attendancePin, user: createdUser } = createResult;
       pushActivityLog({
         action: "CREATED",
         entityType: "STAFF",
@@ -725,7 +735,8 @@ export default function StaffPage() {
       });
       resetAddForm(addDialogMode);
       setDialogOpen(false);
-      if (temporaryPassword) {
+      const finalPin = attendancePin ?? createdUser?.attendancePin;
+      if (temporaryPassword || finalPin) {
         setCredentialsModal({
           name,
           email,
@@ -733,6 +744,7 @@ export default function StaffPage() {
           role: finalRole,
           designation,
           temporaryPassword,
+          attendancePin: finalPin,
           isNewUser: true,
         });
       } else {

@@ -176,7 +176,8 @@ export default function AttendancePage() {
 
   useEffect(() => {
     void loadDirectoryStaff();
-  }, []);
+    void syncAttendance();
+  }, [syncAttendance]);
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [activeTab, setActiveTab] = useState("overview");
@@ -342,16 +343,33 @@ export default function AttendancePage() {
   }, [todayRecords, staffForBranch, activeTab]);
 
   const absenceAlerts = useMemo(() => {
+    return staffForBranch
+      .filter((s) => s.isActive)
+      .filter((s) => {
+        const record = todayRecords.find((r) => r.staffId === s.id);
+        if (!record) return true;
+        if (record.status === "ABSENT") return true;
+        if (!record.checkIn) return true;
+        return false;
+      });
+  }, [todayRecords, staffForBranch]);
+
+  const lateStaff = useMemo(() => {
     const cutoff = "09:30";
-    return staffForBranch.filter((s) => {
-      const record = todayRecords.find((r) => r.staffId === s.id);
-      if (!record) return true;
-      if (record.status === "ABSENT") return true;
-      if (!record.checkIn) return true;
-      if (record.checkIn > cutoff) return true;
-      return false;
-    });
-  }, [todayRecords, staffForBranch, activeTab]);
+    return staffForBranch
+      .filter((s) => s.isActive)
+      .map((s) => {
+        const record = todayRecords.find((r) => r.staffId === s.id);
+        return { staff: s, record };
+      })
+      .filter(
+        ({ record }) =>
+          Boolean(
+            record?.checkIn &&
+              (record.status === "LATE" || (record.checkIn && record.checkIn > cutoff))
+          )
+      );
+  }, [todayRecords, staffForBranch]);
 
   const summaryPeriodLabel = useMemo(() => {
     const [y, m, d] = selectedDate.split("-").map(Number);
@@ -530,32 +548,79 @@ export default function AttendancePage() {
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Absence Alerts
+                  Absence & Punctuality
                 </CardTitle>
                 <span className="text-xs text-muted-foreground">
-                  Not checked in by 9:30 AM today
+                  {absenceAlerts.length === 0
+                    ? "All staff checked in"
+                    : `${absenceAlerts.length} not checked in today`}
                 </span>
               </CardHeader>
-              <CardContent>
-                {absenceAlerts.length === 0 ? (
+              <CardContent className="space-y-4">
+                {absenceAlerts.length === 0 && lateStaff.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">
                     All staff have checked in on time
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {absenceAlerts.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between p-3 rounded-lg border border-border bg-amber-50/50 dark:bg-amber-950/20"
-                      >
-                        <div>
-                          <p className="font-medium text-sm">{s.name}</p>
-                          <p className="text-xs text-muted-foreground">{s.role}</p>
+                  <>
+                    {absenceAlerts.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
+                          <span>NOT CHECKED IN ({absenceAlerts.length})</span>
+                          <span>Cutoff: 09:30 AM</span>
                         </div>
-                        <Badge variant="warning">Not checked in</Badge>
+                        {absenceAlerts.map((s) => (
+                          <div
+                            key={s.id}
+                            className="flex items-center justify-between p-3 rounded-lg border border-border bg-amber-50/50 dark:bg-amber-950/20"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">{s.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                <span>{roleDisplayLabel(s.role)}</span>
+                                {s.attendancePin && (
+                                  <span className="font-mono bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                                    PIN: {s.attendancePin}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Badge variant="warning">Not checked in</Badge>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+
+                    {lateStaff.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-border/60">
+                        <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
+                          <span>LATE ARRIVALS TODAY ({lateStaff.length})</span>
+                          <span>Checked in after 09:30 AM</span>
+                        </div>
+                        {lateStaff.map(({ staff: s, record }) => (
+                          <div
+                            key={s.id}
+                            className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/40"
+                          >
+                            <div>
+                              <p className="font-medium text-sm">{s.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                <span>{roleDisplayLabel(s.role)}</span>
+                                {s.attendancePin && (
+                                  <span className="font-mono bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-[11px]">
+                                    PIN: {s.attendancePin}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                              Checked In · {record?.checkIn ?? "Late"}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
