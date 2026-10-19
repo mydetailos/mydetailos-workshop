@@ -75,12 +75,21 @@ export function JobCardServiceChecklist({
                       currency: "INR",
                     }).format(item.price)}
                   </p>
-                  {isMembershipPricedLine(item) && membershipUsageByCatalogId.get(item.serviceCatalogId)?.isIncluded ? (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Included: {membershipUsageByCatalogId.get(item.serviceCatalogId)!.included} · Used:{" "}
-                      {membershipUsageByCatalogId.get(item.serviceCatalogId)!.used} · Remaining:{" "}
-                      {membershipUsageByCatalogId.get(item.serviceCatalogId)!.remaining}
-                    </p>
+                  {isMembershipPricedLine(item) ? (
+                    <div className="mt-0.5 space-y-0.5">
+                      {item.membershipId ? (
+                        <p className="font-mono text-xs text-muted-foreground">
+                          Membership ID: {item.membershipId}
+                        </p>
+                      ) : null}
+                      {membershipUsageByCatalogId.get(item.serviceCatalogId)?.isIncluded ? (
+                        <p className="text-xs text-muted-foreground">
+                          Included: {membershipUsageByCatalogId.get(item.serviceCatalogId)!.included} · Used:{" "}
+                          {membershipUsageByCatalogId.get(item.serviceCatalogId)!.used} · Remaining:{" "}
+                          {membershipUsageByCatalogId.get(item.serviceCatalogId)!.remaining}
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
                   {item.durationMinutes != null && (
                     <p className="text-xs text-muted-foreground mt-0.5">

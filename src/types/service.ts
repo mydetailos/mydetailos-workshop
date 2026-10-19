@@ -83,6 +83,8 @@ export interface MembershipServiceUsage {
   quantity?: number;
   serviceName?: string;
   jobCardId?: string;
+  /** The membership ID this service redemption belongs to. */
+  membershipId?: string;
 }
 
 export interface CustomerMembership {

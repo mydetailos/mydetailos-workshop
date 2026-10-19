@@ -9,6 +9,7 @@
 export const TWILIO_TEMPLATE_SIDS = {
   // Customer & Portal
   CUSTOMER_WELCOME: "HXa15928c2342c1604e358f8152a79dd45", // cust_welcome_utility_v2 (approved UTILITY)
+  CUSTOMER_OFFER: "HXb1df2e500a3b7cc1e1c75b221bec2311", // customer_offer_coupon_v3 (approved MARKETING)
   AUTH_VERIFICATION: "HXf1c8e1cbd228b0ab0700445712169f1e", // WhatsApp authentication (OTP)
 
   // Service & Reminders
@@ -17,6 +18,7 @@ export const TWILIO_TEMPLATE_SIDS = {
   JOB_CARD_CREATED: "HXbc4e0ac2bdef379fe6acc1b3a7f128c1", // job_card_created_v3 (approved UTILITY)
   JOB_CARD_READY: "HX67fe4e7fead33acd40e482197767bdf8", // job_card_ready_for_pickup (UTILITY)
   JOB_DELIVERED: "HXf36d3b11526768d4623e917fd9b52b3c", // job_delivered_confirmation (UTILITY)
+  PICKUP_DROP_UPDATE: "HX2d50b69272c7d70a86ddb879f4002a93", // pickup_drop_update_v2 (UTILITY)
   SERVICE_REMINDER: "HX7eb233c8252b14bee9403c8eb4bd1fea", // service_reminder_exact
   INSPECTION_REPORT: "HXe3ca0b811651060e2d338d598eef2270", // inspection_report_v2
 
@@ -525,5 +527,79 @@ export function buildOwnerSubscriptionExpiringReminderVariables(opts: {
   };
 }
 
+/**
+ * Pickup & Drop Update (pickup_drop_update_v2: HX2d50b69272c7d70a86ddb879f4002a93)
+ * Template:
+ * "Hi {{1}}! 🚗
+ *  Here is an update on your vehicle {{2}} from {{3}}:
+ * 
+ *  📋 Status: {{4}}
+ *  🚗 Vehicle: {{5}}
+ *  👤 Driver: {{6}}
+ *  📅 Scheduled: {{7}}
+ * 
+ *  Thank you for choosing {{3}} team."
+ */
+export function buildPickupDropUpdateVariables(opts: {
+  customerName: string;
+  serviceType: string;
+  businessName: string;
+  statusText: string;
+  vehicleStr: string;
+  driverName?: string;
+  scheduledTimeOrDetails?: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName;
+  return {
+    "1": firstName,
+    "2": opts.serviceType || "Pickup & Drop",
+    "3": opts.businessName,
+    "4": opts.statusText || "Updated",
+    "5": opts.vehicleStr || "Vehicle",
+    "6": opts.driverName?.trim() || "Assigned on dispatch",
+    "7": opts.scheduledTimeOrDetails || "Scheduled as requested",
+  };
+}
 
+/**
+ * Customer Offer & Festive Coupon (customer_offer_coupon_v3: HXb1df2e500a3b7cc1e1c75b221bec2311)
+ * Template:
+ * "Hello {{1}}! 👋🎉
+ * 
+ *  Special festive offer from {{2}}! 🚗✨
+ * 
+ *  {{3}}
+ * 
+ *  Coupon code: {{4}}
+ *  Discount: {{5}}
+ *  Min. bill: {{6}}
+ *  Valid: {{7}}
+ * 
+ *  Book your service and mention this code at the counter.
+ * 
+ *  Thank you,
+ *  {{2}} team."
+ */
+export function buildCustomerOfferVariables(opts: {
+  customerName: string;
+  businessName: string;
+  offerDetails: string;
+  couponCode: string;
+  discount: string;
+  minBill: string;
+  validity: string;
+}): Record<string, string> {
+  const firstName = opts.customerName.trim().split(/\s+/)[0] || opts.customerName.trim() || "there";
+  const clean = (val: string | undefined, fallback: string) =>
+    (val ?? "").replace(/[\r\n\t]+/g, " — ").trim() || fallback;
 
+  return {
+    "1": clean(firstName, "there"),
+    "2": clean(opts.businessName, "MY DETAIL OS"),
+    "3": clean(opts.offerDetails, "Festive offer on car detailing services"),
+    "4": clean(opts.couponCode, "SPECIAL"),
+    "5": clean(opts.discount, "Special Discount"),
+    "6": clean(opts.minBill, "No minimum"),
+    "7": clean(opts.validity, "Limited time offer"),
+  };
+}

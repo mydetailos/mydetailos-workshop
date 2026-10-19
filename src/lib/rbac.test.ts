@@ -23,8 +23,10 @@ describe("rbac helpers", () => {
     expect(canManageStaffUsers("RECEPTIONIST")).toBe(false);
   });
 
-  it("only SUPER_ADMIN assigns roles", () => {
+  it("only SUPER_ADMIN assigns roles and SUPER_ADMIN cannot be assigned", () => {
     expect(getAssignableStaffRoles("SUPER_ADMIN")).toContain("MECHANIC");
+    expect(getAssignableStaffRoles("SUPER_ADMIN")).toContain("ADMIN");
+    expect(getAssignableStaffRoles("SUPER_ADMIN")).not.toContain("SUPER_ADMIN");
     expect(getAssignableStaffRoles("ADMIN")).toEqual([]);
   });
 

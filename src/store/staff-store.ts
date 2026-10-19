@@ -40,7 +40,15 @@ interface AddStaffInput {
 
 export type UpdateStaffResult =
   | { ok: true }
-  | { ok: false; error: "NOT_FOUND" | "DUPLICATE_EMAIL" };
+  | {
+      ok: false;
+      error:
+        | "NOT_FOUND"
+        | "DUPLICATE_EMAIL"
+        | "SUPER_ADMIN_ROLE_LOCKED"
+        | "SUPER_ADMIN_ONLY_ONE"
+        | "SUPER_ADMIN_CANNOT_BE_DEACTIVATED";
+    };
 
 interface StaffStoreState {
   staff: User[];
@@ -127,6 +135,9 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
   },
 
   addStaff: async (input) => {
+    if (input.role === "SUPER_ADMIN") {
+      throw new Error("Cannot create an additional Super Admin.");
+    }
     const list = get().staff;
     const hr = normalizeStaffHrFields({
       employeeCode: input.employeeCode,
@@ -172,6 +183,16 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
     const list = get().staff;
     const current = list.find((s) => s.id === id);
     if (!current) return { ok: false, error: "NOT_FOUND" };
+
+    if (current.role === "SUPER_ADMIN" && updates.role && updates.role !== "SUPER_ADMIN") {
+      return { ok: false, error: "SUPER_ADMIN_ROLE_LOCKED" };
+    }
+    if (current.role !== "SUPER_ADMIN" && updates.role === "SUPER_ADMIN") {
+      return { ok: false, error: "SUPER_ADMIN_ONLY_ONE" };
+    }
+    if (current.role === "SUPER_ADMIN" && updates.isActive === false) {
+      return { ok: false, error: "SUPER_ADMIN_CANNOT_BE_DEACTIVATED" };
+    }
 
     const next: User = {
       ...current,
@@ -300,6 +321,11 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
   },
 
   deleteStaff: async (staffId) => {
+    const list = get().staff;
+    const current = list.find((s) => s.id === staffId);
+    if (current?.role === "SUPER_ADMIN") {
+      throw new Error("Super Admin cannot be deleted.");
+    }
     await apiDelete<{ success: boolean; message?: string }>(`/api/users/${staffId}`);
     set((s) => ({
       staff: s.staff.filter((u) => u.id !== staffId),

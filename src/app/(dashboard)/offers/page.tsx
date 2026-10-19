@@ -39,6 +39,10 @@ import {
   openWhatsAppComposer,
   isWhatsAppNotConfiguredError,
 } from "@/lib/whatsapp-send";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildCustomerOfferVariables,
+} from "@/lib/twilio-templates-config";
 import { normalizePhoneDigits } from "@/lib/phone";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import type {
@@ -480,9 +484,10 @@ export default function OffersPage() {
     const messageTemplate = messageText.trim();
     setSending(true);
     let offerId = "";
+    let savedOffer: OfferBroadcast;
     try {
-      const saved = await persistOffer("DRAFT");
-      offerId = saved.id;
+      savedOffer = await persistOffer("DRAFT");
+      offerId = savedOffer.id;
     } catch (e) {
       setSending(false);
       toast.error(e instanceof Error ? e.message : "Could not save offer");
@@ -493,10 +498,42 @@ export default function OffersPage() {
     let composerFallback = 0;
     let failed = 0;
 
+    const discountLabel = formatOfferDiscountLabel(savedOffer);
+    const minBillLabel = minBillAmount > 0 ? formatCurrency(minBillAmount) : "No minimum";
+    const validFromLabel = validFrom ? formatDate(validFrom) : "";
+    const validTillLabel = validTill ? formatDate(validTill) : "";
+    const validityLabel =
+      validFromLabel && validTillLabel && validFromLabel !== "—" && validTillLabel !== "—"
+        ? `${validFromLabel} – ${validTillLabel}`
+        : validTillLabel && validTillLabel !== "—"
+          ? `Till ${validTillLabel}`
+          : "Limited time offer";
+    const detailsBody = [
+      name.trim() ? `*${name.trim()}*` : "",
+      details.trim(),
+    ]
+      .filter(Boolean)
+      .join(" — ") || "Festive offer on car detailing services";
+
     const sendOne = async (phone: string, displayName: string) => {
       const message = personalizeOfferWhatsAppMessage(messageTemplate, displayName);
+      const template = TWILIO_TEMPLATE_SIDS.CUSTOMER_OFFER
+        ? {
+            contentSid: TWILIO_TEMPLATE_SIDS.CUSTOMER_OFFER,
+            contentVariables: buildCustomerOfferVariables({
+              customerName: displayName,
+              businessName,
+              offerDetails: detailsBody,
+              couponCode: code.trim().toUpperCase() || "SPECIAL",
+              discount: discountLabel || "Special discount",
+              minBill: minBillLabel,
+              validity: validityLabel,
+            }),
+          }
+        : undefined;
+
       try {
-        await sendCustomerWhatsApp(phone, message);
+        await sendCustomerWhatsApp(phone, message, template);
         sentOk += 1;
       } catch (e) {
         if (isWhatsAppNotConfiguredError(e)) {

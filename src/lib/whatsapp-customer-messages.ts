@@ -295,12 +295,19 @@ export function buildOfferBroadcastWhatsAppMessage(
         ? `Valid till: *${validTillLabel}*`
         : null;
 
+  const detailsContent = [
+    offer.name.trim() ? `*${offer.name.trim()}*` : "",
+    offer.details.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   return [
-    `Hi *${first}*!`,
+    `Hello *${first}*! 👋🎉`,
     ``,
-    `*${offer.name.trim() || "Special offer"}* from *${brand}*`,
-    offer.details.trim() ? `` : null,
-    offer.details.trim() || null,
+    `Special festive offer from *${brand}*! 🚗✨`,
+    ``,
+    detailsContent || `Special discount on car detailing services`,
     ``,
     offer.code.trim() ? `Coupon code: *${offer.code.trim()}*` : null,
     discountLine,
@@ -310,7 +317,8 @@ export function buildOfferBroadcastWhatsAppMessage(
     ``,
     `Book your service and mention this code at the counter.`,
     ``,
-    `— Team ${brand}`,
+    `Thank you,`,
+    `${brand} team.`,
   ]
     .filter((line) => line != null)
     .join("\n");

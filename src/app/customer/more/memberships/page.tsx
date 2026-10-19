@@ -70,7 +70,12 @@ export default function MembershipsPage() {
                     <CardContent className="pt-4 pb-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <p className="font-semibold">{packageName}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold">{packageName}</p>
+                            <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/60">
+                              Membership ID: {mem.id}
+                            </span>
+                          </div>
                           {vehicleLabel && (
                             <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
                               Vehicle: {vehicleLabel}
@@ -108,6 +113,52 @@ export default function MembershipsPage() {
                           <span className="text-xs font-semibold">Active</span>
                         </div>
                       </div>
+
+                      {mem.usageHistory && mem.usageHistory.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Service Usage History
+                          </p>
+                          <div className="space-y-1.5">
+                            {[...mem.usageHistory]
+                              .sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime())
+                              .map((u, uIdx) => {
+                                const usageMemId = u.membershipId || mem.id;
+                                return (
+                                  <div
+                                    key={uIdx}
+                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs bg-muted/40 rounded-lg p-2.5 border border-border/50"
+                                  >
+                                    <div className="space-y-0.5">
+                                      <p className="font-medium text-foreground">
+                                        {u.serviceName || "Service"}
+                                        {(u.quantity ?? 1) > 1 ? ` ×${u.quantity}` : ""}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground font-mono">
+                                        Used from Membership ID:{" "}
+                                        <span className="font-semibold text-primary">{usageMemId}</span>
+                                        {u.jobCardId ? (
+                                          <span className="font-sans ml-1.5 text-muted-foreground">
+                                            · Job: {u.jobCardId}
+                                          </span>
+                                        ) : null}
+                                      </p>
+                                    </div>
+                                    <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                                      {new Date(u.usedAt).toLocaleString(undefined, {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -140,32 +191,85 @@ export default function MembershipsPage() {
                   mem.packageName || invoice?.membershipPackageName || "Service Plan";
 
                 return (
-                  <Card key={mem.id} className="opacity-60">
+                  <Card key={mem.id} className="opacity-75">
                     <CardContent className="pt-4 pb-4">
-                      <p className="font-medium">{packageName}</p>
-                      {vehicleLabel && (
-                        <p className="text-xs font-medium text-muted-foreground mt-0.5">
-                          Vehicle: {vehicleLabel}
-                        </p>
-                      )}
-
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-4 mt-2">
-                        {price !== undefined && (
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Price: </span>
-                            ₹{price.toLocaleString("en-IN")}
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{packageName}</p>
+                          <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/60">
+                            Membership ID: {mem.id}
+                          </span>
+                        </div>
+                        {vehicleLabel && (
+                          <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                            Vehicle: {vehicleLabel}
                           </p>
                         )}
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium">Services Used: </span>
-                          {usedCount}
-                        </p>
+
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-4 mt-2">
+                          {price !== undefined && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Price: </span>
+                              ₹{price.toLocaleString("en-IN")}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Services Used: </span>
+                            {usedCount}
+                          </p>
+                        </div>
+
+                        {mem.endDate && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Expired: {formatDate(mem.endDate)}
+                          </p>
+                        )}
                       </div>
 
-                      {mem.endDate && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Expired: {formatDate(mem.endDate)}
-                        </p>
+                      {mem.usageHistory && mem.usageHistory.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Service Usage History
+                          </p>
+                          <div className="space-y-1.5">
+                            {[...mem.usageHistory]
+                              .sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime())
+                              .map((u, uIdx) => {
+                                const usageMemId = u.membershipId || mem.id;
+                                return (
+                                  <div
+                                    key={uIdx}
+                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs bg-muted/40 rounded-lg p-2.5 border border-border/50"
+                                  >
+                                    <div className="space-y-0.5">
+                                      <p className="font-medium text-foreground">
+                                        {u.serviceName || "Service"}
+                                        {(u.quantity ?? 1) > 1 ? ` ×${u.quantity}` : ""}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground font-mono">
+                                        Used from Membership ID:{" "}
+                                        <span className="font-semibold text-primary">{usageMemId}</span>
+                                        {u.jobCardId ? (
+                                          <span className="font-sans ml-1.5 text-muted-foreground">
+                                            · Job: {u.jobCardId}
+                                          </span>
+                                        ) : null}
+                                      </p>
+                                    </div>
+                                    <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                                      {new Date(u.usedAt).toLocaleString(undefined, {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
                       )}
                     </CardContent>
                   </Card>

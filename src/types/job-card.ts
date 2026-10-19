@@ -44,6 +44,8 @@ export interface ServiceItem {
   isCustomPrice?: boolean;
   /** How `price` was derived; membership lines stay 0 without looking like a custom ₹0. */
   priceSource?: "CATALOG" | "CUSTOM" | "MEMBERSHIP";
+  /** Membership ID if this service was redeemed under an active membership. */
+  membershipId?: string;
   isCompleted: boolean;
   completedAt?: string;
   completedBy?: string;

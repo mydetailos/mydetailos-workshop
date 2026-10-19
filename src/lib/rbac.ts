@@ -44,17 +44,6 @@ export function canManageStaffUsers(role: UserRole | undefined): boolean {
 export function getAssignableStaffRoles(actorRole: UserRole | undefined, userPermissions?: string[]): UserRole[] {
   if (actorRole === "SUPER_ADMIN") {
     return [
-      "SUPER_ADMIN",
-      "ADMIN",
-      "BRANCH_MANAGER",
-      "MANAGER",
-      "SUPERVISOR",
-      "RECEPTIONIST",
-      "MECHANIC",
-    ];
-  }
-  if (actorRole === "ADMIN" || userPermissions?.includes("STAFF_CREATE") || userPermissions?.includes("STAFF_EDIT")) {
-    return [
       "ADMIN",
       "BRANCH_MANAGER",
       "MANAGER",

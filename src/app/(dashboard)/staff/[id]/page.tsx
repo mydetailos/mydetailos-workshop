@@ -490,8 +490,8 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
 
   const roleOptionsForSelect = useMemo(() => {
     if (!member) return assignableRoles;
-    if (assignableRoles.includes(member.role)) return assignableRoles;
-    return [member.role, ...assignableRoles];
+    if (member.role === "SUPER_ADMIN") return ["SUPER_ADMIN" as UserRole];
+    return assignableRoles.filter((r) => r !== "SUPER_ADMIN");
   }, [member, assignableRoles]);
 
   const branchOptionsForEdit = useMemo(() => {
@@ -603,8 +603,24 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       toast.error("Name, email, and phone are required.");
       return;
     }
+    if (member.role === "SUPER_ADMIN" && editRole !== "SUPER_ADMIN") {
+      toast.error("Super Admin role cannot be changed.");
+      return;
+    }
+    if (member.role !== "SUPER_ADMIN" && editRole === "SUPER_ADMIN") {
+      toast.error("Cannot assign Super Admin role. Only one Super Admin is permitted.");
+      return;
+    }
+    if (member.role === "SUPER_ADMIN" && !editIsActive) {
+      toast.error("Super Admin cannot be deactivated.");
+      return;
+    }
+
+    const finalRole: UserRole = member.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : editRole;
+    const finalIsActive = member.role === "SUPER_ADMIN" ? true : editIsActive;
+
     const allowed = getAssignableStaffRoles(user?.role, user?.permissions);
-    if (editRole !== member.role && !allowed.includes(editRole)) {
+    if (finalRole !== member.role && !allowed.includes(finalRole)) {
       toast.error("You can't assign that role.");
       return;
     }
@@ -612,9 +628,9 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       name,
       email,
       phone,
-      role: editRole,
+      role: finalRole,
       branchId: editBranchId,
-      isActive: editIsActive,
+      isActive: finalIsActive,
       employeeCode: editEmployeeCode.trim() || null,
       designation: editDesignation.trim() || null,
       department: editDepartment.trim() || null,
@@ -637,6 +653,12 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
     if (!result.ok) {
       if (result.error === "DUPLICATE_EMAIL") {
         toast.error("Another staff member already uses this email.");
+      } else if (result.error === "SUPER_ADMIN_ROLE_LOCKED") {
+        toast.error("Super Admin role is locked and cannot be changed.");
+      } else if (result.error === "SUPER_ADMIN_ONLY_ONE") {
+        toast.error("Only one Super Admin is permitted.");
+      } else if (result.error === "SUPER_ADMIN_CANNOT_BE_DEACTIVATED") {
+        toast.error("Super Admin cannot be deactivated.");
       } else {
         toast.error("Could not save changes.");
       }
@@ -962,7 +984,7 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="space-y-2">
                   <Label>Role</Label>
                   <Select
-                    disabled={assignableRoles.length === 0}
+                    disabled={member.role === "SUPER_ADMIN" || member.id === user?.id || assignableRoles.length === 0}
                     value={editRole}
                     onValueChange={(val) => setEditRole(val as UserRole)}
                   >
@@ -977,6 +999,15 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                       ))}
                     </SelectContent>
                   </Select>
+                  {member.role === "SUPER_ADMIN" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Super Admin role is locked and cannot be changed.
+                    </p>
+                  ) : member.id === user?.id ? (
+                    <p className="text-xs text-muted-foreground">
+                      You cannot change your own role.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label>Branch</Label>
@@ -996,11 +1027,17 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center gap-2 sm:col-span-2 xl:col-span-3 pt-1">
                   <Checkbox
                     id="staff-active"
-                    checked={editIsActive}
+                    checked={member.role === "SUPER_ADMIN" ? true : editIsActive}
+                    disabled={member.role === "SUPER_ADMIN"}
                     onCheckedChange={(c) => setEditIsActive(c === true)}
                   />
                   <Label htmlFor="staff-active" className="text-sm font-normal cursor-pointer">
                     Active (can log in and appear on rosters)
+                    {member.role === "SUPER_ADMIN" && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        (Super Admin cannot be deactivated)
+                      </span>
+                    )}
                   </Label>
                 </div>
                 <div className="flex items-center gap-2 sm:col-span-2 xl:col-span-3 pt-1">

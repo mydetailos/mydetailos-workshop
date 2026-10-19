@@ -27,6 +27,7 @@ import { executeCustomerWhatsAppAutomation } from "@/lib/whatsapp-automation-flo
 import { useJobCardStore } from "@/store/job-card-store";
 import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
+import { format, parseISO } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import {
   TWILIO_TEMPLATE_SIDS,
@@ -36,6 +37,7 @@ import {
   buildJobDeliveredVariables,
   buildBookingConfirmedVariables,
   buildMembershipWelcomeVariables,
+  buildPickupDropUpdateVariables,
 } from "@/lib/twilio-templates-config";
 
 function branchIdForJobCardId(jobCardId: string | undefined): string | undefined {
@@ -492,9 +494,79 @@ export function notifyPickupDropWhatsApp(
   if (!phone) return;
   const typeLabel = req.type === "PICKUP" ? "Pickup" : "Drop-off";
   const ctx = pickupDropWhatsAppContext(req);
+  const workshopName = resolveWorkshopDisplayName({ businessName: opts.businessName });
+  const vehicleStr =
+    `${req.vehicleMakeModel || ""} ${req.vehicleRegNumber ? `(${req.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+
+  let template: { contentSid: string; contentVariables: Record<string, string> } | undefined;
+
+  if (req.type === "DROP" && req.status === "DELIVERED" && TWILIO_TEMPLATE_SIDS.JOB_DELIVERED) {
+    template = {
+      contentSid: TWILIO_TEMPLATE_SIDS.JOB_DELIVERED,
+      contentVariables: buildJobDeliveredVariables({
+        customerName: req.customerName,
+        businessName: workshopName,
+        vehicleStr,
+        jobNumber: req.jobNumber && req.jobNumber !== "NEW" ? req.jobNumber : req.id,
+        portalUrl: getCustomerPortalLoginUrl(),
+      }),
+    };
+  } else if (TWILIO_TEMPLATE_SIDS.PICKUP_DROP_UPDATE) {
+    const serviceType = req.type === "PICKUP" ? "Pickup Service" : "Drop-off Service";
+    let statusText = "Scheduled";
+    switch (req.status) {
+      case "PENDING":
+        statusText = req.type === "PICKUP" ? "Pickup Scheduled" : "Drop-off Scheduled";
+        break;
+      case "DRIVER_ASSIGNED":
+        statusText = "Driver Assigned";
+        break;
+      case "PICKED_UP":
+        statusText = "Collected & Heading to Workshop";
+        break;
+      case "IN_SERVICE":
+        statusText = req.type === "PICKUP" ? "Vehicle Arrived at Workshop" : "Vehicle in Transit";
+        break;
+      case "DELIVERED":
+        statusText = "Delivered to Customer";
+        break;
+      default:
+        statusText = req.status;
+    }
+
+    let scheduledFormatted = "";
+    if (req.scheduledTime) {
+      try {
+        scheduledFormatted = format(parseISO(req.scheduledTime), "dd-MMM-yyyy 'at' h:mm a");
+      } catch {
+        scheduledFormatted = req.scheduledTime;
+      }
+    }
+    const details = [
+      scheduledFormatted ? scheduledFormatted : "",
+      req.address ? `Address: ${req.address}` : "",
+    ]
+      .filter(Boolean)
+      .join(" — ") || "Scheduled as requested";
+
+    template = {
+      contentSid: TWILIO_TEMPLATE_SIDS.PICKUP_DROP_UPDATE,
+      contentVariables: buildPickupDropUpdateVariables({
+        customerName: req.customerName,
+        serviceType,
+        businessName: workshopName,
+        statusText,
+        vehicleStr,
+        driverName: req.driverName,
+        scheduledTimeOrDetails: details,
+      }),
+    };
+  }
+
   void executeCustomerWhatsAppAutomation({
     phone,
     message: buildPickupDropWhatsAppMessage(req, opts),
+    template,
     titles: {
       api: `${typeLabel} — WhatsApp sent`,
       composer: `${typeLabel} — WhatsApp composer`,
@@ -513,9 +585,46 @@ export function notifyPickupDropCreatedWhatsApp(
     const phone = pickupDropPhone(pickup) ?? pickupDropPhone(drop);
     if (!phone) return;
     const ctx = pickupDropWhatsAppContext(pickup);
+    const workshopName = resolveWorkshopDisplayName({ businessName: opts.businessName });
+    const vehicleStr =
+      `${pickup.vehicleMakeModel || drop.vehicleMakeModel || ""} ${pickup.vehicleRegNumber || drop.vehicleRegNumber ? `(${pickup.vehicleRegNumber || drop.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
+    const driverName = pickup.driverName || drop.driverName;
+
+    let scheduledFormatted = "";
+    if (pickup.scheduledTime) {
+      try {
+        scheduledFormatted = format(parseISO(pickup.scheduledTime), "dd-MMM-yyyy 'at' h:mm a");
+      } catch {
+        scheduledFormatted = pickup.scheduledTime;
+      }
+    }
+    const details = [
+      scheduledFormatted ? scheduledFormatted : "",
+      pickup.address ? `Pickup: ${pickup.address}` : "",
+      drop.address ? `Drop: ${drop.address}` : "",
+    ]
+      .filter(Boolean)
+      .join(" — ") || "Scheduled as requested";
+
+    const template = TWILIO_TEMPLATE_SIDS.PICKUP_DROP_UPDATE
+      ? {
+          contentSid: TWILIO_TEMPLATE_SIDS.PICKUP_DROP_UPDATE,
+          contentVariables: buildPickupDropUpdateVariables({
+            customerName: pickup.customerName,
+            serviceType: "Pickup & Drop Service",
+            businessName: workshopName,
+            statusText: "Pickup & Drop Scheduled",
+            vehicleStr,
+            driverName,
+            scheduledTimeOrDetails: details,
+          }),
+        }
+      : undefined;
+
     void executeCustomerWhatsAppAutomation({
       phone,
       message: buildPickupAndDropScheduledWhatsAppMessage(pickup, drop, opts),
+      template,
       titles: {
         api: "Pickup & drop-off — WhatsApp sent",
         composer: "Pickup & drop-off — WhatsApp composer",

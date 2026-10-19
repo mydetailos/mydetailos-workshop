@@ -14,7 +14,7 @@ export default function HomePage() {
       if (isAuthenticated) {
         router.replace("/dashboard");
       } else {
-        goToMarketingLogin();
+        router.replace("/login");
       }
       return;
     }
@@ -22,7 +22,7 @@ export default function HomePage() {
       if (useAuthStore.getState().isAuthenticated) {
         router.replace("/dashboard");
       } else {
-        goToMarketingLogin();
+        router.replace("/login");
       }
     });
   }, [isAuthenticated, router]);

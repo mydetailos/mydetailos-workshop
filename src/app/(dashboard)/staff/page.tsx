@@ -61,6 +61,7 @@ import {
   MailCheck,
   Loader2,
   Sparkles,
+  KeyRound,
 } from "lucide-react";
 import type { User, UserRole } from "@/types";
 import { toast } from "sonner";
@@ -77,6 +78,11 @@ import {
 import { buildInitialPermissions } from "@/lib/staff-role-defaults";
 import { useCustomRoleStore, type CustomRole } from "@/store/custom-role-store";
 import { CreateRoleDialog } from "@/components/staff/create-role-dialog";
+import {
+  StaffCredentialsModal,
+  type StaffCredentialsInfo,
+} from "@/components/staff/staff-credentials-modal";
+import { ResetPasswordDialog } from "@/components/staff/reset-password-dialog";
 
 const ROLE_BADGE_MAP: Record<
   UserRole,
@@ -269,6 +275,9 @@ export default function StaffPage() {
 
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [credentialsModal, setCredentialsModal] = useState<StaffCredentialsInfo | null>(null);
+  const [resetModalUser, setResetModalUser] = useState<User | null>(null);
   const [selectedRoleKey, setSelectedRoleKey] = useState<string>("MECHANIC");
   const [newAccess, setNewAccess] = useState<StaffAccessLevel>("withEditAccess");
   const [newPortalAccess, setNewPortalAccess] = useState(true);
@@ -276,14 +285,10 @@ export default function StaffPage() {
 
   const assignableRoles = useMemo(() => getAssignableStaffRoles(authRole, authPermissions), [authRole, authPermissions]);
   const allAvailableRoleOptions = useMemo(() => {
-    const system = ALL_ASSIGNABLE_SYSTEM_ROLES.filter((option) =>
+    return ALL_ASSIGNABLE_SYSTEM_ROLES.filter((option) =>
       assignableRoles.includes(option.value)
     );
-    if (authRole === "SUPER_ADMIN" && !system.some((o) => o.value === "SUPER_ADMIN")) {
-      system.unshift({ value: "SUPER_ADMIN", label: "Super Admin" });
-    }
-    return system;
-  }, [assignableRoles, authRole]);
+  }, [assignableRoles]);
   const activeAddRoleOptions = allAvailableRoleOptions;
 
   useEffect(() => {
@@ -355,6 +360,7 @@ export default function StaffPage() {
   const resetAddForm = (mode: "staff" | "users" = addDialogMode) => {
     setNewName("");
     setNewPhone("");
+    setNewEmail("");
     const defaultRole =
       mode === "users"
         ? allAvailableRoleOptions.find((o) => o.value === "BRANCH_MANAGER")?.value ??
@@ -565,6 +571,19 @@ export default function StaffPage() {
         label: "Actions",
         render: (item: User) => (
           <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+            {userCanEdit(useAuthStore.getState().user, "STAFF") &&
+              (item.role !== "SUPER_ADMIN" || authUser?.role === "SUPER_ADMIN") && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  aria-label="Login credentials / Reset password"
+                  title="Login credentials / Reset password"
+                  onClick={() => setResetModalUser(item)}
+                >
+                  <KeyRound className="w-4 h-4" />
+                </Button>
+              )}
             <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
               <Link href={`/staff/${item.id}`} aria-label="View">
                 <Eye className="w-4 h-4 text-blue-600" />
@@ -577,23 +596,25 @@ export default function StaffPage() {
                 </Link>
               </Button>
             )}
-            {userCanDelete(useAuthStore.getState().user, "STAFF") && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive"
-                disabled={deletingUserBusy}
-                aria-label="Delete"
-                onClick={() => setDeletingUser(item)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            {userCanDelete(useAuthStore.getState().user, "STAFF") &&
+              item.role !== "SUPER_ADMIN" &&
+              item.id !== authUser?.id && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive"
+                  disabled={deletingUserBusy}
+                  aria-label="Delete"
+                  onClick={() => setDeletingUser(item)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
           </div>
         ),
       },
     ],
-    [branches, staffJobStatsById, deletingUserBusy, customRoles]
+    [branches, staffJobStatsById, deletingUserBusy, customRoles, authUser]
   );
 
   const maxEmployeeCodeAttempts = 20;
@@ -626,13 +647,22 @@ export default function StaffPage() {
       ? selectedCustomRole.baseRole
       : (selectedRoleKey as UserRole);
 
+    if (finalRole === "SUPER_ADMIN") {
+      toast.error("Cannot create an additional Super Admin.");
+      return;
+    }
     const validSystemRole = allAvailableRoleOptions.some((option) => option.value === finalRole);
     if (!selectedCustomRole && !validSystemRole) {
       toast.error("Please select a valid role.");
       return;
     }
     const existingEmails = new Set(staff.map((s) => s.email.toLowerCase()));
-    const email = suggestAddUserEmail(name, phoneDigits, existingEmails);
+    const inputEmail = newEmail.trim().toLowerCase();
+    if (inputEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputEmail)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    const email = inputEmail || suggestAddUserEmail(name, phoneDigits, existingEmails);
     if (existingEmails.has(email.toLowerCase())) {
       toast.error("A staff member with this email already exists.");
       return;
@@ -693,16 +723,21 @@ export default function StaffPage() {
         entityLabel: name,
         details: `Staff created (${finalEmployeeCode})`,
       });
+      resetAddForm(addDialogMode);
+      setDialogOpen(false);
       if (temporaryPassword) {
-        toast.success(addDialogMode === "users" ? "User created." : "Staff member created.", {
-          description: `${credentialsEmailSent ? "Credentials emailed. " : ""}Temporary password (copy now — not stored): ${temporaryPassword}`,
-          duration: credentialsEmailSent ? 20_000 : 45_000,
+        setCredentialsModal({
+          name,
+          email,
+          phone,
+          role: finalRole,
+          designation,
+          temporaryPassword,
+          isNewUser: true,
         });
       } else {
         toast.success(addDialogMode === "users" ? "User created successfully." : "Staff member created successfully.");
       }
-      resetAddForm(addDialogMode);
-      setDialogOpen(false);
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.code === "USER_LIMIT_REACHED") {
@@ -781,6 +816,26 @@ export default function StaffPage() {
                 }
                 return null;
               })()}
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="email">
+                Email Address <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder={
+                  newName.trim() && newPhone.trim()
+                    ? suggestAddUserEmail(newName, newPhone.replace(/\D/g, ""), new Set())
+                    : "name@example.com (leave empty to auto-generate)"
+                }
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                autoComplete="email"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Staff member will use this email to log in. If left empty, an email will be generated automatically.
+              </p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <div className="flex items-center justify-between">
@@ -1030,10 +1085,52 @@ export default function StaffPage() {
                           No Portal Access
                         </span>
                       )}
-                      <span className="text-[11px] text-muted-foreground">
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground truncate">
                         {u.phone?.trim() || "No phone"}
                         {showBranchPicker ? ` · ${branch?.name ?? "—"}` : ""}
                       </span>
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {userCanEdit(useAuthStore.getState().user, "STAFF") &&
+                          (u.role !== "SUPER_ADMIN" || authUser?.role === "SUPER_ADMIN") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-amber-600 hover:text-amber-700"
+                              title="Login credentials / Reset password"
+                              onClick={() => setResetModalUser(u)}
+                            >
+                              <KeyRound className="size-3.5" />
+                            </Button>
+                          )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                          <Link href={`/staff/${u.id}`} aria-label="View">
+                            <Eye className="size-3.5 text-blue-600" />
+                          </Link>
+                        </Button>
+                        {userCanEdit(useAuthStore.getState().user, "STAFF") && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <Link href={`/staff/${u.id}`} aria-label="Edit">
+                              <Pencil className="size-3.5 text-violet-600" />
+                            </Link>
+                          </Button>
+                        )}
+                        {userCanDelete(useAuthStore.getState().user, "STAFF") &&
+                          u.role !== "SUPER_ADMIN" &&
+                          u.id !== authUser?.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              disabled={deletingUserBusy}
+                              aria-label="Delete"
+                              onClick={() => setDeletingUser(u)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          )}
+                      </div>
                     </div>
                   </>
                 );
@@ -1321,10 +1418,52 @@ export default function StaffPage() {
                           No Portal Access
                         </span>
                       )}
-                      <span className="text-[11px] text-muted-foreground">
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground truncate">
                         {u.phone?.trim() || "No phone"}
                         {showBranchPicker ? ` · ${branch?.name ?? "—"}` : ""}
                       </span>
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {userCanEdit(useAuthStore.getState().user, "STAFF") &&
+                          (u.role !== "SUPER_ADMIN" || authUser?.role === "SUPER_ADMIN") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-amber-600 hover:text-amber-700"
+                              title="Login credentials / Reset password"
+                              onClick={() => setResetModalUser(u)}
+                            >
+                              <KeyRound className="size-3.5" />
+                            </Button>
+                          )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                          <Link href={`/staff/${u.id}`} aria-label="View">
+                            <Eye className="size-3.5 text-blue-600" />
+                          </Link>
+                        </Button>
+                        {userCanEdit(useAuthStore.getState().user, "STAFF") && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <Link href={`/staff/${u.id}`} aria-label="Edit">
+                              <Pencil className="size-3.5 text-violet-600" />
+                            </Link>
+                          </Button>
+                        )}
+                        {userCanDelete(useAuthStore.getState().user, "STAFF") &&
+                          u.role !== "SUPER_ADMIN" &&
+                          u.id !== authUser?.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              disabled={deletingUserBusy}
+                              aria-label="Delete"
+                              onClick={() => setDeletingUser(u)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          )}
+                      </div>
                     </div>
                   </>
                 );
@@ -1576,6 +1715,16 @@ export default function StaffPage() {
               disabled={deletingUserBusy}
               onClick={async () => {
                 if (!deletingUser) return;
+                if (deletingUser.role === "SUPER_ADMIN") {
+                  toast.error("Super Admin cannot be deleted.");
+                  setDeletingUser(null);
+                  return;
+                }
+                if (deletingUser.id === authUser?.id) {
+                  toast.error("You cannot delete your own account.");
+                  setDeletingUser(null);
+                  return;
+                }
                 setDeletingUserBusy(true);
                 try {
                   await deleteStaff(deletingUser.id);
@@ -1611,6 +1760,23 @@ export default function StaffPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <StaffCredentialsModal
+        open={!!credentialsModal}
+        onOpenChange={(open) => {
+          if (!open) setCredentialsModal(null);
+        }}
+        credentials={credentialsModal}
+      />
+
+      <ResetPasswordDialog
+        open={!!resetModalUser}
+        onOpenChange={(open) => {
+          if (!open) setResetModalUser(null);
+        }}
+        user={resetModalUser}
+        onSuccess={(creds) => setCredentialsModal(creds)}
+      />
     </div>
   );
 }

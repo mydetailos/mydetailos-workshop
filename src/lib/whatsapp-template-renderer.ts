@@ -133,6 +133,24 @@ Here are your account details to track your service:
 
 Thank you for choosing {{2}} team.`,
   },
+  [TWILIO_TEMPLATE_SIDS.CUSTOMER_OFFER]: {
+    name: "Festive Offer & Coupon",
+    template: `Hello {{1}}! 👋🎉
+
+Special festive offer from {{2}}! 🚗✨
+
+{{3}}
+
+Coupon code: {{4}}
+Discount: {{5}}
+Min. bill: {{6}}
+Valid: {{7}}
+
+Book your service and mention this code at the counter.
+
+Thank you,
+{{2}} team.`,
+  },
   [TWILIO_TEMPLATE_SIDS.SERVICE_REMINDER]: {
     name: "Service Reminder",
     template: `Hi {{1}}, Friendly reminder from {{2}} regarding your vehicle.

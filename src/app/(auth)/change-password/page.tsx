@@ -44,7 +44,7 @@ export default function ChangePasswordPage() {
 
   useEffect(() => {
     if (!authReady || accessToken) return;
-    goToMarketingLogin();
+    router.replace("/login");
   }, [authReady, accessToken, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +67,7 @@ export default function ChangePasswordPage() {
     }
     if (!accessToken) {
       toast.error("Session expired — please sign in again.");
-      goToMarketingLogin();
+      router.replace("/login");
       return;
     }
     setLoading(true);
@@ -226,7 +226,7 @@ export default function ChangePasswordPage() {
                 className="w-full text-muted-foreground"
                 onClick={() => {
                   logout();
-                  goToMarketingLogin();
+                  router.replace("/login");
                 }}
               >
                 Sign out instead

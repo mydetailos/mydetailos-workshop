@@ -240,6 +240,7 @@ export default function CustomerDetailPage() {
       quantity: number;
       vehicleLabel: string;
       jobCardId?: string;
+      membershipId: string;
     };
     const lines: Line[] = [];
     for (const sub of membershipSubscriptions.filter((s) => s.customerId === customer.id)) {
@@ -256,6 +257,7 @@ export default function CustomerDetailPage() {
           quantity: Math.max(1, Math.floor(u.quantity ?? 1)),
           vehicleLabel,
           jobCardId: u.jobCardId,
+          membershipId: u.membershipId ?? sub.id,
         });
       }
     }
@@ -1227,8 +1229,11 @@ export default function CustomerDetailPage() {
                         <div className="min-w-0 col-start-2 row-start-1 sm:col-start-auto sm:row-start-auto sm:mt-3">
                           <p className="text-sm text-muted-foreground">Package</p>
                           <p className="font-semibold break-words">{pkg.name}</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-2 flex flex-wrap gap-2 items-center">
                             <Badge variant="secondary">{pkg.tier}</Badge>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              ID: {sub.id}
+                            </Badge>
                             <span className="text-xs text-muted-foreground self-center">
                               {membershipTierDurationLabel(pkg.tier)} window
                             </span>
@@ -1274,9 +1279,12 @@ export default function CustomerDetailPage() {
                   ))}
                   {legacyActiveMembership && legacyMembershipPackage ? (
                     <div className="rounded-xl border border-border bg-muted/30 p-4">
-                      <Badge variant="outline" className="mb-2">
-                        Customer-wide (legacy)
-                      </Badge>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <Badge variant="outline">Customer-wide (legacy)</Badge>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          ID: {legacyActiveMembership.id}
+                        </Badge>
+                      </div>
                       <p className="font-semibold">{legacyMembershipPackage.name}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Valid until {formatDate(legacyActiveMembership.endDate)}
@@ -1296,7 +1304,12 @@ export default function CustomerDetailPage() {
                         key={`${line.usedAt}-${line.serviceName}-${idx}`}
                         className="flex flex-col gap-0.5 rounded-md border border-border/60 px-3 py-2"
                       >
-                        <span className="font-medium">{line.serviceName} ×{line.quantity}</span>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="font-medium">{line.serviceName} ×{line.quantity}</span>
+                          <span className="font-mono text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50">
+                            Membership ID: {line.membershipId}
+                          </span>
+                        </div>
                         <span className="text-xs text-muted-foreground">
                           {line.vehicleLabel} ·{" "}
                           {new Date(line.usedAt).toLocaleString(undefined, {

@@ -1162,7 +1162,10 @@ export function MembershipPageClient() {
                   <tbody>
                     {filteredSubsWithLabels.map(({ sub, custName, pkgName, pkgAmount, eff, vehicleLabel }) => (
                       <tr key={sub.id} className="border-b border-border/80">
-                        <td className="px-2 py-2">{custName}</td>
+                        <td className="px-2 py-2">
+                          <div>{custName}</div>
+                          <div className="font-mono text-[11px] text-muted-foreground">ID: {sub.id}</div>
+                        </td>
                         <td className="px-2 py-2 text-xs text-muted-foreground max-w-[200px]">{vehicleLabel}</td>
                         <td className="px-2 py-2">
                           <div>{pkgName}</div>

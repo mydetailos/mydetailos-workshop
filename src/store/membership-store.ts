@@ -92,6 +92,7 @@ export function usedMembershipCounts(sub: CustomerMembership): Map<string, numbe
 export function normalizeMembershipSubscription(sub: CustomerMembership): CustomerMembership {
   const usageHistory = (sub.usageHistory ?? []).map((u) => ({
     ...u,
+    membershipId: u.membershipId ?? sub.id,
     quantity: usageQuantity(u),
   }));
   return {
@@ -278,6 +279,7 @@ export const useMembershipStore = create<MembershipState>((set, get) => ({
                 ...(sub.usageHistory ?? []),
                 ...entries.map((e) => ({
                   ...e,
+                  membershipId: e.membershipId ?? sub.id,
                   quantity: toPositiveInt(e.quantity, 1),
                   usedAt,
                 })),
@@ -324,6 +326,7 @@ export const useMembershipStore = create<MembershipState>((set, get) => ({
               usageHistory: [
                 ...(row.usageHistory ?? []),
                 {
+                  membershipId: input.subscriptionId,
                   usedAt,
                   serviceCatalogId: input.serviceCatalogId,
                   quantity,

@@ -1793,8 +1793,12 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       }
     }
 
+    const activeSub =
+      membershipVisitChoice === "yes"
+        ? getActiveMembership(custId, resolvedVehicleId)
+        : undefined;
+
     if (membershipVisitChoice === "yes" && membershipRedeemServiceIds.length > 0) {
-      const activeSub = getActiveMembership(custId, resolvedVehicleId);
       const activePkg = activeSub
         ? membershipPackagesAll.find((p) => p.id === activeSub.packageId)
         : undefined;
@@ -1826,6 +1830,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           serviceCatalogId: s.id,
           name: s.name,
           ...priced,
+          membershipId: activeSub?.id ?? activeMembershipForSelectedVehicle?.id,
           isCompleted: false,
           durationMinutes: s.durationMinutes,
         };
@@ -3750,32 +3755,49 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
 
                   {activeMembershipForSelectedVehicle.usageHistory && activeMembershipForSelectedVehicle.usageHistory.length > 0 ? (
                     <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2">
-                      <p className="text-xs font-semibold text-foreground mb-2">Membership usage history</p>
-                      <ul className="max-h-36 space-y-1.5 overflow-y-auto text-[11px] text-muted-foreground">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-foreground">Membership usage history</p>
+                        <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/60">
+                          ID: {activeMembershipForSelectedVehicle.id}
+                        </span>
+                      </div>
+                      <ul className="max-h-40 space-y-2 overflow-y-auto text-[11px] text-muted-foreground">
                         {[...activeMembershipForSelectedVehicle.usageHistory]
                           .sort(
                             (a: MembershipServiceUsage, b: MembershipServiceUsage) =>
                               new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime()
                           )
-                          .map((u: MembershipServiceUsage, idx: number) => (
-                            <li key={`${u.usedAt}-${u.serviceCatalogId}-${idx}`} className="flex justify-between gap-2">
-                              <span className="min-w-0 truncate">
-                                {u.serviceName ??
-                                  serviceCatalog.find((c) => c.id === u.serviceCatalogId)?.name ??
-                                  u.serviceCatalogId}
-                                {(u.quantity ?? 1) > 1 ? ` ×${u.quantity ?? 1}` : ""}
-                              </span>
-                              <span className="shrink-0 tabular-nums">
-                                {new Date(u.usedAt).toLocaleString(undefined, {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </li>
-                          ))}
+                          .map((u: MembershipServiceUsage, idx: number) => {
+                            const usageMemId = u.membershipId || activeMembershipForSelectedVehicle.id;
+                            return (
+                              <li key={`${u.usedAt}-${u.serviceCatalogId}-${idx}`} className="flex flex-col gap-0.5 border-b border-border/40 pb-1.5 last:border-0">
+                                <div className="flex justify-between gap-2">
+                                  <span className="min-w-0 font-medium text-foreground truncate">
+                                    {u.serviceName ??
+                                      serviceCatalog.find((c) => c.id === u.serviceCatalogId)?.name ??
+                                      u.serviceCatalogId}
+                                    {(u.quantity ?? 1) > 1 ? ` ×${u.quantity ?? 1}` : ""}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                                    {new Date(u.usedAt).toLocaleString(undefined, {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
+                                  <span>Used from Membership ID:</span>
+                                  <span className="font-semibold text-primary">{usageMemId}</span>
+                                  {u.jobCardId ? (
+                                    <span className="font-sans ml-1 text-muted-foreground">· Job: {u.jobCardId}</span>
+                                  ) : null}
+                                </div>
+                              </li>
+                            );
+                          })}
                       </ul>
                     </div>
                   ) : null}

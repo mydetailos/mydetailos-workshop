@@ -100,56 +100,67 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!authReady || !sessionChecked) return;
-    if (!isAuthenticated) {
-      goToMarketingLogin();
-    }
-  }, [authReady, sessionChecked, isAuthenticated, router]);
 
-  useEffect(() => {
-    if (!authReady || !sessionChecked || !isAuthenticated) return;
+    if (!isAuthenticated) {
+      const target = pathname && pathname !== "/" ? `/login?next=${encodeURIComponent(pathname)}` : "/login";
+      router.replace(tenantHref(target));
+      return;
+    }
+
     if (user?.role === "PLATFORM_OWNER") {
       router.replace("/saas-admin/organizations");
-    }
-  }, [authReady, sessionChecked, isAuthenticated, user?.role, router]);
-
-  useEffect(() => {
-    if (!authReady || !sessionChecked || !isAuthenticated) return;
-    if (!mustChangePassword) return;
-    void router.replace(tenantHref("/change-password"));
-  }, [authReady, sessionChecked, isAuthenticated, mustChangePassword, router, tenantHref]);
-
-  useEffect(() => {
-    if (!authReady || !sessionChecked || !isAuthenticated || !user) return;
-    if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") return;
-    if (!userHasPortalAccess(user)) {
-      toast.error("Access Denied", {
-        description: "Portal access is disabled for your account. Please contact your administrator.",
-      });
-      void router.replace(tenantHref("/login"));
       return;
     }
-    if (userHasWithoutEditAccess(user) && isHrStaffNavPath(appPath)) {
-      toast.error("Access Denied", {
-        description: "HR & Staff is not available without edit access.",
-      });
-      void router.replace(tenantHref("/dashboard"));
+
+    if (mustChangePassword) {
+      void router.replace(tenantHref("/change-password"));
       return;
     }
-    if (currentNavItem) {
-      const hasRoleAccess = canAccessNavItem(
-        currentNavItem.roles,
-        user.role,
-        currentNavItem.permissionKey,
-        user.permissions
-      );
-      if (!hasRoleAccess) {
+
+    if (!user) return;
+
+    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+      if (!userHasPortalAccess(user)) {
         toast.error("Access Denied", {
-          description: "You do not have permission to access this module.",
+          description: "Portal access is disabled for your account. Please contact your administrator.",
+        });
+        void router.replace(tenantHref("/login"));
+        return;
+      }
+      if (userHasWithoutEditAccess(user) && isHrStaffNavPath(appPath)) {
+        toast.error("Access Denied", {
+          description: "HR & Staff is not available without edit access.",
         });
         void router.replace(tenantHref("/dashboard"));
+        return;
+      }
+      if (currentNavItem) {
+        const hasRoleAccess = canAccessNavItem(
+          currentNavItem.roles,
+          user.role,
+          currentNavItem.permissionKey,
+          user.permissions
+        );
+        if (!hasRoleAccess) {
+          toast.error("Access Denied", {
+            description: "You do not have permission to access this module.",
+          });
+          void router.replace(tenantHref("/dashboard"));
+        }
       }
     }
-  }, [authReady, sessionChecked, isAuthenticated, user, currentNavItem, appPath, router, tenantHref]);
+  }, [
+    authReady,
+    sessionChecked,
+    isAuthenticated,
+    user,
+    mustChangePassword,
+    currentNavItem,
+    appPath,
+    pathname,
+    router,
+    tenantHref,
+  ]);
 
   const runBootstrap = useAppBootstrapStore((s) => s.run);
   const resetBootstrap = useAppBootstrapStore((s) => s.reset);

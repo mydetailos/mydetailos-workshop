@@ -95,6 +95,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { notifyJobReadyWhatsApp } from "@/lib/whatsapp-automation-triggers";
 import { useSidebarStore } from "@/store/sidebar-store";
+import { useTenantPath } from "@/components/tenant/tenant-context";
 
 const FUNNEL_IN_PROGRESS: JobCard["status"][] = [
   "INSPECTION",
@@ -182,6 +183,7 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const tenantHref = useTenantPath();
   const setActiveFilter = useDashboardFilterStore((s) => s.setActiveFilter);
   const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
   const branches = useBranchStore((s) => s.branches);
@@ -501,7 +503,7 @@ export default function DashboardPage() {
         return end >= todayStart;
       }).length,
     };
-  }, [scopedJobCards, user?.id]);
+  }, [scopedJobCards, user]);
 
   const compactAlertLabel = (id: string, shortLabel: string) => {
     const labels: Record<string, string> = {
@@ -514,9 +516,6 @@ export default function DashboardPage() {
     return labels[id] ?? shortLabel;
   };
 
-  const alertCardClassName =
-    "group flex min-w-0 w-full items-center gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-2 text-left shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-primary/50 cursor-pointer active:scale-[0.98]";
-
   const mobileAlertFilterMap: Record<string, string> = {
     overdue: DASHBOARD_FILTER.OVERDUE,
     stock: DASHBOARD_FILTER.LOW_STOCK,
@@ -528,7 +527,7 @@ export default function DashboardPage() {
   const handleMobileAlertClick = (alertId: string, href: string) => {
     const filter = mobileAlertFilterMap[alertId];
     if (filter) setActiveFilter(filter);
-    router.push(href);
+    router.push(tenantHref(href));
   };
 
   const branchNameById = useMemo(
@@ -663,7 +662,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <Button size="sm" className="shrink-0" asChild>
-              <Link href="/bookings">View list</Link>
+              <Link href={tenantHref("/bookings")}>View list</Link>
             </Button>
           </CardContent>
         </Card>
@@ -674,7 +673,7 @@ export default function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-2.5 sm:px-5 sm:py-3">
           <CardTitle className="text-sm font-semibold sm:text-base">Today&apos;s Jobs</CardTitle>
           <Button variant="link" className="h-auto p-0 text-emerald-600 text-xs sm:text-sm" asChild>
-            <Link href="/job-cards">View all</Link>
+            <Link href={tenantHref("/job-cards")}>View all</Link>
           </Button>
         </CardHeader>
         <CardContent className="px-4 pt-0 pb-3 sm:px-5 sm:pb-4">
@@ -715,7 +714,7 @@ export default function DashboardPage() {
         </p>
         <div className="grid grid-cols-2 gap-2">
           {QUICK_ACTIONS.map((action) => (
-            <Link key={action.href} href={action.href}>
+            <Link key={action.href} href={tenantHref(action.href)}>
               <Card className={`border shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md cursor-pointer active:scale-[0.98] ${action.bgClass}`}>
                 <CardContent className="flex items-center gap-2 p-2 sm:p-2.5">
                   <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${action.iconBgClass}`}>
@@ -855,7 +854,7 @@ export default function DashboardPage() {
               className="h-8 px-2"
               onClick={() => {
                 setActiveFilter(DASHBOARD_FILTER.TODAYS_BOOKINGS);
-                router.push("/job-cards");
+                router.push(tenantHref("/job-cards"));
               }}
             >
               View all <ArrowRight className="w-3 h-3 ml-1" />
@@ -866,7 +865,7 @@ export default function DashboardPage() {
                 {todaysBookingsLive.map((jc) => (
                   <Link
                     key={jc.id}
-                    href={`/job-cards/${jc.id}`}
+                    href={tenantHref(`/job-cards/${jc.id}`)}
                     className="flex items-center justify-between rounded-lg border border-border p-2.5 hover:bg-muted/50 sm:p-3"
                   >
                     <div className="flex-1 min-w-0">
@@ -902,7 +901,7 @@ export default function DashboardPage() {
               className="h-8 px-2"
               onClick={() => {
                 setActiveFilter(DASHBOARD_FILTER.READY_FOR_DELIVERY);
-                router.push("/job-cards");
+                router.push(tenantHref("/job-cards"));
               }}
             >
               View all <ArrowRight className="w-3 h-3 ml-1" />
@@ -916,7 +915,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-2 rounded-lg border border-border p-2.5 hover:bg-muted/50 sm:p-3"
                   >
                     <Link
-                      href={`/job-cards/${jc.id}`}
+                      href={tenantHref(`/job-cards/${jc.id}`)}
                       className="flex flex-1 min-w-0 items-center justify-between gap-2"
                     >
                       <div className="flex-1 min-w-0">
@@ -961,7 +960,7 @@ export default function DashboardPage() {
             <p className="text-[11px] text-muted-foreground mt-0.5">Latest activity</p>
           </div>
           <Button variant="default" size="sm" className="h-8 shrink-0" asChild>
-            <Link href="/bookings">View All</Link>
+            <Link href={tenantHref("/bookings")}>View All</Link>
           </Button>
         </CardHeader>
         <CardContent className="px-4 pt-0 pb-4 sm:px-6 sm:pb-6">
@@ -997,7 +996,7 @@ export default function DashboardPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/job-cards/${jc.id}`}>Open job card</Link>
+                          <Link href={tenantHref(`/job-cards/${jc.id}`)}>Open job card</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setRecentBookingPreview(jc)}>
                           Quick view
@@ -1063,7 +1062,7 @@ export default function DashboardPage() {
                     <td className="px-3 py-3.5 align-middle text-center">
                       <div className="inline-flex items-center justify-center gap-1">
                         <Button variant="outline" size="sm" className="h-7 px-2 text-xs" asChild>
-                          <Link href={`/job-cards/${jc.id}`}>
+                          <Link href={tenantHref(`/job-cards/${jc.id}`)}>
                             <ClipboardList className="w-3.5 h-3.5 mr-1" />
                             Job card
                           </Link>
@@ -1154,7 +1153,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 shrink-0">
-            <Link href="/quotations?new=true">
+            <Link href={tenantHref("/quotations?new=true")}>
               <Button
                 variant="ghost"
                 className="h-10 inline-flex items-center justify-center bg-gradient-to-r from-amber-500/[0.04] to-amber-600/[0.06] border border-amber-200/80 text-amber-700 hover:bg-amber-100/50 hover:text-amber-800 hover:border-amber-400 dark:bg-amber-950/20 dark:border-amber-900 dark:text-amber-400 dark:hover:bg-amber-950/30 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(245,158,11,0.08)] rounded-lg font-semibold px-4 py-2"
@@ -1163,7 +1162,7 @@ export default function DashboardPage() {
                 <span className="leading-none">New Quotation</span>
               </Button>
             </Link>
-            <Link href="/bookings/walk-in">
+            <Link href={tenantHref("/bookings/walk-in")}>
               <Button
                 variant="ghost"
                 className="h-10 inline-flex items-center justify-center bg-gradient-to-r from-violet-500/[0.04] to-violet-600/[0.06] border border-violet-200/80 text-violet-700 hover:bg-violet-100/50 hover:text-violet-800 hover:border-violet-400 dark:bg-violet-950/20 dark:border-violet-900 dark:text-violet-400 dark:hover:bg-violet-950/30 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(139,92,246,0.08)] rounded-lg font-semibold px-4 py-2"
@@ -1172,7 +1171,7 @@ export default function DashboardPage() {
                 <span className="leading-none">New Booking</span>
               </Button>
             </Link>
-            <Link href="/appointments?new=true">
+            <Link href={tenantHref("/appointments?new=true")}>
               <Button
                 variant="ghost"
                 className="h-10 inline-flex items-center justify-center bg-gradient-to-r from-emerald-500/[0.04] to-emerald-600/[0.06] border border-emerald-200/80 text-emerald-700 hover:bg-emerald-100/50 hover:text-emerald-800 hover:border-emerald-400 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950/30 transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(16,185,129,0.08)] rounded-lg font-semibold px-4 py-2"
@@ -1181,7 +1180,7 @@ export default function DashboardPage() {
                 <span className="leading-none">New Appointment</span>
               </Button>
             </Link>
-            <Link href="/job-cards/new">
+            <Link href={tenantHref("/job-cards/new")}>
               <Button
                 variant="default"
                 className="h-10 inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(20,184,166,0.28)]"
@@ -1219,7 +1218,7 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => {
                       if (filter) setActiveFilter(filter);
-                      router.push(alert.href);
+                      router.push(tenantHref(alert.href));
                     }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${borderClass} ${alert.bgColor} cursor-pointer text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-primary/50`}
                   >
@@ -1261,7 +1260,7 @@ export default function DashboardPage() {
                     variants={alertStaggerItem}
                     onClick={() => {
                       if (filter) setActiveFilter(filter);
-                      router.push(alert.href);
+                      router.push(tenantHref(alert.href));
                     }}
                     whileTap={{ scale: 0.99 }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${borderClass} ${alert.bgColor} cursor-pointer text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-primary/50`}
@@ -1356,7 +1355,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 px-6 pb-4">
             <CardTitle className="text-base">Today&apos;s Jobs</CardTitle>
             <Button variant="link" className="h-auto p-0 text-emerald-600" asChild>
-              <Link href="/job-cards">Show</Link>
+              <Link href={tenantHref("/job-cards")}>Show</Link>
             </Button>
           </CardHeader>
           <CardContent className="px-6 pb-6">
@@ -1433,7 +1432,7 @@ export default function DashboardPage() {
                 className="h-8 px-2"
                 onClick={() => {
                   setActiveFilter(DASHBOARD_FILTER.TODAYS_BOOKINGS);
-                  router.push("/job-cards");
+                  router.push(tenantHref("/job-cards"));
                 }}
               >
                 View all <ArrowRight className="w-3 h-3 ml-1" />
@@ -1444,7 +1443,7 @@ export default function DashboardPage() {
                 {todaysBookingsLive.map((jc) => (
                   <Link
                     key={jc.id}
-                    href={`/job-cards/${jc.id}`}
+                    href={tenantHref(`/job-cards/${jc.id}`)}
                     className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted/50"
                   >
                     <div className="flex-1 min-w-0">
@@ -1480,7 +1479,7 @@ export default function DashboardPage() {
                 className="h-8 px-2"
                 onClick={() => {
                   setActiveFilter(DASHBOARD_FILTER.READY_FOR_DELIVERY);
-                  router.push("/job-cards");
+                  router.push(tenantHref("/job-cards"));
                 }}
               >
                 View all <ArrowRight className="w-3 h-3 ml-1" />
@@ -1494,7 +1493,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-muted/50"
                   >
                     <Link
-                      href={`/job-cards/${jc.id}`}
+                      href={tenantHref(`/job-cards/${jc.id}`)}
                       className="flex flex-1 min-w-0 items-center justify-between gap-2"
                     >
                       <div className="flex-1 min-w-0">
@@ -1533,7 +1532,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 px-6 pb-4">
             <CardTitle className="text-base">Recent Bookings</CardTitle>
             <Button variant="default" size="sm" className="h-8" asChild>
-              <Link href="/bookings">View All</Link>
+              <Link href={tenantHref("/bookings")}>View All</Link>
             </Button>
           </CardHeader>
           <CardContent className="px-6 pb-6">
@@ -1580,7 +1579,7 @@ export default function DashboardPage() {
                       <td className="px-3 py-3.5 align-middle text-center">
                         <div className="inline-flex items-center justify-center gap-1">
                           <Button variant="outline" size="sm" className="h-7 px-2 text-xs" asChild>
-                            <Link href={`/job-cards/${jc.id}`}>
+                            <Link href={tenantHref(`/job-cards/${jc.id}`)}>
                               <ClipboardList className="w-3.5 h-3.5 mr-1" />
                               Job card
                             </Link>
@@ -1658,11 +1657,11 @@ export default function DashboardPage() {
               [
                 { href: "/job-cards", title: "Manage Job Cards", desc: "View and assign jobs", icon: Wrench },
                 { href: "/services", title: "Service Packages", desc: "Manage services", icon: Calendar },
-                { href: "/customers", title: "Users", desc: "Manage customers & staff", icon: Users },
-                { href: "/reports", title: "Analytics", desc: "View detailed reports", icon: BarChart3 },
+                { href: "/staff", title: "Users & Staff", desc: "Manage staff & user roles", icon: Users },
+                { href: "/reports/analytics", title: "Analytics", desc: "View detailed reports", icon: BarChart3 },
               ] as const
             ).map((item) => (
-              <Link key={item.href} href={item.href} className="block h-full min-h-[140px]">
+              <Link key={item.href} href={tenantHref(item.href)} className="block h-full min-h-[140px]">
                 <Card className="h-full translate-y-0 transform-gpu will-change-transform transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-primary/50 cursor-pointer active:scale-[0.98]">
                   <div className="flex h-full min-h-[140px] flex-col items-center justify-center gap-3 px-5 py-8 text-center">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
@@ -1731,10 +1730,10 @@ export default function DashboardPage() {
               </div>
               <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button variant="outline" asChild className="w-full sm:w-auto">
-                  <Link href={`/customers/${recentBookingPreview.customerId}`}>Customer profile</Link>
+                  <Link href={tenantHref(`/customers/${recentBookingPreview.customerId}`)}>Customer profile</Link>
                 </Button>
                 <Button asChild className="w-full sm:w-auto">
-                  <Link href={`/job-cards/${recentBookingPreview.id}`}>Open job card</Link>
+                  <Link href={tenantHref(`/job-cards/${recentBookingPreview.id}`)}>Open job card</Link>
                 </Button>
               </DialogFooter>
             </>
