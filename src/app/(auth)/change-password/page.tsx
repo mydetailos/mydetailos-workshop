@@ -44,8 +44,8 @@ export default function ChangePasswordPage() {
 
   useEffect(() => {
     if (!authReady || accessToken) return;
-    router.replace("/login");
-  }, [authReady, accessToken, router]);
+    goToMarketingLogin();
+  }, [authReady, accessToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

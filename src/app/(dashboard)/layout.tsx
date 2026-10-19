@@ -102,8 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!authReady || !sessionChecked) return;
 
     if (!isAuthenticated) {
-      const target = pathname && pathname !== "/" ? `/login?next=${encodeURIComponent(pathname)}` : "/login";
-      router.replace(tenantHref(target));
+      goToMarketingLogin();
       return;
     }
 
@@ -124,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         toast.error("Access Denied", {
           description: "Portal access is disabled for your account. Please contact your administrator.",
         });
-        void router.replace(tenantHref("/login"));
+        goToMarketingLogin();
         return;
       }
       if (userHasWithoutEditAccess(user) && isHrStaffNavPath(appPath)) {
