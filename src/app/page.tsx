@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
-import { goToMarketingLogin } from "@/lib/marketing-site";
 
 export default function HomePage() {
   const router = useRouter();
@@ -14,7 +13,7 @@ export default function HomePage() {
       if (isAuthenticated) {
         router.replace("/dashboard");
       } else {
-        goToMarketingLogin();
+        router.replace("/login");
       }
       return;
     }
@@ -22,7 +21,7 @@ export default function HomePage() {
       if (useAuthStore.getState().isAuthenticated) {
         router.replace("/dashboard");
       } else {
-        goToMarketingLogin();
+        router.replace("/login");
       }
     });
   }, [isAuthenticated, router]);

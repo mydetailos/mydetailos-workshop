@@ -23,11 +23,15 @@ export type SendLoginOtpResult =
     }
   | { ok: false; message: string };
 
- export type AuthSessionPayload = {
-   accessToken: string;
-   user: User;
-   branch: Branch | null;
- };
+export type VerifyLoginOtpResult =
+  | { ok: true; user: User }
+  | { ok: false; message: string };
+
+export type AuthSessionPayload = {
+  accessToken: string;
+  user: User;
+  branch: Branch | null;
+};
 
 interface AuthState {
   user: User | null;
@@ -39,7 +43,7 @@ interface AuthState {
   /** Validates JWT with `/api/auth/me` or clears session */
   ensureValidSession: () => Promise<void>;
   sendLoginOtp: (phone: string) => Promise<SendLoginOtpResult>;
-  verifyLoginOtp: (phone: string, code: string) => Promise<boolean>;
+  verifyLoginOtp: (phone: string, code: string) => Promise<VerifyLoginOtpResult>;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   setBranch: (branch: Branch) => void;
@@ -156,10 +160,12 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      verifyLoginOtp: async (phone: string, code: string) => {
+      verifyLoginOtp: async (phone: string, code: string): Promise<VerifyLoginOtpResult> => {
         const digits = phone.replace(/\D/g, "");
         const trimmed = code.replace(/\D/g, "");
-        if (digits.length !== 10 || trimmed.length < 4) return false;
+        if (digits.length !== 10 || trimmed.length < 4) {
+          return { ok: false, message: "Enter a valid 10-digit mobile number and 4-digit code" };
+        }
         try {
           const res = await fetch(buildApiUrl("/api/auth/otp/verify"), {
             method: "POST",
@@ -175,7 +181,10 @@ export const useAuthStore = create<AuthState>()(
             error: { message?: string } | null;
           };
           if (!res.ok || body.error || !body.data) {
-            return false;
+            return {
+              ok: false,
+              message: body.error?.message ?? "Invalid or expired OTP. Please try again.",
+            };
           }
           const { accessToken, user, branch } = body.data;
           const homeBranch = branch ?? null;
@@ -185,9 +194,13 @@ export const useAuthStore = create<AuthState>()(
             currentBranch: defaultBranchForUser(user, homeBranch),
             isAuthenticated: true,
           });
-          return true;
+          void useReportFavouritesStore.getState().hydrateForUser(user.id);
+          return { ok: true, user };
         } catch {
-          return false;
+          return {
+            ok: false,
+            message: "Network error — please check your connection and try again.",
+          };
         }
       },
 

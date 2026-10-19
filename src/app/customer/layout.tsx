@@ -14,8 +14,9 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { stripOrgSlugFromPath } from "@/lib/tenant";
-import { useTenantPath } from "@/components/tenant/tenant-context";
+import { useTenantPath, useTenantSlug } from "@/components/tenant/tenant-context";
 import { TenantGuard } from "@/components/tenant/tenant-guard";
+import { apiGet } from "@/lib/api-client";
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -26,10 +27,57 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { isAuthenticated, user, logout, ensureValidSession } = useCustomerAuthStore();
+  const authOrgName = useCustomerAuthStore((s) => s.organizationName);
+  const authOrgSlug = useCustomerAuthStore((s) => s.organizationSlug);
+  const tenantOrgSlug = useTenantSlug();
   const { bootstrap, customer, isLoading, refresh } = useCustomerDashboardStore();
   const sessionValidatedRef = useRef(false);
-  const businessName = useSettingsStore((s) => s.businessName) || "MY DETAIL OS";
-  const businessLogo = useSettingsStore((s) => s.businessLogo);
+
+  const settingsBusinessName = useSettingsStore((s) => s.businessName);
+  const settingsBusinessLogo = useSettingsStore((s) => s.businessLogo);
+
+  const [tenantBranding, setTenantBranding] = useState<{
+    businessName?: string;
+    businessLogo?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const slug = tenantOrgSlug || authOrgSlug;
+    if (!slug) return;
+    let cancelled = false;
+    void apiGet<{ businessName?: string; businessLogo?: string; name?: string }>(
+      `/api/public/branding?slug=${encodeURIComponent(slug)}`
+    )
+      .then((data) => {
+        if (!cancelled && data) {
+          setTenantBranding({
+            businessName: data.businessName || data.name,
+            businessLogo: data.businessLogo,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantOrgSlug, authOrgSlug]);
+
+  const isDefaultName = (name?: string | null): boolean => {
+    if (!name) return true;
+    const n = name.trim().toLowerCase();
+    return n === "my detail os" || n === "mydetailos";
+  };
+
+  const businessName =
+    (!isDefaultName(tenantBranding?.businessName) ? tenantBranding?.businessName?.trim() : null) ||
+    (!isDefaultName(authOrgName) ? authOrgName?.trim() : null) ||
+    (!isDefaultName(settingsBusinessName) ? settingsBusinessName?.trim() : null) ||
+    tenantBranding?.businessName?.trim() ||
+    authOrgName?.trim() ||
+    settingsBusinessName?.trim() ||
+    "MY DETAIL OS";
+
+  const businessLogo = tenantBranding?.businessLogo || settingsBusinessLogo;
   const logoUrl = resolveUploadsPublicUrl(businessLogo);
   const customerAvatarSrc = resolveUploadsPublicUrl(customer?.avatar ?? user?.avatar ?? undefined);
   const customerDisplayName = customer?.name || user?.name || "Customer";

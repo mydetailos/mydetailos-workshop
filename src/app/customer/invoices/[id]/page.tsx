@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { useCustomerDashboardStore } from "@/store/customer-dashboard-store";
+import { useCustomerAuthStore } from "@/store/customer-auth-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,11 +48,40 @@ type PublicInvoicePayload = {
     odometer?: number;
   } | null;
   businessSettings: any;
+  organization?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+  } | null;
 };
+
+function isPlatformDefaultName(name?: string | null): boolean {
+  if (!name || typeof name !== "string") return true;
+  const n = name.trim().toLowerCase();
+  return n === "my detail os" || n === "mydetailos";
+}
+
+function resolveInvoiceOrgName(data?: PublicInvoicePayload | null, fallback?: string): string {
+  if (!data) return fallback || "MY DETAIL OS";
+  const fromSettings = data.businessSettings?.businessName?.trim();
+  if (fromSettings && !isPlatformDefaultName(fromSettings)) {
+    return fromSettings;
+  }
+  const fromOrg = data.organization?.name?.trim();
+  if (fromOrg && !isPlatformDefaultName(fromOrg)) {
+    return fromOrg;
+  }
+  const fromInvoice = data.invoice?.organizationName?.trim();
+  if (fromInvoice && !isPlatformDefaultName(fromInvoice)) {
+    return fromInvoice;
+  }
+  return fromSettings || fromOrg || fromInvoice || fallback || "MY DETAIL OS";
+}
 
 function buildPublicInvoicePdfOpts(
   data: PublicInvoicePayload,
-  referralCode?: string
+  referralCode?: string,
+  fallbackOrgName?: string
 ): InvoicePdfOpts {
   const { invoice, jobCard, vehicle, businessSettings } = data;
   const totalPaid =
@@ -71,6 +101,12 @@ function buildPublicInvoicePdfOpts(
         ? jobCard.odometerReading
         : vehicle?.odometer;
 
+  const resolvedBusinessName = resolveInvoiceOrgName(data, fallbackOrgName);
+  const resolvedLogoUrl =
+    businessSettings?.logoUrl ||
+    businessSettings?.businessLogo ||
+    "";
+
   return {
     invoice,
     jobCard,
@@ -86,16 +122,17 @@ function buildPublicInvoicePdfOpts(
         businessSettings?.gstRegistrationStatus === "NOT_REGISTERED"
           ? "NOT_REGISTERED"
           : "REGISTERED",
-      businessName: businessSettings?.businessName || "MY DETAIL OS",
+      businessName: resolvedBusinessName,
+      logoUrl: resolvedLogoUrl,
       businessTagline: businessSettings?.businessTagline || "Car Wash & Detailing Studio",
       businessAddress:
-        businessSettings?.businessAddress || "80 Feet Road, Koramangala, Bengaluru 560034",
-      businessPhone: businessSettings?.businessPhone || "+91-80-4123-4567",
-      businessWhatsApp: businessSettings?.businessWhatsApp || "+91-80-4123-4567",
-      businessEmail: businessSettings?.businessEmail || "hello@mydetailos.com",
-      businessWebsite: businessSettings?.businessWebsite || "www.mydetailos.com",
-      gstin: businessSettings?.gstin || "29AABCT1234F1ZP",
-      companyPan: businessSettings?.companyPan || "ABCDE1234F",
+        businessSettings?.businessAddress || "",
+      businessPhone: businessSettings?.businessPhone || "",
+      businessWhatsApp: businessSettings?.businessWhatsApp || businessSettings?.businessPhone || "",
+      businessEmail: businessSettings?.businessEmail || "",
+      businessWebsite: businessSettings?.businessWebsite || "",
+      gstin: businessSettings?.gstin || "",
+      companyPan: businessSettings?.companyPan || "",
       bankName: businessSettings?.bankName || "",
       bankBranch: businessSettings?.bankBranch || "",
       bankAccountNumber: businessSettings?.bankAccountNumber || "",
@@ -178,7 +215,8 @@ export default function InvoiceDetailPage() {
       }
       const opts = buildPublicInvoicePdfOpts(
         data,
-        customer?.referralCode || undefined
+        customer?.referralCode || undefined,
+        useCustomerAuthStore.getState().organizationName || undefined
       );
       try {
         await downloadInvoicePdfFile(opts);

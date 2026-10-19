@@ -310,3 +310,89 @@ describe("buildTaxInvoicePrintHtml notes filtering", () => {
   });
 });
 
+describe("buildTaxInvoicePrintHtml organization branding & logo", () => {
+  const testOpts = {
+    invoice: {
+      id: "inv-brand-1",
+      invoiceNumber: "INV-2026-0002",
+      customerId: "c-1",
+      jobNumber: "JOB-102",
+      customerName: "Jane Doe",
+      customerPhone: "9876543210",
+      vehicleRegNumber: "KA01AB1234",
+      lineItems: [],
+      subtotal: 1000,
+      taxRate: 0.18,
+      taxAmount: 180,
+      discountAmount: 0,
+      rewardDiscount: 0,
+      walletAmountUsed: 0,
+      grandTotal: 1180,
+      status: "ISSUED" as const,
+      payments: [],
+      createdAt: new Date().toISOString(),
+    },
+    jobCard: null,
+    customerName: "Jane Doe",
+    customerPhone: "9876543210",
+    customerEmail: "jane@example.com",
+    customerAddress: "Bangalore",
+    vehicleMakeModel: "Honda City",
+    business: {
+      gstRegistrationStatus: "REGISTERED" as const,
+      businessName: "Super Car Spa & Detailing",
+      businessTagline: "Professional Auto Care",
+      businessAddress: "Koramangala, Bangalore",
+      businessPhone: "9876543210",
+      businessWhatsApp: "9876543210",
+      businessEmail: "info@supercarspa.com",
+      businessWebsite: "www.supercarspa.com",
+      gstin: "29AAAAA0000A1Z5",
+      companyPan: "AAAAA0000A",
+      bankName: "HDFC Bank",
+      bankBranch: "Koramangala",
+      bankAccountNumber: "1234567890",
+      bankIfsc: "HDFC0001234",
+      bankUpi: "9876543210@upi",
+    },
+    payments: [],
+    totalPaid: 0,
+    remainingBalance: 1180,
+  };
+
+  it("renders organization business name and does not hardcode MYDETAILOS in logo SVG", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...testOpts,
+        business: {
+          ...testOpts.business,
+          businessName: "Super Car Spa & Detailing",
+        },
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).toContain("Super Car Spa &amp; Detailing");
+    expect(html).not.toContain(">MYDETAILOS<");
+  });
+
+  it("renders custom business logo img when logoUrl is provided", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...testOpts,
+        business: {
+          ...testOpts.business,
+          businessName: "Elite Detailing",
+          logoUrl: "https://example.com/logo.png",
+        },
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).toContain('<img class="brand-logo" src="https://example.com/logo.png"');
+    expect(html).toContain('alt="Elite Detailing"');
+  });
+});
+

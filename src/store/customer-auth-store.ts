@@ -14,6 +14,8 @@ interface CustomerAuthState {
   user: CustomerUser | null;
   isAuthenticated: boolean;
   accessToken: string | null;
+  organizationSlug: string | null;
+  organizationName: string | null;
 
   /** Login with phone and password (tenant-scoped via organizationSlug or auto-resolved). */
   login: (
@@ -51,12 +53,16 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
       user: null,
       isAuthenticated: false,
       accessToken: null,
+      organizationSlug: null,
+      organizationName: null,
 
       applyAuthPayload: (data) => {
         set({
           accessToken: data.accessToken,
           user: data.user,
           isAuthenticated: true,
+          organizationSlug: (data as any).organizationSlug ?? get().organizationSlug,
+          organizationName: (data as any).organizationName ?? get().organizationName,
         });
       },
 
@@ -106,6 +112,8 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
             accessToken,
             user,
             isAuthenticated: true,
+            organizationSlug: body.data.organizationSlug ?? (slug || null),
+            organizationName: body.data.organizationName ?? null,
           });
 
           return { ok: true, organizationSlug: body.data.organizationSlug };
@@ -213,6 +221,8 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
             accessToken,
             user,
             isAuthenticated: true,
+            organizationSlug: body.data.organizationSlug ?? (slug || null),
+            organizationName: body.data.organizationName ?? null,
           });
 
           return { ok: true, organizationSlug: body.data.organizationSlug };
@@ -275,6 +285,8 @@ export const useCustomerAuthStore = create<CustomerAuthState>()(
           user: null,
           accessToken: null,
           isAuthenticated: false,
+          organizationSlug: null,
+          organizationName: null,
         });
       },
     }),

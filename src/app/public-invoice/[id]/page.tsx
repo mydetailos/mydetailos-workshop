@@ -37,6 +37,34 @@ interface PublicInvoiceData {
     model?: string;
   } | null;
   businessSettings: any;
+  organization?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+  } | null;
+}
+
+function isPlatformDefaultName(name?: string | null): boolean {
+  if (!name || typeof name !== "string") return true;
+  const n = name.trim().toLowerCase();
+  return n === "my detail os" || n === "mydetailos";
+}
+
+function resolveInvoiceOrgName(data?: PublicInvoiceData | null): string {
+  if (!data) return "MY DETAIL OS";
+  const fromSettings = data.businessSettings?.businessName?.trim();
+  if (fromSettings && !isPlatformDefaultName(fromSettings)) {
+    return fromSettings;
+  }
+  const fromOrg = data.organization?.name?.trim();
+  if (fromOrg && !isPlatformDefaultName(fromOrg)) {
+    return fromOrg;
+  }
+  const fromInvoice = data.invoice?.organizationName?.trim();
+  if (fromInvoice && !isPlatformDefaultName(fromInvoice)) {
+    return fromInvoice;
+  }
+  return fromSettings || fromOrg || fromInvoice || "MY DETAIL OS";
 }
 
 export default function PublicInvoicePage() {
@@ -83,18 +111,25 @@ export default function PublicInvoicePage() {
           : "REGISTERED",
     } as const;
 
+    const resolvedBusinessName = resolveInvoiceOrgName(data);
+    const resolvedLogoUrl =
+      businessSettings?.logoUrl ||
+      businessSettings?.businessLogo ||
+      "";
+
     const businessDetails = {
       ...business,
-      businessName: businessSettings?.businessName || "MY DETAIL OS",
+      businessName: resolvedBusinessName,
+      logoUrl: resolvedLogoUrl,
       businessTagline: businessSettings?.businessTagline || "Car Wash & Detailing Studio",
       businessAddress:
-        businessSettings?.businessAddress || "80 Feet Road, Koramangala, Bengaluru 560034",
-      businessPhone: businessSettings?.businessPhone || "+91-80-4123-4567",
-      businessWhatsApp: businessSettings?.businessWhatsApp || "+91-80-4123-4567",
-      businessEmail: businessSettings?.businessEmail || "hello@mydetailos.com",
-      businessWebsite: businessSettings?.businessWebsite || "www.mydetailos.com",
-      gstin: businessSettings?.gstin || "29AABCT1234F1ZP",
-      companyPan: businessSettings?.companyPan || "ABCDE1234F",
+        businessSettings?.businessAddress || "",
+      businessPhone: businessSettings?.businessPhone || "",
+      businessWhatsApp: businessSettings?.businessWhatsApp || businessSettings?.businessPhone || "",
+      businessEmail: businessSettings?.businessEmail || "",
+      businessWebsite: businessSettings?.businessWebsite || "",
+      gstin: businessSettings?.gstin || "",
+      companyPan: businessSettings?.companyPan || "",
       bankName: businessSettings?.bankName || "",
       bankBranch: businessSettings?.bankBranch || "",
       bankAccountNumber: businessSettings?.bankAccountNumber || "",
@@ -214,9 +249,10 @@ export default function PublicInvoicePage() {
   const isPaid = invoice.status === "PAID" || totalPaid >= invoice.grandTotal;
   const remainingBalance = Math.max(0, invoice.grandTotal - totalPaid);
 
-  const businessName = businessSettings?.businessName || "MY DETAIL OS";
-  const businessPhone = businessSettings?.businessPhone || "+91-80-4123-4567";
-  const businessWhatsApp = businessSettings?.businessWhatsApp || "+91-80-4123-4567";
+  const businessName = resolveInvoiceOrgName(data);
+  const businessLogo = businessSettings?.logoUrl || businessSettings?.businessLogo || "";
+  const businessPhone = businessSettings?.businessPhone || "";
+  const businessWhatsApp = businessSettings?.businessWhatsApp || businessPhone || "";
   const vehicleDetailsLine = formatInvoiceVehicleDetailsLine({
     variant: vehicle?.variant,
     year: vehicle?.year,
@@ -241,9 +277,17 @@ export default function PublicInvoicePage() {
       {/* Branded Glassmorphic Top Bar */}
       <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-50 px-4 sm:px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200/50">
-            <CarFront className="w-5.5 h-5.5" />
-          </div>
+          {businessLogo ? (
+            <img
+              src={businessLogo}
+              alt={businessName}
+              className="w-10 h-10 rounded-xl object-cover shadow-md border border-slate-200/60"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200/50">
+              <CarFront className="w-5.5 h-5.5" />
+            </div>
+          )}
           <div className="flex flex-col">
             <span className="font-extrabold text-sm sm:text-base tracking-tight text-slate-800 uppercase leading-none">
               {businessName}

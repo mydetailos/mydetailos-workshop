@@ -23,7 +23,6 @@ import { useSidebarStore } from "@/store/sidebar-store";
 import { cn } from "@/lib/utils";
 import { SubscriptionRenewBanner } from "@/components/billing/subscription-renew-banner";
 import { MarketingBanners } from "@/components/billing/marketing-banners";
-import { goToMarketingLogin } from "@/lib/marketing-site";
 import {
   completeStaffAuthHandoff,
   readAccessTokenFromLocation,
@@ -76,7 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const result = await completeStaffAuthHandoff(token, orgSlug);
       if (cancelled) return;
       if (!result.ok) {
-        goToMarketingLogin();
+        router.replace(tenantHref("/login"));
         return;
       }
       setHandoffDone(true);
@@ -84,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [pathname, router, tenantHref]);
 
   useEffect(() => {
     if (!authReady || !handoffDone) return;
@@ -102,7 +101,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!authReady || !sessionChecked) return;
 
     if (!isAuthenticated) {
-      goToMarketingLogin();
+      const target = pathname && pathname !== "/" ? `/login?next=${encodeURIComponent(pathname)}` : "/login";
+      router.replace(tenantHref(target));
       return;
     }
 
@@ -123,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         toast.error("Access Denied", {
           description: "Portal access is disabled for your account. Please contact your administrator.",
         });
-        goToMarketingLogin();
+        router.replace(tenantHref("/login"));
         return;
       }
       if (userHasWithoutEditAccess(user) && isHrStaffNavPath(appPath)) {

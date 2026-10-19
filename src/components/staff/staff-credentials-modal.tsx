@@ -22,7 +22,6 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { marketingLoginUrl } from "@/lib/marketing-site";
 
 export interface StaffCredentialsInfo {
   name: string;
@@ -52,7 +51,8 @@ export function StaffCredentialsModal({
 
   if (!credentials) return null;
 
-  const loginUrl = marketingLoginUrl();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const loginUrl = `${origin}/login`;
 
   const copyToClipboard = async (text: string, fieldName: string) => {
     try {
@@ -69,18 +69,22 @@ export function StaffCredentialsModal({
     const lines = [
       `Hello ${credentials.name},`,
       "",
-      "Here are your login credentials for My Detail OS:",
+      "Here are your login details for My Detail OS:",
       `• Login URL: ${loginUrl}`,
-      `• Login Email: ${credentials.email}`,
     ];
+
+    if (credentials.phone) {
+      lines.push(`• Registered Mobile: ${credentials.phone} (Sign in with Mobile OTP)`);
+    }
+    lines.push(`• Login Email: ${credentials.email}`);
 
     if (credentials.temporaryPassword) {
       lines.push(`• Temporary Password: ${credentials.temporaryPassword}`);
       lines.push("");
-      lines.push("Please sign in and set your new password upon first login.");
+      lines.push("You can sign in using your mobile number and OTP, or with your temporary password.");
     } else {
       lines.push("");
-      lines.push("Please sign in using your existing password.");
+      lines.push("You can sign in using your mobile number and OTP, or with your password.");
     }
 
     if (credentials.attendancePin) {
@@ -175,6 +179,28 @@ export function StaffCredentialsModal({
               </Button>
             </div>
           </div>
+
+          {/* Registered Mobile for OTP */}
+          {credentials.phone && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Registered Mobile (Mobile OTP Sign-in)</Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-md border bg-background px-3 py-2 text-xs font-mono font-medium truncate text-foreground select-all">
+                  +91 {credentials.phone}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  title="Copy mobile number"
+                  onClick={() => copyToClipboard(credentials.phone ?? "", "Mobile")}
+                >
+                  {copiedField === "Mobile" ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Login Email */}
           <div className="space-y-1.5">

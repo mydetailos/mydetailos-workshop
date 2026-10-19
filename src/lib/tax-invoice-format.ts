@@ -8,7 +8,7 @@ export const DEFAULT_SERVICE_HSN = "998714";
 
 export const TAX_INVOICE_DISCLAIMER = `No detailing service is perfect. Most complaints arise from pre-existing conditions that become visible after cleaning. Our team is not liable for any mechanical or electrical issues revealed post-service. Sensitive areas (engine bay, infotainment, cameras) are avoided. Your presence during the service is required. Please remove all valuables before handover.
 (a) GST invoice provided digitally. (b) Services subject to availability. (c) Advance is non-refundable on customer cancellation. (d) Pickup/visit charges: Rs. 200 min + Rs. 10/km beyond 10 km.
-This is a computer-generated document. No signature required.  |  Quality Never Goes Out of Cost — MY DETAIL OS`;
+This is a computer-generated document. No signature required.  |  Quality Never Goes Out of Cost`;
 
 export function escapeHtml(s: string | number | null | undefined): string {
   const text = s == null ? "" : String(s);
@@ -109,6 +109,8 @@ export function additionalDiscountTotal(invoice: Invoice): number {
 export interface TaxInvoiceBusinessBlock {
   gstRegistrationStatus?: "REGISTERED" | "NOT_REGISTERED";
   businessName: string;
+  businessLogo?: string;
+  logoUrl?: string;
   businessTagline: string;
   businessAddress: string;
   businessPhone: string;
@@ -689,7 +691,10 @@ table.inv .b { font-weight: 700; color: #171717; }
 <div class="wrap">
   <div class="top">
     <div class="brand-row">
-      <svg class="brand-logo" width="56" height="56" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      ${
+        business.logoUrl || business.businessLogo
+          ? `<img class="brand-logo" src="${escapeHtml(business.logoUrl || business.businessLogo)}" alt="${escapeHtml(business.businessName)}" style="object-fit:cover;" />`
+          : `<svg class="brand-logo" width="56" height="56" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <!-- Background rect element so color is printed even when print background graphics settings is unchecked -->
         <rect x="0" y="0" width="100" height="100" fill="#1e3a8a"/>
         <circle cx="50" cy="50" r="44" fill="none" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="3 3"/>
@@ -700,15 +705,15 @@ table.inv .b { font-weight: 700; color: #171717; }
         <circle cx="32" cy="51" r="5" fill="#1e3a8a" stroke="#38bdf8" stroke-width="1.5"/>
         <circle cx="68" cy="51" r="5" fill="#1e3a8a" stroke="#38bdf8" stroke-width="1.5"/>
         <path d="M 8 56 L 92 56" stroke="#3b82f6" stroke-width="1" opacity="0.6"/>
-        <text x="50" y="82" fill="#3b82f6" font-size="5.2" font-family="'Outfit', sans-serif" font-weight="800" text-anchor="middle" letter-spacing="0.3">MYDETAILOS</text>
-      </svg>
+      </svg>`
+      }
       <div class="brand-text">
         <div class="brand-name" style="font-size: 22px; font-weight: 700; color: #1e3a8a; letter-spacing: -0.5px;">${escapeHtml(business.businessName)}</div>
         <div class="brand-sub" style="font-size: 10px; font-weight: 500; color: #3b82f6; letter-spacing: 0.5px; margin-top: 1px;">${escapeHtml(business.businessTagline)}</div>
         <div style="display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 9px; color: #525252; margin-top: 6px; font-weight: 500;">
-          <span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11"/></svg>${escapeHtml(business.businessPhone)}</span>
-          <span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${escapeHtml(business.businessEmail)}</span>
-          <span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>${escapeHtml(business.businessAddress.split(',').slice(0, 3).join(','))}</span>
+          ${business.businessPhone ? `<span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11"/></svg>${escapeHtml(business.businessPhone)}</span>` : ""}
+          ${business.businessEmail ? `<span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${escapeHtml(business.businessEmail)}</span>` : ""}
+          ${business.businessAddress ? `<span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>${escapeHtml(business.businessAddress.split(',').slice(0, 3).join(','))}</span>` : ""}
         </div>
       </div>
     </div>
