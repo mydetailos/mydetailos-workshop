@@ -36,7 +36,7 @@ import {
   TWILIO_TEMPLATE_SIDS,
   buildJobCardCreatedVariables,
 } from "@/lib/twilio-templates-config";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -488,6 +488,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
   const serviceSearchInputRef = useRef<HTMLInputElement>(null);
   const addonsCardRef = useRef<HTMLDivElement>(null);
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
+  const mobileDateInputRef = useRef<HTMLInputElement>(null);
+  const mobileTimeInputRef = useRef<HTMLInputElement>(null);
   const prevMatchRef = useRef<string | null>(null);
 
   const [reportedIssues, setReportedIssues] = useState("");
@@ -2553,6 +2555,18 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         return;
       }
     }
+    if (jobWizardStepId === "schedule") {
+      if (!splitDatetimeLocal(bookingWhen).date) {
+        toast.error("Please select a booking date to continue.");
+        return;
+      }
+      if (isDatetimeLocalInPast(bookingWhen)) {
+        toast.error("Booking cannot be in the past", {
+          description: "Choose today with a future time, or a later date.",
+        });
+        return;
+      }
+    }
     if (jobWizardStepId === "serviceSelection") {
       if (!vehicleSegment) {
         toast.error("Select a vehicle type for pricing.");
@@ -3459,7 +3473,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
               <CardTitle className="text-lg">Schedule</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="min-w-0 max-w-md space-y-2">
+              <div className="min-w-0 max-w-md space-y-3">
 
                 <Label htmlFor="schedule-booking-when" className="hidden md:inline-flex">
                   Booking Date & Time
@@ -3469,61 +3483,106 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                     <Label htmlFor="schedule-booking-date" className="text-xs text-muted-foreground truncate">
                       Date
                     </Label>
-                    <Input
-                      id="schedule-booking-date"
-                      type={splitDatetimeLocal(bookingWhen).date ? "date" : "text"}
-                      placeholder="dd-mm-yyyy"
-                      onFocus={(e) => (e.target.type = "date")}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = "text";
-                      }}
-                      min={bookingScheduleDateMin}
-                      value={splitDatetimeLocal(bookingWhen).date}
-                      onChange={(e) => {
-                        const { time } = splitDatetimeLocal(bookingWhen);
-                        let next = joinDatetimeLocal(e.target.value, time);
-                        if (
-                          e.target.value === bookingScheduleDateMin &&
-                          next &&
-                          isDatetimeLocalInPast(next)
-                        ) {
-                          next = joinDatetimeLocal(e.target.value, localTimeInputMinNow());
-                        }
-                        setBookingWhen(next);
-                      }}
-                      required
-                      className={cn("h-10 w-full min-w-0 max-w-full", MOBILE_DATE_TIME_INPUT_ICON_END)}
-                    />
+                    <div className="relative">
+                      <Input
+                        ref={mobileDateInputRef}
+                        id="schedule-booking-date"
+                        type="date"
+                        min={bookingScheduleDateMin}
+                        value={splitDatetimeLocal(bookingWhen).date}
+                        onClick={() => {
+                          try {
+                            mobileDateInputRef.current?.showPicker?.();
+                          } catch {}
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (!val) {
+                            const { time } = splitDatetimeLocal(bookingWhen);
+                            setBookingWhen(joinDatetimeLocal("", time));
+                            return;
+                          }
+                          const { time } = splitDatetimeLocal(bookingWhen);
+                          let next = joinDatetimeLocal(val, time || "10:00");
+                          if (
+                            val === bookingScheduleDateMin &&
+                            next &&
+                            isDatetimeLocalInPast(next)
+                          ) {
+                            next = joinDatetimeLocal(val, localTimeInputMinNow());
+                          }
+                          setBookingWhen(next);
+                        }}
+                        required
+                        className={cn(
+                          "h-10 w-full min-w-0 max-w-full cursor-pointer [color-scheme:light] dark:[color-scheme:dark]",
+                          MOBILE_DATE_TIME_INPUT_ICON_END
+                        )}
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-label="Open date picker"
+                        className="absolute right-2.5 top-1/2 z-10 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          try {
+                            mobileDateInputRef.current?.showPicker?.();
+                          } catch {}
+                        }}
+                      >
+                        <Calendar className="h-4 w-4 shrink-0" />
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5 min-w-0">
                     <Label htmlFor="schedule-booking-time" className="text-xs text-muted-foreground truncate">
                       Time
                     </Label>
-                    <Input
-                      id="schedule-booking-time"
-                      type={splitDatetimeLocal(bookingWhen).time ? "time" : "text"}
-                      placeholder="--:--"
-                      onFocus={(e) => (e.target.type = "time")}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = "text";
-                      }}
-                      min={bookingScheduleTimeMin}
-                      value={splitDatetimeLocal(bookingWhen).time}
-                      onChange={(e) => {
-                        let { date } = splitDatetimeLocal(bookingWhen);
-                        if (!date) date = datetimeLocalValue(new Date()).slice(0, 10);
-                        if (date < bookingScheduleDateMin) {
-                          date = bookingScheduleDateMin;
-                        }
-                        let next = joinDatetimeLocal(date, e.target.value);
-                        if (date === bookingScheduleDateMin && next && isDatetimeLocalInPast(next)) {
-                          next = joinDatetimeLocal(date, localTimeInputMinNow());
-                        }
-                        setBookingWhen(next);
-                      }}
-                      required
-                      className={cn("h-10 w-full min-w-0 max-w-full", MOBILE_DATE_TIME_INPUT_ICON_END)}
-                    />
+                    <div className="relative">
+                      <Input
+                        ref={mobileTimeInputRef}
+                        id="schedule-booking-time"
+                        type="time"
+                        min={bookingScheduleTimeMin}
+                        value={splitDatetimeLocal(bookingWhen).time}
+                        onClick={() => {
+                          try {
+                            mobileTimeInputRef.current?.showPicker?.();
+                          } catch {}
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          let { date } = splitDatetimeLocal(bookingWhen);
+                          if (!date) date = bookingScheduleDateMin;
+                          if (date < bookingScheduleDateMin) {
+                            date = bookingScheduleDateMin;
+                          }
+                          let next = joinDatetimeLocal(date, val);
+                          if (date === bookingScheduleDateMin && next && isDatetimeLocalInPast(next)) {
+                            next = joinDatetimeLocal(date, localTimeInputMinNow());
+                          }
+                          setBookingWhen(next);
+                        }}
+                        required
+                        className={cn(
+                          "h-10 w-full min-w-0 max-w-full cursor-pointer [color-scheme:light] dark:[color-scheme:dark]",
+                          MOBILE_DATE_TIME_INPUT_ICON_END
+                        )}
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-label="Open time picker"
+                        className="absolute right-2.5 top-1/2 z-10 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          try {
+                            mobileTimeInputRef.current?.showPicker?.();
+                          } catch {}
+                        }}
+                      >
+                        <Clock className="h-4 w-4 shrink-0" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="relative hidden md:block">
@@ -3533,6 +3592,11 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                     type="datetime-local"
                     min={localDatetimeLocalInputMin()}
                     value={bookingWhen}
+                    onClick={() => {
+                      try {
+                        scheduleDateInputRef.current?.showPicker?.();
+                      } catch {}
+                    }}
                     onChange={(e) => {
                       const v = e.target.value;
                       if (!v) {
@@ -3546,7 +3610,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                       }
                     }}
                     required
-                    className="h-10 pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:bottom-0 [&::-webkit-calendar-picker-indicator]:top-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+                    className="h-10 pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:bottom-0 [&::-webkit-calendar-picker-indicator]:top-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
                   />
                   <button
                     type="button"
@@ -3556,6 +3620,39 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                   >
                     <Calendar className="h-4 w-4 shrink-0" />
                   </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground font-medium">Quick Select:</span>
+                  <Button
+                    type="button"
+                    variant={splitDatetimeLocal(bookingWhen).date === bookingScheduleDateMin ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs px-2.5 rounded-full"
+                    onClick={() => {
+                      const today = bookingScheduleDateMin;
+                      const { time } = splitDatetimeLocal(bookingWhen);
+                      let next = joinDatetimeLocal(today, time || "10:00");
+                      if (isDatetimeLocalInPast(next)) {
+                        next = joinDatetimeLocal(today, localTimeInputMinNow());
+                      }
+                      setBookingWhen(next);
+                    }}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={splitDatetimeLocal(bookingWhen).date === format(addDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs px-2.5 rounded-full"
+                    onClick={() => {
+                      const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
+                      const { time } = splitDatetimeLocal(bookingWhen);
+                      setBookingWhen(joinDatetimeLocal(tomorrow, time || "10:00"));
+                    }}
+                  >
+                    Tomorrow
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -4772,6 +4869,11 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                         type="datetime-local"
                         min={localDatetimeLocalInputMin()}
                         value={bookingWhen}
+                        onClick={(e) => {
+                          try {
+                            (e.currentTarget as HTMLInputElement).showPicker?.();
+                          } catch {}
+                        }}
                         onChange={(e) => {
                           setHasManuallySetExpectedDelivery(true);
                           const v = e.target.value;
@@ -4786,7 +4888,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                           }
                         }}
                         required
-                        className="h-10 pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:bottom-0 [&::-webkit-calendar-picker-indicator]:top-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+                        className="h-10 pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:bottom-0 [&::-webkit-calendar-picker-indicator]:top-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
                       />
                       <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     </div>

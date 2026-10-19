@@ -32,6 +32,7 @@ import { useTenantPath } from "@/components/tenant/tenant-context";
 import { TenantGuard } from "@/components/tenant/tenant-guard";
 import { BootOverlay } from "@/components/shared/boot-overlay";
 import { useOrganizationStore } from "@/store/organization-store";
+import { goToMarketingLogin } from "@/lib/marketing-site";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -75,7 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const result = await completeStaffAuthHandoff(token, orgSlug);
       if (cancelled) return;
       if (!result.ok) {
-        router.replace(tenantHref("/login"));
+        goToMarketingLogin();
         return;
       }
       setHandoffDone(true);
@@ -101,8 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!authReady || !sessionChecked) return;
 
     if (!isAuthenticated) {
-      const target = pathname && pathname !== "/" ? `/login?next=${encodeURIComponent(pathname)}` : "/login";
-      router.replace(tenantHref(target));
+      goToMarketingLogin();
       return;
     }
 
@@ -123,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         toast.error("Access Denied", {
           description: "Portal access is disabled for your account. Please contact your administrator.",
         });
-        router.replace(tenantHref("/login"));
+        goToMarketingLogin();
         return;
       }
       if (userHasWithoutEditAccess(user) && isHrStaffNavPath(appPath)) {

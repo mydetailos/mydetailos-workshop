@@ -4,7 +4,7 @@
  * Override with NEXT_PUBLIC_MARKETING_SITE_URL when needed.
  */
 
-const DEFAULT_PRODUCTION_MARKETING_URL = "https://www.mydetailos.com";
+const DEFAULT_PRODUCTION_MARKETING_URL = "https://mydetailos.com";
 
 function trimSlash(url: string): string {
   return url.replace(/\/$/, "");
@@ -12,7 +12,7 @@ function trimSlash(url: string): string {
 
 /**
  * Resolve marketing origin.
- * Prefer env when set; otherwise production defaults to www.mydetailos.com.
+ * Prefer env when set; otherwise production defaults to mydetailos.com.
  */
 export function marketingSiteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_MARKETING_SITE_URL?.trim();

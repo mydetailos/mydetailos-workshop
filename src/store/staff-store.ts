@@ -155,7 +155,11 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
       throw new Error("Cannot create an additional Super Admin.");
     }
     const list = get().staff;
-    const assignedCode = input.employeeCode?.trim() || allocateNextEmployeeCode(list);
+    const assignedCode = input.employeeCode?.trim()
+      ? input.employeeCode.trim()
+      : list.length > 0
+      ? allocateNextEmployeeCode(list)
+      : undefined;
     const hr = normalizeStaffHrFields({
       employeeCode: assignedCode,
       designation: input.designation,

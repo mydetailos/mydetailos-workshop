@@ -97,7 +97,7 @@ export default function ChangePasswordPage() {
     }
     if (!accessToken) {
       toast.error("Session expired — please sign in again.");
-      router.replace("/login");
+      goToMarketingLogin();
       return;
     }
     setLoading(true);
@@ -257,7 +257,7 @@ export default function ChangePasswordPage() {
                 className="w-full text-muted-foreground"
                 onClick={() => {
                   logout();
-                  router.replace("/login");
+                  goToMarketingLogin();
                 }}
               >
                 Sign out instead

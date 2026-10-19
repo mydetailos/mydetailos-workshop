@@ -43,9 +43,9 @@ export const OTHER_PRICING_SEGMENTS: { segment: VehicleSegment; label: string; h
   { segment: "MUV", label: "MUV", hint: "People carrier" },
 ];
 
-/** Pin native date/time picker icons to the trailing edge on mobile WebKit/Chromium. */
+/** Pin native date/time picker icons to the trailing edge on mobile WebKit/Chromium with proper contrast. */
 export const MOBILE_DATE_TIME_INPUT_ICON_END =
-  "relative pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:top-1/2 [&::-webkit-calendar-picker-indicator]:-translate-y-1/2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100";
+  "relative pr-9 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:top-0 [&::-webkit-calendar-picker-indicator]:bottom-0 [&::-webkit-calendar-picker-indicator]:w-9 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 cursor-pointer [color-scheme:light] dark:[color-scheme:dark]";
 
 export const JOB_WIZARD_LABEL: Record<JobWizardStepId, string> = {
   customer: "Customer",
