@@ -182,23 +182,26 @@ export function JobCardWorkflowChrome({
               {readyForDeliveryActions ? (
                 <div className="hidden flex-col gap-3 sm:flex">
                   <p className="text-sm text-muted-foreground">
-                    Invoice is ready — record payment and/or deliver the vehicle.
+                    {onRecordPayment
+                      ? "Invoice is ready — record payment and/or deliver the vehicle."
+                      : "Invoice is paid — deliver the vehicle to the customer."}
                   </p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:max-w-lg">
+                  <div className={cn("grid grid-cols-1 gap-2 sm:max-w-lg", onRecordPayment ? "sm:grid-cols-2" : "")}>
                     <Button type="button" className="w-full" onClick={onDeliverVehicle}>
                       <Truck className="mr-2 h-4 w-4" />
                       Deliver Vehicle
                     </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="w-full"
-                      onClick={onRecordPayment}
-                      disabled={!onRecordPayment}
-                    >
-                      <IndianRupee className="mr-2 h-4 w-4" />
-                      Record Payment
-                    </Button>
+                    {onRecordPayment ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full"
+                        onClick={onRecordPayment}
+                      >
+                        <IndianRupee className="mr-2 h-4 w-4" />
+                        Record Payment
+                      </Button>
+                    ) : null}
                   </div>
                   <Button
                     type="button"
@@ -215,7 +218,9 @@ export function JobCardWorkflowChrome({
                 <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:flex-wrap sm:items-center">
                   <p className="text-sm text-muted-foreground">
                     {currentStatus === "DELIVERED"
-                      ? "This job is delivered — open the tax invoice or record payment."
+                      ? onRecordPayment
+                        ? "This job is delivered — open the tax invoice or record payment."
+                        : "This job is delivered and invoice is paid."
                       : "This job is ready — generate the invoice first, then deliver the vehicle."}
                   </p>
                   <Button
@@ -224,20 +229,19 @@ export function JobCardWorkflowChrome({
                     onClick={onGenerateInvoice}
                     title={
                       invoiceForJob
-                        ? "Opens billing to print or record payment."
+                        ? "Opens billing to print or view."
                         : "Creates the invoice without marking delivered."
                     }
                   >
                     <FileText className="w-4 h-4 mr-2" />
                     {invoiceForJob ? "View invoice" : "Generate Invoice"}
                   </Button>
-                  {currentStatus === "DELIVERED" && invoiceForJob ? (
+                  {currentStatus === "DELIVERED" && invoiceForJob && onRecordPayment ? (
                     <Button
                       type="button"
                       variant="secondary"
                       className="w-full sm:w-auto"
                       onClick={onRecordPayment}
-                      disabled={!onRecordPayment}
                     >
                       <IndianRupee className="mr-2 h-4 w-4" />
                       Record Payment

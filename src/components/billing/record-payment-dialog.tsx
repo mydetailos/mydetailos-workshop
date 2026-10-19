@@ -142,6 +142,13 @@ export function RecordPaymentDialog({
           ? Math.round((amount - (dialogRemainingBalance - walletAmountUsed)) * 100) / 100
           : 0;
 
+      if (extraAmount > 0 && !addExtraToWallet) {
+        toast.error("Amount exceeds balance due", {
+          description: `Maximum ${formatCurrency(Math.max(0, dialogRemainingBalance - walletAmountUsed))} unless adding extra to customer wallet.`,
+        });
+        return;
+      }
+
       const remainingAfter = Math.max(
         0,
         dialogRemainingBalance - walletAmountUsed - amount
@@ -176,6 +183,35 @@ export function RecordPaymentDialog({
         return;
       }
       toast.success("Payment recorded");
+
+      if (addExtraToWallet && extraAmount > 0 && customer) {
+        try {
+          const { creditWallet } = useCustomerStore.getState();
+          const { addTransaction } = useWalletStore.getState();
+          await creditWallet(
+            customer.id,
+            extraAmount,
+            "CREDIT",
+            `Overpayment on ${invoice.invoiceNumber}`
+          );
+          const balanceAfter = (customer.walletBalance || 0) + extraAmount;
+          await addTransaction({
+            id: `wt-overpay-${invoice.id}-${Date.now()}`,
+            customerId: customer.id,
+            customerName: customer.name,
+            type: "CREDIT",
+            amount: extraAmount,
+            source: "INVOICE_PAYMENT",
+            referenceId: invoice.id,
+            description: `Overpayment added to wallet — ${invoice.invoiceNumber}`,
+            balanceAfter,
+            createdAt: paidAt,
+          });
+          toast.success(`Credited ${formatCurrency(extraAmount)} to ${customer.name}'s wallet`);
+        } catch (walletErr) {
+          console.error("Failed to credit overpayment to wallet:", walletErr);
+        }
+      }
 
       // Post to Cash & Bank
       const cashAcc = cashBankAccounts.find((a) => a.type === "cash") ?? cashBankAccounts[0];
@@ -350,6 +386,12 @@ export function RecordPaymentDialog({
             <p className="text-sm text-destructive">Invoice not found.</p>
           )}
 
+          {invoice && remainingBalance <= 0.01 && (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-800 dark:text-emerald-300">
+              This invoice is already fully cleared ({formatCurrency(0)} balance due).
+            </div>
+          )}
+
           {customer && walletRedeemable > 0 && (
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -460,6 +502,11 @@ export function RecordPaymentDialog({
                   Add ₹{extra} to customer wallet?
                 </Label>
               </div>
+              {!addExtraToWallet && (
+                <p className="text-[11px] text-destructive font-medium">
+                  Payment exceeds balance due. Check &quot;Add extra to customer wallet&quot; to credit excess amount, or reduce payment amount to {formatCurrency(Math.max(0, targetBalance))}.
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -518,7 +565,8 @@ export function RecordPaymentDialog({
               !paymentAmount ||
               Number.isNaN(Number(paymentAmount)) ||
               Number(paymentAmount) <= 0 ||
-              (showReceivedIn && !receivedInAccountId)
+              (showReceivedIn && !receivedInAccountId) ||
+              (extra > 0 && !addExtraToWallet)
             }
           >
             {saving ? (

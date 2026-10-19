@@ -39,6 +39,7 @@ import { TimerControlsBufferCard } from "@/components/job-cards/timer-controls-b
 import { ServiceTimerDeliverySummary } from "@/components/job-cards/service-timer-delivery-summary";
 import { EditJobCardDetailsDialog } from "@/components/job-cards/edit-job-card-details-dialog";
 import { RecordPaymentDialog } from "@/components/billing/record-payment-dialog";
+import { invoiceOutstanding } from "@/lib/party/ledger-math";
 import {
   JobCardWorkflowChrome,
   JOB_CARD_STATUS_LABELS,
@@ -328,6 +329,14 @@ export default function JobCardDetailPage() {
   const invoiceForJob = useMemo(
     () => (jobCard ? invoices.find((inv) => inv.jobCardId === jobCard.id) : undefined),
     [invoices, jobCard]
+  );
+  const invoiceDue = useMemo(
+    () => (invoiceForJob ? invoiceOutstanding(invoiceForJob) : 0),
+    [invoiceForJob]
+  );
+  const isInvoiceCleared = useMemo(
+    () => Boolean(invoiceForJob && (invoiceDue <= 0.01 || invoiceForJob.status === "PAID")),
+    [invoiceForJob, invoiceDue]
   );
   const jobCardSubtotalExGst = useMemo(() => {
     if (!jobCard) return 0;
@@ -1796,7 +1805,7 @@ export default function JobCardDetailPage() {
         onAssignMechanic={() => setShowQuickAssignDialog(true)}
         onDeliverVehicle={() => setDeliverVehicleOpen(true)}
         onRecordPayment={
-          userCanCreate(useAuthStore.getState().user, "BILLING")
+          invoiceForJob && !isInvoiceCleared && userCanCreate(useAuthStore.getState().user, "BILLING")
             ? () => setRecordPaymentOpen(true)
             : undefined
         }
@@ -1910,10 +1919,37 @@ export default function JobCardDetailPage() {
             </TabsList>
             <div className="flex flex-wrap items-center gap-2 shrink-0 px-1 pb-2 xl:pb-0 xl:border-l border-border/60 xl:pl-4">
               {invoiceForJob ? (
-                <Button size="sm" type="button" onClick={() => setRecordPaymentOpen(true)}>
-                  <IndianRupee className="w-4 h-4 mr-1.5" />
-                  Record payment
-                </Button>
+                isInvoiceCleared ? (
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-600/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold text-xs py-1 px-2.5"
+                    >
+                      Invoice Paid
+                    </Badge>
+                    <Button size="sm" variant="outline" type="button" asChild>
+                      <Link href={`/billing/${invoiceForJob.id}`}>
+                        <FileText className="w-4 h-4 mr-1.5" />
+                        View invoice
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {userCanCreate(useAuthStore.getState().user, "BILLING") && (
+                      <Button size="sm" type="button" onClick={() => setRecordPaymentOpen(true)}>
+                        <IndianRupee className="w-4 h-4 mr-1.5" />
+                        Record payment
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" type="button" asChild>
+                      <Link href={`/billing/${invoiceForJob.id}`}>
+                        <FileText className="w-4 h-4 mr-1.5" />
+                        View invoice
+                      </Link>
+                    </Button>
+                  </div>
+                )
               ) : currentStatus === "DELIVERED" || currentStatus === "READY" ? (
                 <Button size="sm" type="button" onClick={handleGenerateInvoice}>
                   <IndianRupee className="w-4 h-4 mr-1.5" />
@@ -3680,7 +3716,9 @@ export default function JobCardDetailPage() {
         invoiceId={invoiceForJob?.id ?? null}
         onSuccess={() => {
           setRecordPaymentOpen(false);
-          setDeliverVehicleOpen(true);
+          if (currentStatus !== "DELIVERED" && currentStatus !== "CANCELLED") {
+            setDeliverVehicleOpen(true);
+          }
         }}
       />
       <EditJobCardDetailsDialog

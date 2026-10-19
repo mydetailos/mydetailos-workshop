@@ -2195,7 +2195,10 @@ ${businessNameVal}`;
         onSuccess={() => {
           setRecordDialogOpen(false);
           if (invoice?.jobCardId) {
-            router.push(`/job-cards/${invoice.jobCardId}?deliverVehicle=1`);
+            const linkedJob = jobCards.find((j) => j.id === invoice.jobCardId);
+            if (linkedJob && linkedJob.status !== "DELIVERED" && linkedJob.status !== "CANCELLED") {
+              router.push(`/job-cards/${invoice.jobCardId}?deliverVehicle=1`);
+            }
           }
         }}
       />

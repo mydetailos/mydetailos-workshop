@@ -193,6 +193,36 @@ export function CustomerCreditCheckDialog({
 
     toast.success("Payment recorded");
 
+    if (addExtraToWallet && extraAmount > 0 && customerId) {
+      try {
+        const { creditWallet } = useCustomerStore.getState();
+        const { addTransaction } = useWalletStore.getState();
+        await creditWallet(
+          customerId,
+          extraAmount,
+          "CREDIT",
+          `Overpayment on ${targetInvoice.invoiceNumber}`
+        );
+        const cust = useCustomerStore.getState().customers.find((c) => c.id === customerId);
+        const balanceAfter = (cust?.walletBalance || 0) + extraAmount;
+        await addTransaction({
+          id: `wt-overpay-${targetInvoice.id}-${Date.now()}`,
+          customerId,
+          customerName: customerName.trim() || targetInvoice.customerName,
+          type: "CREDIT",
+          amount: extraAmount,
+          source: "INVOICE_PAYMENT",
+          referenceId: targetInvoice.id,
+          description: `Overpayment added to wallet — ${targetInvoice.invoiceNumber}`,
+          balanceAfter,
+          createdAt: paidAt,
+        });
+        toast.success(`Credited ${formatCurrency(extraAmount)} to customer wallet`);
+      } catch (walletErr) {
+        console.error("Failed to credit overpayment to wallet:", walletErr);
+      }
+    }
+
     try {
       await useCustomerStore.getState().fetchCustomers();
       await useWalletStore.getState().fetchTransactions();
