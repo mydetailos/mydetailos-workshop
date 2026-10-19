@@ -13,6 +13,7 @@ import {
 } from "@/lib/plan-limits";
 import { useOrganizationStore } from "@/store/organization-store";
 import { useAppBootstrapStore } from "@/store/app-bootstrap-store";
+import { useAuthStore } from "@/store/auth-store";
 import { useTenantSlug } from "@/components/tenant/tenant-context";
 import { BootOverlay } from "@/components/shared/boot-overlay";
 
@@ -265,6 +266,12 @@ export function TenantGuard({ children, mode = "staff" }: TenantGuardProps) {
     if (state.status !== "ok") return;
     if (!orgSlug) return;
     if (!bootstrapReady && !bootstrapError) return;
+
+    // If staff user's organizationId matches the current tenant org ID, access is valid
+    const userOrgId = useAuthStore.getState().user?.organizationId;
+    if (userOrgId && userOrgId === state.org.id) {
+      return;
+    }
 
     const entOrg = entitlement?.organization;
     if (!entOrg) return;

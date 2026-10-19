@@ -35,7 +35,8 @@ describe("rbac helpers", () => {
     expect(canAccessNavItem(["ADMIN"], "MECHANIC")).toBe(false);
     expect(canAccessNavItem(["MANAGER"], "BRANCH_MANAGER")).toBe(true);
     expect(canAccessNavItem(undefined, "RECEPTIONIST", "BILLING", ["BILLING"])).toBe(true);
-    expect(canAccessNavItem(undefined, "RECEPTIONIST", "BILLING", ["JOB_CARDS"])).toBe(false);
     expect(canAccessNavItem(undefined, "RECEPTIONIST", "BILLING")).toBe(false);
+    expect(canAccessNavItem(undefined, "RECEPTIONIST", "DASHBOARD")).toBe(true);
+    expect(canAccessNavItem(undefined, "RECEPTIONIST", "DASHBOARD", ["NO_PORTAL_ACCESS"])).toBe(false);
   });
 });

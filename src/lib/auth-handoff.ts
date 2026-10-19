@@ -73,7 +73,8 @@ export type StaffHandoffResult =
  */
 export async function completeStaffAuthHandoff(
   token: string,
-  orgSlug: string | null
+  orgSlug: string | null,
+  options?: { clearLocation?: boolean }
 ): Promise<StaffHandoffResult> {
   const mePromise = fetch(buildApiUrl("/api/auth/me"), {
     headers: { Authorization: `Bearer ${token}` },
@@ -118,7 +119,9 @@ export async function completeStaffAuthHandoff(
     branch: me.body.data.branch ?? null,
   });
   markAuthHandoffFresh();
-  clearAuthTokenFromLocation();
+  if (options?.clearLocation !== false) {
+    clearAuthTokenFromLocation();
+  }
 
   return {
     ok: true,

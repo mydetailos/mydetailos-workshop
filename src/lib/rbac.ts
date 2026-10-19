@@ -70,6 +70,7 @@ export function canAccessNavItem(
   if (userRole === "PLATFORM_OWNER") return false;
   if (userPermissions?.includes("NO_PORTAL_ACCESS")) return false;
   if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") return true;
+  if (permissionKey === "DASHBOARD") return true;
 
   // 1. Explicit Permission Check (Granular or Base)
   if (permissionKey && userPermissions) {

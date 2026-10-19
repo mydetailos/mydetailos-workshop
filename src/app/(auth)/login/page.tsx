@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   completeStaffAuthHandoff,
@@ -9,6 +9,7 @@ import {
 import { goToMarketingLogin } from "@/lib/marketing-site";
 import { parseOrgSlugFromPathname, tenantPath } from "@/lib/tenant";
 import { BootOverlay } from "@/components/shared/boot-overlay";
+import { useAuthStore } from "@/store/auth-store";
 
 /**
  * Legacy SSO entry: /login#accessToken=…&next=/dashboard
@@ -34,22 +35,52 @@ function LoginHandoffPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [error, setError] = useState<string | null>(null);
+  const handoffStartedRef = useRef(false);
+  const [authReady, setAuthReady] = useState(() => useAuthStore.persist.hasHydrated());
 
   useEffect(() => {
+    if (authReady) return;
+    const unsub = useAuthStore.persist.onFinishHydration(() => setAuthReady(true));
+    return unsub;
+  }, [authReady]);
+
+  useEffect(() => {
+    if (handoffStartedRef.current) return;
+
     const token = readAccessTokenFromLocation() || searchParams.get("accessToken");
     const orgSlug = resolveOrgSlug(pathname);
     const next = readNextParam(searchParams);
+
+    // If user is already authenticated in store and no new token to consume, route directly
+    const store = useAuthStore.getState();
+    if (!token && store.isAuthenticated && store.user && store.accessToken) {
+      handoffStartedRef.current = true;
+      const mustChange = store.user.mustChangePassword === true;
+      const role = store.user.role;
+      let dest = next;
+      if (mustChange) dest = "/change-password";
+      else if (role === "PLATFORM_OWNER") dest = "/saas-admin/organizations";
+      else if (role === "CUSTOMER") dest = "/customer/dashboard";
+
+      if (role !== "PLATFORM_OWNER") {
+        dest = tenantPath(orgSlug, dest);
+      }
+      window.location.replace(dest);
+      return;
+    }
+
     if (!token) {
+      if (!authReady) return; // Wait for hydration before bailing to marketing login
       goToMarketingLogin();
       return;
     }
 
-    let cancelled = false;
+    handoffStartedRef.current = true;
     (async () => {
       try {
-        const result = await completeStaffAuthHandoff(token, orgSlug);
-        if (cancelled) return;
+        const result = await completeStaffAuthHandoff(token, orgSlug, { clearLocation: false });
         if (!result.ok) {
+          handoffStartedRef.current = false;
           if (result.reason === "inactive") {
             setError("This workshop is inactive.");
             return;
@@ -69,17 +100,14 @@ function LoginHandoffPage() {
           dest = tenantPath(orgSlug, dest);
         }
 
-        // Hard navigation to dashboard
+        // Hard navigation to destination (token is replaced with destination URL)
         window.location.replace(dest);
       } catch {
-        if (!cancelled) goToMarketingLogin();
+        handoffStartedRef.current = false;
+        goToMarketingLogin();
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams, pathname]);
+  }, [searchParams, pathname, authReady]);
 
   if (error) {
     return (

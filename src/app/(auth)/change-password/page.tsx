@@ -15,9 +15,18 @@ import type { Branch, User } from "@/types";
 import { defaultBranchForUser } from "@/lib/branch-selection";
 import { goToMarketingHome, goToMarketingLogin } from "@/lib/marketing-site";
 
+import { parseOrgSlugFromPathname, tenantPath } from "@/lib/tenant";
+import {
+  completeStaffAuthHandoff,
+  readAccessTokenFromLocation,
+} from "@/lib/auth-handoff";
+import { usePathname } from "next/navigation";
+
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
+  const [handoffDone, setHandoffDone] = useState(false);
   const accessToken = useAuthStore((s) => s.accessToken);
   const forcedPwReset = useAuthStore((s) => s.user?.mustChangePassword === true);
   const logout = useAuthStore((s) => s.logout);
@@ -37,15 +46,36 @@ export default function ChangePasswordPage() {
     return unsub;
   }, []);
 
+  /** Complete SSO handoff if landing directly on /change-password#accessToken=… */
   useEffect(() => {
-    if (!authReady) return;
-    void useAuthStore.getState().ensureValidSession();
-  }, [authReady]);
+    let cancelled = false;
+    void (async () => {
+      const token = readAccessTokenFromLocation();
+      if (!token) {
+        if (!cancelled) setHandoffDone(true);
+        return;
+      }
+      const orgSlug = parseOrgSlugFromPathname(pathname);
+      const result = await completeStaffAuthHandoff(token, orgSlug);
+      if (cancelled) return;
+      if (!result.ok) {
+        goToMarketingLogin();
+        return;
+      }
+      setHandoffDone(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   useEffect(() => {
-    if (!authReady || accessToken) return;
-    goToMarketingLogin();
-  }, [authReady, accessToken]);
+    if (!authReady || !handoffDone) return;
+    const token = readAccessTokenFromLocation();
+    if (!token && !accessToken) {
+      goToMarketingLogin();
+    }
+  }, [authReady, handoffDone, accessToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +133,8 @@ export default function ChangePasswordPage() {
         isAuthenticated: true,
       });
       toast.success("Password updated.");
-      router.replace("/dashboard");
+      const orgSlug = parseOrgSlugFromPathname(pathname);
+      window.location.replace(tenantPath(orgSlug, "/dashboard"));
     } catch {
       toast.error("Network error — try again.");
     } finally {

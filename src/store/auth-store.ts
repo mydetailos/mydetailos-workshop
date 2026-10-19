@@ -11,6 +11,8 @@ import {
 import { buildApiUrl } from "@/lib/api-base";
 import { consumeFreshAuthHandoff } from "@/lib/auth-handoff";
 import { useReportFavouritesStore } from "@/store/report-favourites-store";
+import { useOrganizationStore } from "@/store/organization-store";
+import { useAppBootstrapStore } from "@/store/app-bootstrap-store";
 
 export type SendLoginOtpResult =
   | {
@@ -232,6 +234,8 @@ export const useAuthStore = create<AuthState>()(
           }).catch(() => {});
         }
         useReportFavouritesStore.getState().clear();
+        useOrganizationStore.getState().setEntitlement(null);
+        useAppBootstrapStore.getState().reset();
         set({
           user: null,
           currentBranch: null,
