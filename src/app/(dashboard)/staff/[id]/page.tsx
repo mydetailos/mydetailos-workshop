@@ -58,6 +58,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,7 +79,7 @@ import {
 import { StaffAccessSelector } from "@/components/staff/staff-access-selector";
 import { Switch } from "@/components/ui/switch";
 import { validateStrongPassword, PASSWORD_POLICY_HINT } from "@/lib/password-policy";
-import type { UpdatePinResult } from "@/store/staff-store";
+import { allocateNextEmployeeCode, type UpdatePinResult } from "@/store/staff-store";
 import type { Branch, User, UserRole } from "@/types";
 
 type AuthSessionResponse = { accessToken: string; user: User; branch: Branch | null };
@@ -841,7 +842,19 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                     <Hash className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Code: {member.employeeCode?.trim() || "—"}</span>
+                    <span className="truncate">Code: {member.employeeCode?.trim() || "Not assigned"}</span>
+                    {!member.employeeCode?.trim() && canEditStaff && !editingProfile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleStartEditProfile();
+                          setEditEmployeeCode(allocateNextEmployeeCode(useStaffStore.getState().staff));
+                        }}
+                        className="text-xs text-primary hover:underline font-medium inline-flex items-center gap-0.5 ml-1"
+                      >
+                        <Sparkles className="w-3 h-3" /> Assign ID
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                     <Briefcase className="w-4 h-4 shrink-0" />
@@ -905,7 +918,16 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="staff-employee-code">Employee Code</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="staff-employee-code">Employee Code</Label>
+                    <button
+                      type="button"
+                      onClick={() => setEditEmployeeCode(allocateNextEmployeeCode(useStaffStore.getState().staff))}
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 font-medium"
+                    >
+                      <Sparkles className="size-3" /> Auto-assign
+                    </button>
+                  </div>
                   <Input
                     id="staff-employee-code"
                     value={editEmployeeCode}

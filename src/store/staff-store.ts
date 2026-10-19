@@ -126,6 +126,20 @@ function allocateAttendancePin(getStaff: () => User[]): string {
   return String(1000 + getStaff().length);
 }
 
+export function allocateNextEmployeeCode(staff: User[]): string {
+  let maxNumber = 0;
+  for (const s of staff) {
+    if (s.employeeCode && s.employeeCode.startsWith("EMP-")) {
+      const numStr = s.employeeCode.replace("EMP-", "");
+      const num = parseInt(numStr, 10);
+      if (!Number.isNaN(num) && num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  }
+  return `EMP-${String(maxNumber + 1).padStart(3, "0")}`;
+}
+
 export const useStaffStore = create<StaffStoreState>((set, get) => ({
   staff: [],
 
@@ -139,8 +153,9 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
       throw new Error("Cannot create an additional Super Admin.");
     }
     const list = get().staff;
+    const assignedCode = input.employeeCode?.trim() || allocateNextEmployeeCode(list);
     const hr = normalizeStaffHrFields({
-      employeeCode: input.employeeCode,
+      employeeCode: assignedCode,
       designation: input.designation,
       department: input.department,
       joiningDate: input.joiningDate,
