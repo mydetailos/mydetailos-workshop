@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { ArrowLeft, BookMarked, Car, ChevronRight, Crown, Pencil, Plus, Star, MessageSquare, Wallet, Copy, Share2, AlertTriangle, Mail, Trash2, Camera, X, Eye, EyeOff, Smartphone } from "lucide-react";
+import { ArrowLeft, BookMarked, Car, ChevronRight, Crown, Pencil, Plus, Star, MessageSquare, Wallet, Copy, Share2, AlertTriangle, Mail, Trash2, Camera, X, Eye, EyeOff, Smartphone, History, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +53,7 @@ import { useSettingsStore } from "@/store/settings-store";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { customerLedgerHref, shareCustomerLedgerWhatsApp } from "@/lib/share-customer-ledger";
 import { ApiError } from "@/lib/api-client";
-import { getTransferTagForCustomer } from "@/lib/ownership-transfers";
+import { getTransferTagForCustomer, getTransferredOutVehiclesForCustomer } from "@/lib/ownership-transfers";
 import type { Vehicle, JobCard, Invoice, WalletTransaction } from "@/types";
 import { useAuthStore } from "@/store/auth-store";
 import { useTenantSlug } from "@/components/tenant/tenant-context";
@@ -118,6 +118,10 @@ export default function CustomerDetailPage() {
   const customerVehicles = useMemo(() => {
     return vehicleList.filter((v) => v.customerId === id);
   }, [id, vehicleList]);
+
+  const transferredOutVehicles = useMemo(() => {
+    return getTransferredOutVehiclesForCustomer(vehicleList, id, allCustomers);
+  }, [id, vehicleList, allCustomers]);
 
   const jobCards = useJobCardStore((s) => s.jobCards);
   const invoices = useInvoiceStore((s) => s.invoices);
@@ -744,104 +748,232 @@ export default function CustomerDetailPage() {
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
-              {customerVehicles.length === 0 ? (
+            <CardContent className="space-y-6">
+              {customerVehicles.length === 0 && transferredOutVehicles.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   No vehicles registered
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {customerVehicles.map((vehicle: Vehicle) => {
-                    const transferTag = getTransferTagForCustomer(vehicle, id);
-                    const vehicleHasMembership =
-                      customer != null && getActiveMembership(customer.id, vehicle.id) != null;
-                    return (
-                      <Link
-                        key={vehicle.id}
-                        href={`/vehicles/${vehicle.id}`}
-                        className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      >
-                        <Card className="h-full border-border transition-all hover:border-primary/35 hover:bg-muted/40 hover:shadow-sm">
-                          <CardContent className="p-4 sm:p-5">
-                            <div className="flex gap-4">
-                              <div
-                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15"
-                                aria-hidden
-                              >
-                                <Car className="h-6 w-6" strokeWidth={1.75} />
-                              </div>
-                              <div className="min-w-0 flex-1 space-y-2">
-                                <p className="font-mono text-base font-semibold leading-tight tracking-tight text-foreground">
-                                  {vehicle.registrationNumber}
-                                </p>
-                                <p className="text-sm font-medium leading-snug text-foreground">
-                                  {vehicleMakeModelLabel(vehicle)}
-                                  {vehicle.variant ? (
-                                    <span className="font-normal text-muted-foreground">
-                                      {" "}
-                                      · {vehicle.variant}
-                                    </span>
-                                  ) : null}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                  {vehicleHasMembership ? (
-                                    <Badge
-                                      variant="default"
-                                      className="gap-1 bg-violet-600 font-medium hover:bg-violet-600"
+                <>
+                  {/* Active Vehicles Section */}
+                  <div>
+                    {transferredOutVehicles.length > 0 && (
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Car className="h-4 w-4 text-primary" />
+                          Active Vehicles ({customerVehicles.length})
+                        </h3>
+                      </div>
+                    )}
+
+                    {customerVehicles.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+                        No currently active vehicles registered under this customer profile.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {customerVehicles.map((vehicle: Vehicle) => {
+                          const transferTag = getTransferTagForCustomer(vehicle, id);
+                          const vehicleHasMembership =
+                            customer != null && getActiveMembership(customer.id, vehicle.id) != null;
+                          return (
+                            <Link
+                              key={vehicle.id}
+                              href={`/vehicles/${vehicle.id}`}
+                              className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                              <Card className="h-full border-border transition-all hover:border-primary/35 hover:bg-muted/40 hover:shadow-sm">
+                                <CardContent className="p-4 sm:p-5">
+                                  <div className="flex gap-4">
+                                    <div
+                                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15"
+                                      aria-hidden
                                     >
-                                      <Crown className="h-3 w-3" />
-                                      Membership
-                                    </Badge>
-                                  ) : null}
-                                  <Badge variant="secondary" className="font-medium">
-                                    {vehicle.fuelType}
-                                  </Badge>
-                                  {vehicle.segment ? (
-                                    <Badge variant="outline" className="font-normal">
-                                      {vehicle.segment.replace(/_/g, " ")}
-                                    </Badge>
-                                  ) : null}
-                                  <span className="text-xs tabular-nums text-muted-foreground">{vehicle.year}</span>
-                                  {vehicle.odometer != null ? (
-                                    <Badge variant="outline" className="font-normal text-muted-foreground">
-                                      {vehicle.odometer.toLocaleString("en-IN")} km
-                                    </Badge>
-                                  ) : null}
-                                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <span
-                                      className="size-3 shrink-0 rounded-full border border-border shadow-inner"
-                                      style={{ backgroundColor: vehicleColorHex(vehicle.color) }}
-                                      title={vehicle.color}
+                                      <Car className="h-6 w-6" strokeWidth={1.75} />
+                                    </div>
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <p className="font-mono text-base font-semibold leading-tight tracking-tight text-foreground">
+                                        {vehicle.registrationNumber}
+                                      </p>
+                                      <p className="text-sm font-medium leading-snug text-foreground">
+                                        {vehicleMakeModelLabel(vehicle)}
+                                        {vehicle.variant ? (
+                                          <span className="font-normal text-muted-foreground">
+                                            {" "}
+                                            · {vehicle.variant}
+                                          </span>
+                                        ) : null}
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                        {vehicleHasMembership ? (
+                                          <Badge
+                                            variant="default"
+                                            className="gap-1 bg-violet-600 font-medium hover:bg-violet-600"
+                                          >
+                                            <Crown className="h-3 w-3" />
+                                            Membership
+                                          </Badge>
+                                        ) : null}
+                                        <Badge variant="secondary" className="font-medium">
+                                          {vehicle.fuelType}
+                                        </Badge>
+                                        {vehicle.segment ? (
+                                          <Badge variant="outline" className="font-normal">
+                                            {vehicle.segment.replace(/_/g, " ")}
+                                          </Badge>
+                                        ) : null}
+                                        <span className="text-xs tabular-nums text-muted-foreground">{vehicle.year}</span>
+                                        {vehicle.odometer != null ? (
+                                          <Badge variant="outline" className="font-normal text-muted-foreground">
+                                            {vehicle.odometer.toLocaleString("en-IN")} km
+                                          </Badge>
+                                        ) : null}
+                                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                          <span
+                                            className="size-3 shrink-0 rounded-full border border-border shadow-inner"
+                                            style={{ backgroundColor: vehicleColorHex(vehicle.color) }}
+                                            title={vehicle.color}
+                                          />
+                                          <span className="min-w-0 truncate">{vehicle.color}</span>
+                                        </span>
+                                      </div>
+                                      {transferTag ? (
+                                        <p
+                                          className="mt-2 inline-flex max-w-full flex-wrap items-center gap-x-1 rounded-full border px-2.5 py-1 text-[12px] leading-snug"
+                                          style={{
+                                            backgroundColor: "#FFFBEB",
+                                            borderColor: "#FCD34D",
+                                            color: "#92400E",
+                                          }}
+                                        >
+                                          <span>
+                                            Transferred from {transferTag.fromCustomerName} · {transferTag.formattedDate}
+                                          </span>
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <ChevronRight
+                                      className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/80"
+                                      aria-hidden
                                     />
-                                    <span className="min-w-0 truncate">{vehicle.color}</span>
-                                  </span>
-                                </div>
-                                {transferTag ? (
-                                  <p
-                                    className="mt-2 inline-flex max-w-full flex-wrap items-center gap-x-1 rounded-full border px-2.5 py-1 text-[12px] leading-snug"
-                                    style={{
-                                      backgroundColor: "#FFFBEB",
-                                      borderColor: "#FCD34D",
-                                      color: "#92400E",
-                                    }}
-                                  >
-                                    <span>
-                                      Transferred from {transferTag.fromCustomerName} · {transferTag.formattedDate}
-                                    </span>
-                                  </p>
-                                ) : null}
-                              </div>
-                              <ChevronRight
-                                className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/80"
-                                aria-hidden
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    );
-                  })}
-                </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Transferred Vehicles (Ownership History) Section */}
+                  {transferredOutVehicles.length > 0 && (
+                    <div className={customerVehicles.length > 0 ? "pt-6 border-t border-border" : ""}>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            <History className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            Transferred Vehicles ({transferredOutVehicles.length})
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Vehicles previously owned by this customer that were transferred to another customer.
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-amber-300 text-amber-800 bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:bg-amber-950/40"
+                        >
+                          Ownership History
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {transferredOutVehicles.map((item) => {
+                          const { vehicle, transferredToCustomerName, transferredDate, reason } = item;
+                          return (
+                            <Link
+                              key={`transferred-${vehicle.id}`}
+                              href={`/vehicles/${vehicle.id}`}
+                              className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                              <Card className="h-full border-border/80 bg-card/60 transition-all hover:border-amber-400/50 hover:bg-muted/40 hover:shadow-sm">
+                                <CardContent className="p-4 sm:p-5">
+                                  <div className="flex gap-4">
+                                    <div
+                                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20"
+                                      aria-hidden
+                                    >
+                                      <Car className="h-6 w-6 opacity-80" strokeWidth={1.75} />
+                                    </div>
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <p className="font-mono text-base font-semibold leading-tight tracking-tight text-foreground">
+                                          {vehicle.registrationNumber}
+                                        </p>
+                                        <Badge
+                                          variant="outline"
+                                          className="shrink-0 text-[10px] font-medium border-amber-300 text-amber-800 bg-amber-50/80 dark:border-amber-800 dark:text-amber-300 dark:bg-amber-950/40"
+                                        >
+                                          Transferred
+                                        </Badge>
+                                      </div>
+                                      <p className="text-sm font-medium leading-snug text-foreground">
+                                        {vehicleMakeModelLabel(vehicle)}
+                                        {vehicle.variant ? (
+                                          <span className="font-normal text-muted-foreground">
+                                            {" "}
+                                            · {vehicle.variant}
+                                          </span>
+                                        ) : null}
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                        <Badge variant="secondary" className="font-medium text-xs">
+                                          {vehicle.fuelType}
+                                        </Badge>
+                                        {vehicle.segment ? (
+                                          <Badge variant="outline" className="font-normal text-xs">
+                                            {vehicle.segment.replace(/_/g, " ")}
+                                          </Badge>
+                                        ) : null}
+                                        <span className="text-xs tabular-nums text-muted-foreground">{vehicle.year}</span>
+                                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                          <span
+                                            className="size-3 shrink-0 rounded-full border border-border shadow-inner"
+                                            style={{ backgroundColor: vehicleColorHex(vehicle.color) }}
+                                            title={vehicle.color}
+                                          />
+                                          <span className="min-w-0 truncate">{vehicle.color}</span>
+                                        </span>
+                                      </div>
+
+                                      {/* Transfer Details Card */}
+                                      <div className="mt-2.5 rounded-lg border border-amber-200/90 bg-amber-50/80 p-2.5 text-xs dark:border-amber-900/60 dark:bg-amber-950/30">
+                                        <div className="flex items-center gap-1.5 font-medium text-amber-900 dark:text-amber-200">
+                                          <UserCheck className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                          <span>Transferred to {transferredToCustomerName}</span>
+                                        </div>
+                                        <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-amber-800/80 dark:text-amber-400/80">
+                                          <span>Date: {formatDate(transferredDate)}</span>
+                                          {reason?.trim() ? (
+                                            <span>· Reason: {reason}</span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <ChevronRight
+                                      className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/80"
+                                      aria-hidden
+                                    />
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

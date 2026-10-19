@@ -89,16 +89,20 @@ export function advancePaymentReminderAfterSend(
   const following = nextDueDate(newDue, frequency);
   const status = computeReminderStatus(newDue, opts.leadDays, opts.now);
 
-  return normalizeServiceReminder({
-    ...reminder,
-    dueDate: newDue,
-    nextDueDate: following,
-    periodKey: pKey,
-    status,
-    outstandingAmount: opts.outstanding,
-    lastMessageSentAt: undefined,
-    whatsappSent: false,
-  });
+  return normalizeServiceReminder(
+    {
+      ...reminder,
+      dueDate: newDue,
+      nextDueDate: following,
+      periodKey: pKey,
+      status,
+      outstandingAmount: opts.outstanding,
+      lastMessageSentAt: undefined,
+      whatsappSent: false,
+    },
+    opts.leadDays,
+    opts.now
+  );
 }
 
 /** Snapshot after a successful send for the current period (before optional payment advance). */

@@ -15,6 +15,13 @@ import {
   publicInvoiceShareUrl,
 } from "@/lib/whatsapp-customer-messages";
 import { sendCustomerWhatsApp, isWhatsAppNotConfiguredError } from "@/lib/whatsapp-send";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildServiceReminderVariables,
+  buildPaymentPendingVariables,
+} from "@/lib/twilio-templates-config";
+import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import { useReminderStore } from "@/store/reminder-store";
 import { useInvoiceStore } from "@/store/invoice-store";
 import { useSettingsStore } from "@/store/settings-store";
@@ -150,20 +157,59 @@ async function runClientSideAutoSends(opts?: {
     });
     if (stillEligible.length === 0) continue;
 
+    const workshopName = resolveWorkshopDisplayName({ businessName });
+    const isPayment = normalizeReminderKind(latest.kind) === "PAYMENT";
+    const amount = paymentOutstandingForReminder(latest, getOutstanding);
+    const statementUrl = publicCustomerLedgerShareUrl(latest.customerId);
+    const invoiceUrl = latest.invoiceId ? publicInvoiceShareUrl(latest.invoiceId) : undefined;
+    const vehicleStr =
+      `${latest.vehicleMakeModel || ""} ${latest.vehicleRegNumber ? `(${latest.vehicleRegNumber})` : ""}`.trim() ||
+      "Vehicle";
+    const dueDateStr = latest.dueDate ? formatDate(latest.dueDate) : "Upcoming";
+
     const message =
-      normalizeReminderKind(latest.kind) === "PAYMENT"
+      isPayment
         ? buildPaymentPendingReminderWhatsAppMessage({
-            pendingAmount: paymentOutstandingForReminder(latest, getOutstanding),
-            statementUrl: publicCustomerLedgerShareUrl(latest.customerId),
-            businessName: businessName || "MY DETAIL OS",
+            pendingAmount: amount,
+            statementUrl,
+            businessName: workshopName,
             mode: "singleInvoice",
-            invoiceUrl: latest.invoiceId ? publicInvoiceShareUrl(latest.invoiceId) : undefined,
+            invoiceUrl,
             invoiceNumber: latest.invoiceNumber,
           })
-        : buildServiceReminderWhatsAppMessage(latest);
+        : buildServiceReminderWhatsAppMessage(latest, {
+            businessName: workshopName,
+          });
+
+    const template = isPayment
+      ? (TWILIO_TEMPLATE_SIDS.PAYMENT_PENDING
+          ? {
+              contentSid: TWILIO_TEMPLATE_SIDS.PAYMENT_PENDING,
+              contentVariables: buildPaymentPendingVariables({
+                pendingAmount: formatCurrency(amount),
+                invoiceNumber: latest.invoiceNumber || latest.invoiceId || "Invoice",
+                invoiceUrl: invoiceUrl || statementUrl,
+                statementUrl,
+                businessName: workshopName,
+              }),
+            }
+          : undefined)
+      : (TWILIO_TEMPLATE_SIDS.SERVICE_REMINDER
+          ? {
+              contentSid: TWILIO_TEMPLATE_SIDS.SERVICE_REMINDER,
+              contentVariables: buildServiceReminderVariables({
+                customerName: latest.customerName,
+                businessName: workshopName,
+                reminderType: latest.serviceCategoryName?.trim() || latest.type || "Service",
+                vehicleStr,
+                dueDate: dueDateStr,
+                note: latest.notes?.trim() || "Regular maintenance",
+              }),
+            }
+          : undefined);
 
     try {
-      await send(latest.customerPhone, message);
+      await send(latest.customerPhone, message, template);
       const sentAt = new Date().toISOString();
       const marked = markReminderSentForPeriod(latest, sentAt);
 

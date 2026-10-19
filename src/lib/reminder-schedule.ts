@@ -218,7 +218,8 @@ export function normalizeReminderKind(kind: string | undefined | null): Reminder
 
 export function normalizeServiceReminder(
   raw: ServiceReminder,
-  leadDays?: number
+  leadDays?: number,
+  now?: Date | string
 ): ServiceReminder {
   const kind = normalizeReminderKind(raw.kind);
   const frequency =
@@ -229,7 +230,11 @@ export function normalizeServiceReminder(
   // Recompute status from dueDate + leadDays unless already closed.
   let status = raw.status;
   if (status !== "COMPLETED" && status !== "DISMISSED") {
-    status = computeReminderStatus(raw.dueDate, leadDays ?? 7);
+    status = computeReminderStatus(
+      raw.dueDate,
+      leadDays ?? 7,
+      now ? (now instanceof Date ? now : new Date(now)) : undefined
+    );
   }
 
   return {

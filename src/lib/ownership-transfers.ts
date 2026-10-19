@@ -79,3 +79,54 @@ export function buildOwnershipTimeline(
 
   return items;
 }
+
+export interface TransferredOutVehicleItem {
+  vehicle: Vehicle;
+  transferredToCustomerId: string;
+  transferredToCustomerName: string;
+  transferredDate: string;
+  reason?: string;
+}
+
+/**
+ * Returns vehicles previously owned by this customer that were transferred to someone else,
+ * with details on who received each vehicle, transfer date, and optional reason.
+ */
+export function getTransferredOutVehiclesForCustomer(
+  vehicles: Vehicle[],
+  customerId: string,
+  customers?: Customer[]
+): TransferredOutVehicleItem[] {
+  const result: TransferredOutVehicleItem[] = [];
+
+  for (const v of vehicles) {
+    if (v.customerId === customerId) continue;
+    const prev = v.previousOwners;
+    if (!prev || prev.length === 0) continue;
+
+    for (let i = prev.length - 1; i >= 0; i--) {
+      const p = prev[i];
+      if (p.customerId === customerId) {
+        const nextOwner =
+          i + 1 < prev.length
+            ? { id: prev[i + 1].customerId, name: prev[i + 1].customerName }
+            : { id: v.customerId, name: v.customerName };
+
+        const matchedCustomer = customers?.find((c) => c.id === nextOwner.id);
+
+        result.push({
+          vehicle: v,
+          transferredToCustomerId: nextOwner.id,
+          transferredToCustomerName: matchedCustomer?.name ?? nextOwner.name,
+          transferredDate: p.transferDate,
+          reason: p.reason,
+        });
+        break;
+      }
+    }
+  }
+
+  return result.sort(
+    (a, b) => new Date(b.transferredDate).getTime() - new Date(a.transferredDate).getTime()
+  );
+}

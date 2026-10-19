@@ -537,7 +537,7 @@ export default function CustomersPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, phone, email, or vehicle number\u2026"
+            placeholder="Search by name, phone, email, or vehicle number…"
             className="w-full rounded-xl border border-border/80 bg-background py-2.5 pl-9 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>

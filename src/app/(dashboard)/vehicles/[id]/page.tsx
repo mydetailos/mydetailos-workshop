@@ -36,7 +36,7 @@ import { buildOwnershipTimeline } from "@/lib/ownership-transfers";
 import type { OwnershipTimelineItem } from "@/lib/ownership-transfers";
 import { toast } from "sonner";
 import { pushActivityLog } from "@/lib/activity-log-helper";
-import { ArrowLeft, Bell, AlertTriangle, Clock, Calendar, Wrench, Droplets, Disc3, Snowflake, Battery, Shield, FileCheck, UserPlus, Edit, Trash2, History } from "lucide-react";
+import { ArrowLeft, Bell, AlertTriangle, Clock, Calendar, Wrench, Droplets, Disc3, Snowflake, Battery, Shield, FileCheck, UserPlus, Edit, Trash2, History, Loader2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import type { JobCard, Vehicle } from "@/types";
 import { EditVehicleDialog } from "../page";
@@ -68,11 +68,15 @@ export default function VehicleDetailPage() {
   const vehicleList = useVehicleStore((s) => s.vehicles);
   const setVehicleList = useVehicleStore((s) => s.setVehicles);
   const updateVehicle = useVehicleStore((s) => s.updateVehicle);
+  const deleteVehicle = useVehicleStore((s) => s.deleteVehicle);
+  const vehiclesLoading = useVehicleStore((s) => s.vehiclesLoading);
+  const isInitialLoaded = useVehicleStore((s) => s.isInitialLoaded);
   const storeJobCards = useJobCardStore((s) => s.jobCards);
   const customers = useCustomerStore((s) => s.customers);
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [extraBrands, setExtraBrands] = useState<string[]>([]);
   const [extraModels, setExtraModels] = useState<Record<string, Array<{ name: string }>>>({});
 
@@ -92,6 +96,19 @@ export default function VehicleDetailPage() {
   }, [storeJobCards, vehicleId, vehicle]);
 
   if (!vehicle) {
+    if (!isInitialLoaded || vehiclesLoading) {
+      return (
+        <div className="space-y-4 sm:space-y-6">
+          <Breadcrumbs items={[{ label: "Vehicles", href: "/vehicles" }, { label: "Loading..." }]} />
+          <Card>
+            <CardContent className="py-16 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-sm">Loading vehicle details...</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="space-y-4 sm:space-y-6">
         <Button variant="ghost" onClick={() => router.push("/vehicles")}>
@@ -278,7 +295,13 @@ export default function VehicleDetailPage() {
         </CardContent>
       </Card>
 
-      <VehicleOwnershipSection vehicle={vehicle} vehicleId={vehicleId} vehicleList={vehicleList} setVehicleList={setVehicleList} />
+      <VehicleOwnershipSection
+        vehicle={vehicle}
+        vehicleId={vehicleId}
+        vehicleList={vehicleList}
+        setVehicleList={setVehicleList}
+        canEdit={userCanEdit(user, "VEHICLES")}
+      />
 
       <VehicleReminders vehicleId={vehicleId} />
 
@@ -359,7 +382,7 @@ export default function VehicleDetailPage() {
         />
       )}
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <Dialog open={deleteOpen} onOpenChange={(open) => !isDeleting && setDeleteOpen(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete vehicle?</DialogTitle>
@@ -375,6 +398,7 @@ export default function VehicleDetailPage() {
             <Button
               type="button"
               variant="outline"
+              disabled={isDeleting}
               onClick={() => setDeleteOpen(false)}
             >
               Cancel
@@ -382,14 +406,33 @@ export default function VehicleDetailPage() {
             <Button
               type="button"
               variant="destructive"
-              onClick={() => {
-                setVehicleList((prev) => prev.filter((v) => v.id !== vehicle.id));
-                setDeleteOpen(false);
-                toast.success("Vehicle deleted");
-                router.push("/vehicles");
+              disabled={isDeleting}
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  const ok = await deleteVehicle(vehicle.id);
+                  if (!ok) {
+                    toast.error("Failed to delete vehicle", {
+                      description: "Server error occurred while deleting vehicle.",
+                    });
+                    return;
+                  }
+                  setDeleteOpen(false);
+                  toast.success("Vehicle deleted");
+                  router.push("/vehicles");
+                } finally {
+                  setIsDeleting(false);
+                }
               }}
             >
-              Delete vehicle
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete vehicle"
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -472,16 +515,20 @@ function VehicleOwnershipSection({
   vehicleId,
   vehicleList,
   setVehicleList,
+  canEdit = true,
 }: {
   vehicle: Vehicle;
   vehicleId: string;
   vehicleList: Vehicle[];
   setVehicleList: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+  canEdit?: boolean;
 }) {
   const customers = useCustomerStore((s) => s.customers);
+  const updateVehicle = useVehicleStore((s) => s.updateVehicle);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [newCustomerId, setNewCustomerId] = useState("");
   const [transferReason, setTransferReason] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
 
   const currentVehicle = useMemo(
     () => vehicleList.find((v) => v.id === vehicleId) ?? vehicle,
@@ -493,7 +540,7 @@ function VehicleOwnershipSection({
     [customers, currentVehicle.customerId]
   );
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     if (!newCustomerId.trim()) {
       toast.error("Please select a new customer");
       return;
@@ -511,29 +558,41 @@ function VehicleOwnershipSection({
       },
     ];
 
-    setVehicleList((prev) =>
-      prev.map((v) =>
-        v.id === vehicleId
-          ? {
-              ...v,
-              customerId: newCustomerId,
-              customerName: newCustomer.name,
-              previousOwners,
-            }
-          : v
-      )
-    );
-    setNewCustomerId("");
-    setTransferReason("");
-    setTransferDialogOpen(false);
-    toast.success("Ownership transferred successfully");
-    pushActivityLog({
-      action: "OWNERSHIP_TRANSFERRED",
-      entityType: "VEHICLE",
-      entityId: vehicleId,
-      entityLabel: currentVehicle.registrationNumber,
-      details: `Ownership transferred from ${currentVehicle.customerName} to ${newCustomer.name}`,
-    });
+    setIsTransferring(true);
+    try {
+      const res = await updateVehicle(vehicleId, {
+        customerId: newCustomerId,
+        customerName: newCustomer.name,
+        previousOwners,
+      });
+
+      if (!res) {
+        toast.error("Failed to transfer ownership", {
+          description: "Could not save the transfer to the server. Please check your connection and try again.",
+        });
+        return;
+      }
+
+      setNewCustomerId("");
+      setTransferReason("");
+      setTransferDialogOpen(false);
+      toast.success("Ownership transferred successfully", {
+        description: `${currentVehicle.registrationNumber} transferred to ${newCustomer.name}.`,
+      });
+      pushActivityLog({
+        action: "OWNERSHIP_TRANSFERRED",
+        entityType: "VEHICLE",
+        entityId: vehicleId,
+        entityLabel: currentVehicle.registrationNumber,
+        details: `Ownership transferred from ${currentVehicle.customerName} to ${newCustomer.name}`,
+      });
+    } catch (err) {
+      toast.error("Failed to transfer ownership", {
+        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+      });
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   const timelineItems = useMemo(
@@ -548,10 +607,12 @@ function VehicleOwnershipSection({
           <UserPlus className="w-5 h-5" />
           Ownership Transfer
         </h2>
-        <Button onClick={() => setTransferDialogOpen(true)} className="shrink-0 w-full sm:w-auto">
-          <UserPlus className="w-4 h-4 mr-2" />
-          Transfer Ownership
-        </Button>
+        {canEdit && (
+          <Button onClick={() => setTransferDialogOpen(true)} className="shrink-0 w-full sm:w-auto">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Transfer Ownership
+          </Button>
+        )}
       </div>
       <Card>
         <CardContent className="p-4 sm:p-5">
@@ -566,7 +627,7 @@ function VehicleOwnershipSection({
         </CardContent>
       </Card>
 
-      <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+      <Dialog open={transferDialogOpen} onOpenChange={(open) => !isTransferring && setTransferDialogOpen(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Transfer Ownership</DialogTitle>
@@ -589,14 +650,28 @@ function VehicleOwnershipSection({
                 value={transferReason}
                 onChange={(e) => setTransferReason(e.target.value)}
                 rows={3}
+                disabled={isTransferring}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setTransferDialogOpen(false)}
+              disabled={isTransferring}
+            >
               Cancel
             </Button>
-            <Button onClick={handleTransfer}>Confirm Transfer</Button>
+            <Button onClick={handleTransfer} disabled={isTransferring || !newCustomerId.trim()}>
+              {isTransferring ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Transferring...
+                </>
+              ) : (
+                "Confirm Transfer"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

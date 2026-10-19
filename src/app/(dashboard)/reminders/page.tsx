@@ -36,6 +36,12 @@ import {
   openWhatsAppComposer,
   isWhatsAppNotConfiguredError,
 } from "@/lib/whatsapp-send";
+import {
+  TWILIO_TEMPLATE_SIDS,
+  buildServiceReminderVariables,
+  buildPaymentPendingVariables,
+} from "@/lib/twilio-templates-config";
+import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
 import { useDashboardFilterStore, DASHBOARD_FILTER } from "@/store/dashboard-filter-store";
 import { isDueSoonReminder } from "@/lib/dashboard-filters";
 import { FilterBanner } from "@/components/shared/filter-banner";
@@ -59,6 +65,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Loader2,
   Search,
   Send,
   Sparkles,
@@ -165,10 +172,12 @@ function WhatsAppCell({
   reminder,
   enabled,
   onSend,
+  isSending,
 }: {
   reminder: ServiceReminder;
   enabled: boolean;
   onSend: (r: ServiceReminder) => void;
+  isSending?: boolean;
 }) {
   const sent = reminderWasSent(reminder);
   const closed = reminder.status === "COMPLETED" || reminder.status === "DISMISSED";
@@ -185,15 +194,19 @@ function WhatsAppCell({
         size="sm"
         variant="outline"
         className="h-8 text-xs"
-        disabled={!enabled}
+        disabled={!enabled || isSending}
         title={enabled ? undefined : "Enable WhatsApp reminders in Settings → Reminders"}
         onClick={(e) => {
           e.stopPropagation();
           onSend(reminder);
         }}
       >
-        <WhatsAppIcon className="w-3.5 h-3.5 mr-1.5 text-[#25D366]" />
-        {sent ? "Resend" : "Send"}
+        {isSending ? (
+          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+        ) : (
+          <WhatsAppIcon className="w-3.5 h-3.5 mr-1.5 text-[#25D366]" />
+        )}
+        {isSending ? "Sending..." : sent ? "Resend" : "Send"}
       </Button>
       {sent && (
         <span className="inline-flex items-center gap-1 text-[10px] text-violet-700 dark:text-violet-300">
@@ -277,6 +290,7 @@ export default function RemindersPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   const serviceReminders = useMemo(
     () => reminders.filter((r) => normalizeReminderKind(r.kind) === "SERVICE"),
@@ -397,11 +411,40 @@ export default function RemindersPage() {
       });
       return;
     }
-    const message = buildServiceReminderWhatsAppMessage(reminder);
+    const workshopName = resolveWorkshopDisplayName({ businessName });
+    const message = buildServiceReminderWhatsAppMessage(reminder, {
+      businessName: workshopName,
+    });
+    const vehicleStr =
+      `${reminder.vehicleMakeModel || ""} ${reminder.vehicleRegNumber ? `(${reminder.vehicleRegNumber})` : ""}`.trim() ||
+      "Vehicle";
+    const serviceCategory = serviceCategoryLabel(reminder) || "Regular Service";
+    const dueDateStr = reminder.dueDate ? formatDate(reminder.dueDate) : "Upcoming";
+
+    const template = TWILIO_TEMPLATE_SIDS.SERVICE_REMINDER
+      ? {
+          contentSid: TWILIO_TEMPLATE_SIDS.SERVICE_REMINDER,
+          contentVariables: buildServiceReminderVariables({
+            customerName: reminder.customerName,
+            businessName: workshopName,
+            reminderType: serviceCategory,
+            vehicleStr,
+            dueDate: dueDateStr,
+            note: reminder.notes?.trim() || "Regular maintenance",
+          }),
+        }
+      : undefined;
+
+    setSendingId(reminder.id);
+    const toastId = toast.loading("Sending WhatsApp reminder...", {
+      description: `Sending to ${reminder.customerName} (${reminder.customerPhone})`,
+    });
+
     try {
-      await sendCustomerWhatsApp(reminder.customerPhone, message);
+      await sendCustomerWhatsApp(reminder.customerPhone, message, template);
       markSent(reminder);
       toast.success("WhatsApp reminder sent", {
+        id: toastId,
         description: `Sent to ${reminder.customerName} at ${reminder.customerPhone}`,
       });
       useNotificationStore.getState().addNotification({
@@ -412,6 +455,7 @@ export default function RemindersPage() {
       });
     } catch (e) {
       if (isWhatsAppNotConfiguredError(e)) {
+        toast.dismiss(toastId);
         openWhatsAppComposer(reminder.customerPhone, message);
         markSent(reminder);
         toast.info("WhatsApp opened", {
@@ -426,8 +470,17 @@ export default function RemindersPage() {
         return;
       }
       toast.error("WhatsApp failed", {
+        id: toastId,
         description: e instanceof ApiError ? e.message : "Could not send reminder",
+        action: {
+          label: "Open WhatsApp",
+          onClick: () => {
+            openWhatsAppComposer(reminder.customerPhone, message);
+          },
+        },
       });
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -438,19 +491,41 @@ export default function RemindersPage() {
       });
       return;
     }
+    const workshopName = resolveWorkshopDisplayName({ businessName });
     const amount = reminder.outstandingAmount ?? 0;
+    const statementUrl = publicCustomerLedgerShareUrl(reminder.customerId);
+    const invoiceUrl = reminder.invoiceId ? publicInvoiceShareUrl(reminder.invoiceId) : undefined;
     const message = buildPaymentPendingReminderWhatsAppMessage({
       pendingAmount: amount,
-      statementUrl: publicCustomerLedgerShareUrl(reminder.customerId),
-      businessName: businessName || "MY DETAIL OS",
+      statementUrl,
+      businessName: workshopName,
       mode: "singleInvoice",
-      invoiceUrl: reminder.invoiceId ? publicInvoiceShareUrl(reminder.invoiceId) : undefined,
+      invoiceUrl,
       invoiceNumber: reminder.invoiceNumber,
     });
+    const template = TWILIO_TEMPLATE_SIDS.PAYMENT_PENDING
+      ? {
+          contentSid: TWILIO_TEMPLATE_SIDS.PAYMENT_PENDING,
+          contentVariables: buildPaymentPendingVariables({
+            pendingAmount: formatCurrency(amount),
+            invoiceNumber: reminder.invoiceNumber || reminder.invoiceId || "Invoice",
+            invoiceUrl: invoiceUrl || statementUrl,
+            statementUrl,
+            businessName: workshopName,
+          }),
+        }
+      : undefined;
+
+    setSendingId(reminder.id);
+    const toastId = toast.loading("Sending payment reminder...", {
+      description: `Sending to ${reminder.customerName} (${reminder.customerPhone})`,
+    });
+
     try {
-      await sendCustomerWhatsApp(reminder.customerPhone, message);
+      await sendCustomerWhatsApp(reminder.customerPhone, message, template);
       markSent(reminder);
       toast.success("Payment reminder sent", {
+        id: toastId,
         description: `Sent to ${reminder.customerName} at ${reminder.customerPhone}`,
       });
       useNotificationStore.getState().addNotification({
@@ -461,6 +536,7 @@ export default function RemindersPage() {
       });
     } catch (e) {
       if (isWhatsAppNotConfiguredError(e)) {
+        toast.dismiss(toastId);
         openWhatsAppComposer(reminder.customerPhone, message);
         markSent(reminder);
         toast.info("WhatsApp opened", {
@@ -469,8 +545,17 @@ export default function RemindersPage() {
         return;
       }
       toast.error("WhatsApp failed", {
+        id: toastId,
         description: e instanceof ApiError ? e.message : "Could not send reminder",
+        action: {
+          label: "Open WhatsApp",
+          onClick: () => {
+            openWhatsAppComposer(reminder.customerPhone, message);
+          },
+        },
       });
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -765,6 +850,7 @@ export default function RemindersPage() {
                     reminder={r}
                     enabled={whatsappReminderEnabled}
                     onSend={handleSendServiceWhatsApp}
+                    isSending={sendingId === r.id}
                   />
                 ),
               },
@@ -800,6 +886,7 @@ export default function RemindersPage() {
                     reminder={r}
                     enabled={whatsappReminderEnabled}
                     onSend={handleSendServiceWhatsApp}
+                    isSending={sendingId === r.id}
                   />
                   <RowActions
                     reminder={r}
@@ -894,6 +981,7 @@ export default function RemindersPage() {
                     reminder={r}
                     enabled={whatsappReminderEnabled}
                     onSend={handleSendPaymentWhatsApp}
+                    isSending={sendingId === r.id}
                   />
                 ),
               },
@@ -930,6 +1018,7 @@ export default function RemindersPage() {
                     reminder={r}
                     enabled={whatsappReminderEnabled}
                     onSend={handleSendPaymentWhatsApp}
+                    isSending={sendingId === r.id}
                   />
                   <RowActions
                     reminder={r}
