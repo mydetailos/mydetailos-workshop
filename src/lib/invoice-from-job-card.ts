@@ -15,6 +15,7 @@ import { useMembershipStore } from "@/store/membership-store";
 import { useServiceCatalogStore } from "@/store/service-catalog-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { computeGstFromSubtotal } from "@/lib/gst-tax";
+import { cleanServiceName } from "@/lib/service-line-price";
 import { filterCustomerFacingNotes } from "@/lib/tax-invoice-format";
 
 function currentInvoiceTaxTotals(subtotal: number) {
@@ -110,7 +111,7 @@ function serviceLineItem(
     if (fullRate > 0) {
       return {
         id: `li-${invoiceId}-svc-${index}`,
-        description: `${s.name} (Membership benefit)`,
+        description: `${cleanServiceName(s.name)} (Membership benefit)`,
         type: "SERVICE",
         quantity: 1,
         unitPrice: fullRate,
@@ -122,7 +123,7 @@ function serviceLineItem(
 
   return {
     id: `li-${invoiceId}-svc-${index}`,
-    description: s.name,
+    description: cleanServiceName(s.name),
     type: "SERVICE" as const,
     quantity: 1,
     unitPrice: s.price,
@@ -152,7 +153,7 @@ export function buildInvoiceFromJobCard(
     if (amt <= 0) continue;
     programLines.push({
       id: `li-${invoiceId}-hes-${hesId}`,
-      description: `${cfg?.name ?? "High-end program"} (excl. GST)`,
+      description: cleanServiceName(cfg?.name ?? "High-end program"),
       type: "SERVICE",
       quantity: 1,
       unitPrice: amt,

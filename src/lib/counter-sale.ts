@@ -11,6 +11,9 @@ export type CounterSaleCartLine = {
   unitPrice: number;
   lineDiscount: number;
   hsnSac?: string;
+  catalogPrice?: number;
+  customUnitPrice?: number;
+  isCustomPrice?: boolean;
 };
 
 export function counterSaleLineTotal(line: CounterSaleCartLine): number {
@@ -56,16 +59,23 @@ export function buildCounterSaleInvoice(input: {
   createdAt: string;
 }): Invoice {
   const subtotal = counterSaleCartSubtotal(input.lines);
-  const lineItems: InvoiceLineItem[] = input.lines.map((line, i) => ({
-    id: `li-cs-${input.id}-${i}`,
-    description: line.name,
-    type: "PARTS",
-    quantity: line.quantity,
-    unitPrice: line.unitPrice,
-    total: counterSaleLineTotal(line),
-    hsnSac: line.hsnSac,
-    lineDiscount: line.lineDiscount || undefined,
-  }));
+  const lineItems: InvoiceLineItem[] = input.lines.map((line, i) => {
+    const isCustom =
+      line.isCustomPrice ??
+      (line.catalogPrice != null ? Math.abs(line.unitPrice - line.catalogPrice) > 0.005 : false);
+    return {
+      id: `li-cs-${input.id}-${i}`,
+      description: line.name,
+      type: "PARTS",
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      total: counterSaleLineTotal(line),
+      hsnSac: line.hsnSac,
+      lineDiscount: line.lineDiscount || undefined,
+      catalogPrice: line.catalogPrice,
+      isCustomPrice: isCustom,
+    };
+  });
   const paid = Math.min(Math.max(0, input.paidAmount), input.grandTotal);
   const payments: Payment[] =
     paid > 0.01

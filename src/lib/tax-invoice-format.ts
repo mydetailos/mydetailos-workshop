@@ -1,6 +1,7 @@
 import type { Invoice, InvoiceLineItem, JobCard, Payment } from "@/types";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { invoicePrintDocumentTitle } from "@/lib/invoice-source";
+import { cleanServiceName } from "@/lib/service-line-price";
 import QRCode from "qrcode-svg";
 
 /** Default SAC for motor vehicle repair / maintenance services (demo). */
@@ -64,7 +65,7 @@ function splitServiceAndDescription(raw: string | null | undefined): {
 
   const lineBreakAt = text.indexOf("\n");
   if (lineBreakAt > -1) {
-    const service = text.slice(0, lineBreakAt).trim() || "—";
+    const service = cleanServiceName(text.slice(0, lineBreakAt)) || "—";
     const description = text.slice(lineBreakAt + 1).trim() || "—";
     return { service, description };
   }
@@ -72,13 +73,13 @@ function splitServiceAndDescription(raw: string | null | undefined): {
   for (const sep of [" — ", " - ", " : "]) {
     const idx = text.indexOf(sep);
     if (idx > -1) {
-      const service = text.slice(0, idx).trim() || "—";
+      const service = cleanServiceName(text.slice(0, idx)) || "—";
       const description = text.slice(idx + sep.length).trim() || "—";
       return { service, description };
     }
   }
 
-  return { service: text, description: "—" };
+  return { service: cleanServiceName(text) || "—", description: "—" };
 }
 
 function serviceDisplayLines(service: string): string[] {

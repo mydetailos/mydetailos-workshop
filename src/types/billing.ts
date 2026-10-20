@@ -72,6 +72,10 @@ export interface InvoiceLineItem {
   hsnSac?: string;
   /** Line-level discount in ₹ (before tax). Edit UI enters this as a % of qty × rate. */
   lineDiscount?: number;
+  /** Catalog unit price before custom override */
+  catalogPrice?: number;
+  /** True when custom unit price was entered */
+  isCustomPrice?: boolean;
 }
 
 export interface Payment {

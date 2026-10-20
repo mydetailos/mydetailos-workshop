@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CustomerSearchSelect } from "@/components/shared/customer-search-select";
+import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { AddVehicleDialog } from "@/components/vehicles/add-vehicle-dialog";
 import { useTenantPath } from "@/components/tenant/tenant-context";
 import { MultiPhotoCameraCapture, canUseLiveCameraPreview, requestCameraStream } from "@/components/job-cards/multi-photo-camera-capture";
@@ -27,7 +28,7 @@ import { createInspectionSections, DEFAULT_INSPECTION_TERMS, inspectionProgress,
 import { inspectionApi, inspectionApiError } from "@/lib/inspection-api";
 import { downloadInspectionPdf } from "@/lib/inspection-pdf";
 import type { InspectionPhoto, InspectionPreDriveCondition, InspectionReport, InspectionTemplate, VehicleConditionPin } from "@/types/inspection";
-import type { Vehicle } from "@/types";
+import type { Customer, Vehicle } from "@/types";
 import { AuthenticatedInspectionImage } from "./authenticated-inspection-image";
 import { InspectionChecklist, RatingBadge } from "./inspection-checklist";
 import { VehicleConditionSection } from "./vehicle-condition-section";
@@ -74,6 +75,7 @@ export function InspectionEditor({ id }: { id?: string }) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState<Promise<MediaStream> | null>(null);
   const [viewPhoto, setViewPhoto] = useState<InspectionPhoto | null>(null);
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
   const [vehicleRefresh, setVehicleRefresh] = useState(0);
   const [vehicleLookup, setVehicleLookup] = useState<{ customerId: string; items: Vehicle[]; loading: boolean; error: string }>({ customerId: "", items: [], loading: false, error: "" });
@@ -178,13 +180,57 @@ export function InspectionEditor({ id }: { id?: string }) {
     finally { setBusy(""); }
   };
 
+  const applyCustomer = (customer: Customer) => {
+    patch({
+      customerId: customer.id,
+      customerName: customer.name ?? "",
+      customerPhone: customer.phone ?? "",
+      customerEmail: customer.email ?? "",
+      vehicleId: "",
+      vehicleRegistration: "",
+      vehicleMakeModel: "",
+      vehicleYear: undefined,
+      fuelType: undefined,
+      insuranceDueDate: undefined,
+      odometer: undefined,
+      jobCardId: undefined,
+    });
+  };
   const selectCustomer = (customerId: string) => {
     const customer = customers.find((item) => item.id === customerId);
-    patch({ customerId, customerName: customer?.name ?? "", customerPhone: customer?.phone ?? "", customerEmail: customer?.email ?? "", vehicleId: "", vehicleRegistration: "", vehicleMakeModel: "", vehicleYear: undefined, fuelType: undefined, insuranceDueDate: undefined, odometer: undefined, jobCardId: undefined });
+    if (customer) {
+      applyCustomer(customer);
+    } else {
+      patch({
+        customerId,
+        customerName: "",
+        customerPhone: "",
+        customerEmail: "",
+        vehicleId: "",
+        vehicleRegistration: "",
+        vehicleMakeModel: "",
+        vehicleYear: undefined,
+        fuelType: undefined,
+        insuranceDueDate: undefined,
+        odometer: undefined,
+        jobCardId: undefined,
+      });
+    }
   };
-  const applyVehicle = (vehicle: Vehicle) => {
-    if (vehicle.customerId !== report.customerId) return;
-    patch({ vehicleId: vehicle.id, vehicleRegistration: vehicle.registrationNumber, vehicleMakeModel: `${vehicle.make} ${vehicle.model}`, vehicleYear: vehicle.year, fuelType: vehicle.fuelType, insuranceDueDate: vehicle.insuranceDueDate, odometer: vehicle.odometer, jobCardId: undefined });
+  const applyVehicle = (vehicle: Vehicle, targetCustomerId?: string) => {
+    const effectiveCustomerId = targetCustomerId ?? vehicle.customerId;
+    if (report.customerId && effectiveCustomerId !== report.customerId) return;
+    patch({
+      customerId: effectiveCustomerId,
+      vehicleId: vehicle.id,
+      vehicleRegistration: vehicle.registrationNumber,
+      vehicleMakeModel: `${vehicle.make} ${vehicle.model}`.trim(),
+      vehicleYear: vehicle.year,
+      fuelType: vehicle.fuelType,
+      insuranceDueDate: vehicle.insuranceDueDate,
+      odometer: vehicle.odometer,
+      jobCardId: undefined,
+    });
   };
   const selectVehicle = (vehicleId: string) => {
     const vehicle = customerVehicles.find((item) => item.id === vehicleId);
@@ -252,8 +298,139 @@ export function InspectionEditor({ id }: { id?: string }) {
       <div className="flex flex-wrap items-center gap-3 border-b pb-4"><RatingBadge rating={report.overallOverride ?? inspectionRating(report.sections)} /><span className="text-sm text-muted-foreground">{report.status === "FINAL" ? "Final report" : "Draft"} · Revision {report.revision || "pending"}</span><span className="ml-auto text-xs text-muted-foreground">{progress.checked} / {progress.total} checkpoints reviewed{dirty ? " · Unsaved changes" : ""}</span><Progress value={progress.percent} className="w-full" /></div>
       <fieldset disabled={!editable} className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <div className="space-y-2"><Label>Branch</Label><Select value={report.branchId} onValueChange={(value) => patch({ branchId: value, jobCardId: undefined })} disabled={!editable || Boolean(selectedBranchId) || report.photos.length > 0}><SelectTrigger aria-label="Workshop branch"><SelectValue placeholder="Select branch" /></SelectTrigger><SelectContent>{branches.filter((branch) => branch.isActive && (!selectedBranchId || branch.id === selectedBranchId)).map((branch) => <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-2"><Label>Customer</Label>{editable ? <CustomerSearchSelect customers={customers} selectedCustomerId={report.customerId} onSelectCustomer={selectCustomer} /> : <Input aria-label="Customer" value={report.customerName} readOnly />}</div>
-        <div className="space-y-2"><Label>Vehicle</Label><div className="flex items-center gap-2"><Select value={report.vehicleId} onValueChange={selectVehicle} disabled={!editable || !report.customerId || vehiclesLoading}><SelectTrigger aria-label="Vehicle" className="min-w-0 flex-1"><SelectValue placeholder={report.vehicleRegistration || (vehiclesLoading ? "Loading vehicles..." : "Select vehicle")} /></SelectTrigger><SelectContent>{customerVehicles.map((vehicle) => <SelectItem key={vehicle.id} value={vehicle.id}>{vehicle.registrationNumber} · {vehicle.make} {vehicle.model}</SelectItem>)}</SelectContent></Select>{userCanCreate(user, "VEHICLES") && <Button type="button" variant="outline" size="icon" className="shrink-0" title="Add vehicle for selected customer" aria-label="Add vehicle for selected customer" disabled={!editable || !report.customerId || vehiclesLoading} onClick={() => setAddVehicleOpen(true)}><Plus className="h-4 w-4" /></Button>}</div>{vehiclesLoading && <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Loading customer vehicles</p>}{vehicleError && <div className="flex items-center gap-2"><p role="alert" className="text-xs text-destructive">{vehicleError}</p><Button type="button" variant="ghost" size="icon" title="Reload customer vehicles" aria-label="Reload customer vehicles" onClick={() => setVehicleRefresh((value) => value + 1)}><RefreshCw className="h-4 w-4" /></Button></div>}{report.customerId && !vehiclesLoading && !vehicleError && !customerVehicles.length && <p className="text-xs text-muted-foreground">No vehicles linked to this customer.</p>}</div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Customer</Label>
+            {editable && userCanCreate(user, "CUSTOMERS") && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs text-primary hover:bg-transparent hover:underline"
+                onClick={() => setAddCustomerOpen(true)}
+              >
+                + Add Customer
+              </Button>
+            )}
+          </div>
+          {editable ? (
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <CustomerSearchSelect
+                  customers={customers}
+                  selectedCustomerId={report.customerId}
+                  onSelectCustomer={selectCustomer}
+                />
+              </div>
+              {userCanCreate(user, "CUSTOMERS") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  title="Add customer"
+                  aria-label="Add customer"
+                  disabled={!editable}
+                  onClick={() => setAddCustomerOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Input aria-label="Customer" value={report.customerName} readOnly />
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Vehicle</Label>
+            {editable && userCanCreate(user, "VEHICLES") && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs text-primary hover:bg-transparent hover:underline"
+                onClick={() => setAddVehicleOpen(true)}
+              >
+                + Add Vehicle
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={report.vehicleId}
+              onValueChange={selectVehicle}
+              disabled={!editable || !report.customerId || vehiclesLoading}
+            >
+              <SelectTrigger aria-label="Vehicle" className="min-w-0 flex-1">
+                <SelectValue
+                  placeholder={
+                    report.vehicleRegistration ||
+                    (vehiclesLoading ? "Loading vehicles..." : "Select vehicle")
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {customerVehicles.map((vehicle) => (
+                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                    {vehicle.registrationNumber} · {vehicle.make} {vehicle.model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {userCanCreate(user, "VEHICLES") && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                title={report.customerId ? "Add vehicle for selected customer" : "Add vehicle"}
+                aria-label={report.customerId ? "Add vehicle for selected customer" : "Add vehicle"}
+                disabled={!editable || vehiclesLoading}
+                onClick={() => setAddVehicleOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {vehiclesLoading && (
+            <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading customer vehicles
+            </p>
+          )}
+          {vehicleError && (
+            <div className="flex items-center gap-2">
+              <p role="alert" className="text-xs text-destructive">
+                {vehicleError}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Reload customer vehicles"
+                aria-label="Reload customer vehicles"
+                onClick={() => setVehicleRefresh((value) => value + 1)}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          {report.customerId && !vehiclesLoading && !vehicleError && !customerVehicles.length && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>No vehicles linked to this customer.</span>
+              {editable && userCanCreate(user, "VEHICLES") && (
+                <button
+                  type="button"
+                  className="font-medium text-primary hover:underline"
+                  onClick={() => setAddVehicleOpen(true)}
+                >
+                  Add vehicle now
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="space-y-2"><Label htmlFor="inspection-date">Inspection date</Label><Input id="inspection-date" type="date" value={report.inspectedAt} onChange={(event) => patch({ inspectedAt: event.target.value })} className="date-input-icon-end pr-9 [color-scheme:light] dark:[color-scheme:dark]" /></div>
         <div className="space-y-2"><Label htmlFor="inspection-inspector">Inspector</Label><Input id="inspection-inspector" value={report.inspectorName} onChange={(event) => patch({ inspectorName: event.target.value })} /></div>
         <div className="space-y-2"><Label htmlFor="inspection-odometer">Odometer (km)</Label><Input id="inspection-odometer" type="number" min="0" value={report.odometer ?? ""} onChange={(event) => patch({ odometer: event.target.value === "" ? undefined : Number(event.target.value) })} /></div>
@@ -285,17 +462,61 @@ export function InspectionEditor({ id }: { id?: string }) {
       <fieldset disabled={!editable} className="grid gap-5 border-t pt-5 md:grid-cols-2"><div className="space-y-2"><Label htmlFor="inspection-notes">Inspection notes</Label><Textarea id="inspection-notes" value={report.notes} onChange={(event) => patch({ notes: event.target.value })} rows={4} /></div><div className="space-y-2"><Label htmlFor="inspection-terms">Terms and conditions</Label><Textarea id="inspection-terms" value={report.terms} onChange={(event) => patch({ terms: event.target.value })} rows={4} /></div></fieldset>
       {canModify && report.status === "DRAFT" && <div className="flex flex-wrap justify-end gap-3 border-t bg-background py-4"><Button variant="outline" disabled={Boolean(busy)} onClick={() => void save(false)}>{busy === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save Draft</Button><Button disabled={Boolean(busy)} onClick={() => setConfirmation({ title: "Finalize inspection?", description: "The report will become read-only. Future edits require a new revision.", action: () => save(true) })}>{busy === "finalize" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}Finalize Inspection</Button></div>}
       <Dialog open={Boolean(confirmation)} onOpenChange={(open) => { if (!open) setConfirmation(null); }}><DialogContent><DialogHeader><DialogTitle>{confirmation?.title}</DialogTitle><DialogDescription>{confirmation?.description}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setConfirmation(null)}>Cancel</Button><Button onClick={() => { const action = confirmation?.action; setConfirmation(null); void action?.(); }}>Confirm</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={sendDialog} onOpenChange={setSendDialog}><DialogContent><form onSubmit={async (event) => { event.preventDefault(); setBusy("send"); try { const result = await inspectionApi.send(report, channel, recipient.trim(), sendRequestId.current); if (result.item.status === "FAILED") { sendRequestId.current = crypto.randomUUID(); toast.error(result.item.error || "Sending failed"); } else { toast.success(result.item.status === "QUEUED" ? "Report queued for sending" : "Report sent"); setSendDialog(false); } } catch (failure) { toast.error(inspectionApiError(failure)); } finally { setBusy(""); } }}><DialogHeader><DialogTitle>Send Inspection Report</DialogTitle><DialogDescription>{report.reportNumber} · Revision {report.revision}</DialogDescription></DialogHeader><div className="space-y-4 py-5"><Select value={channel} disabled={Boolean(busy)} onValueChange={(value) => { sendRequestId.current = crypto.randomUUID(); const next = value as typeof channel; setChannel(next); setRecipient(next === "EMAIL" ? report.customerEmail : report.customerPhone); }}><SelectTrigger aria-label="Delivery channel"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="WHATSAPP">WhatsApp</SelectItem><SelectItem value="EMAIL">Email</SelectItem></SelectContent></Select><Label htmlFor="inspection-recipient">Recipient</Label><Input id="inspection-recipient" type={channel === "EMAIL" ? "email" : "tel"} disabled={Boolean(busy)} required value={recipient} onChange={(event) => { sendRequestId.current = crypto.randomUUID(); setRecipient(event.target.value); }} /></div><DialogFooter><Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => setSendDialog(false)}>Cancel</Button><Button type="submit" disabled={Boolean(busy) || !recipient.trim()}>{busy === "send" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}Send PDF</Button></DialogFooter></form></DialogContent></Dialog>
+      <Dialog open={sendDialog} onOpenChange={setSendDialog}><DialogContent><form onSubmit={async (event) => { event.preventDefault(); setBusy("send"); try { const result = await inspectionApi.send(report, channel, recipient.trim(), sendRequestId.current); if (result.item.status === "FAILED") { sendRequestId.current = crypto.randomUUID(); toast.error(result.item.providerError || result.item.error || "Sending failed"); } else { toast.success(result.item.status === "QUEUED" ? "Report queued for sending" : "Report sent"); setSendDialog(false); } } catch (failure) { toast.error(inspectionApiError(failure)); } finally { setBusy(""); } }}><DialogHeader><DialogTitle>Send Inspection Report</DialogTitle><DialogDescription>{report.reportNumber} · Revision {report.revision}</DialogDescription></DialogHeader><div className="space-y-4 py-5"><Select value={channel} disabled={Boolean(busy)} onValueChange={(value) => { sendRequestId.current = crypto.randomUUID(); const next = value as typeof channel; setChannel(next); setRecipient(next === "EMAIL" ? report.customerEmail : report.customerPhone); }}><SelectTrigger aria-label="Delivery channel"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="WHATSAPP">WhatsApp</SelectItem><SelectItem value="EMAIL">Email</SelectItem></SelectContent></Select><Label htmlFor="inspection-recipient">Recipient</Label><Input id="inspection-recipient" type={channel === "EMAIL" ? "email" : "tel"} disabled={Boolean(busy)} required value={recipient} onChange={(event) => { sendRequestId.current = crypto.randomUUID(); setRecipient(event.target.value); }} /></div><DialogFooter><Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => setSendDialog(false)}>Cancel</Button><Button type="submit" disabled={Boolean(busy) || !recipient.trim()}>{busy === "send" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}Send PDF</Button></DialogFooter></form></DialogContent></Dialog>
       <Dialog open={templateDialog} onOpenChange={setTemplateDialog}><DialogContent><form onSubmit={async (event) => { event.preventDefault(); setBusy("template"); try { const result = await inspectionApi.saveTemplate({ name: templateName.trim(), sections: resetInspectionSections(report.sections), terms: report.terms }); setTemplates((current) => [...current, result.item]); setTemplateId(result.item.id); setTemplateDialog(false); setTemplateName(""); toast.success("Template saved"); } catch (failure) { toast.error(inspectionApiError(failure)); } finally { setBusy(""); } }}><DialogHeader><DialogTitle>Save Workshop Template</DialogTitle><DialogDescription>Checkpoint ratings, readings and remarks are excluded.</DialogDescription></DialogHeader><div className="py-5"><Label htmlFor="inspection-template-name">Template name</Label><Input id="inspection-template-name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} required /></div><DialogFooter><Button type="button" variant="outline" onClick={() => setTemplateDialog(false)}>Cancel</Button><Button type="submit" disabled={Boolean(busy) || !templateName.trim()}><Save className="mr-2 h-4 w-4" />Save Template</Button></DialogFooter></form></DialogContent></Dialog>
       <Dialog open={Boolean(viewPhoto)} onOpenChange={(open) => { if (!open) setViewPhoto(null); }}><DialogContent><DialogHeader><DialogTitle>{viewPhoto?.caption || "Inspection photo"}</DialogTitle></DialogHeader>{viewPhoto && (
         <AuthenticatedInspectionImage src={viewPhoto.url} alt={viewPhoto.caption || "Inspection photo"} className="max-h-[70vh] w-full object-contain" />
       )}</DialogContent></Dialog>
       <MultiPhotoCameraCapture open={cameraOpen} onOpenChange={setCameraOpen} title="Inspection Photos" maxPhotos={24 - report.photos.length} streamPromise={cameraStream} onComplete={uploadPhotos} />
-      <AddVehicleDialog open={addVehicleOpen} onOpenChange={setAddVehicleOpen} lockedCustomerId={report.customerId || undefined} title={`Add Vehicle for ${report.customerName || "Customer"}`} onCreated={(vehicle) => {
-        if (vehicle.customerId !== report.customerId) return;
-        setVehicleLookup((current) => ({ customerId: report.customerId, items: [vehicle, ...(current.customerId === report.customerId ? current.items.filter((item) => item.id !== vehicle.id) : [])], loading: false, error: "" }));
-        applyVehicle(vehicle);
-      }} />
+      <AddCustomerDialog
+        open={addCustomerOpen}
+        onOpenChange={setAddCustomerOpen}
+        onCreated={(customer) => {
+          applyCustomer(customer);
+          toast.success(`Customer ${customer.name} selected`, {
+            description: "You can now select or add their vehicle.",
+            action: {
+              label: "Add Vehicle",
+              onClick: () => setAddVehicleOpen(true),
+            },
+          });
+        }}
+      />
+      <AddVehicleDialog
+        open={addVehicleOpen}
+        onOpenChange={setAddVehicleOpen}
+        lockedCustomerId={report.customerId || undefined}
+        title={report.customerName ? `Add Vehicle for ${report.customerName}` : "Add Vehicle"}
+        onCreated={(vehicle) => {
+          const effectiveCustomerId = report.customerId || vehicle.customerId;
+          const effectiveCustomer = customers.find((c) => c.id === effectiveCustomerId);
+          setVehicleLookup((current) => ({
+            customerId: effectiveCustomerId,
+            items: [
+              vehicle,
+              ...(current.customerId === effectiveCustomerId
+                ? current.items.filter((item) => item.id !== vehicle.id)
+                : []),
+            ],
+            loading: false,
+            error: "",
+          }));
+          patch({
+            customerId: effectiveCustomerId,
+            customerName: effectiveCustomer?.name || report.customerName,
+            customerPhone: effectiveCustomer?.phone || report.customerPhone,
+            customerEmail: effectiveCustomer?.email || report.customerEmail,
+            vehicleId: vehicle.id,
+            vehicleRegistration: vehicle.registrationNumber,
+            vehicleMakeModel: `${vehicle.make} ${vehicle.model}`.trim(),
+            vehicleYear: vehicle.year,
+            fuelType: vehicle.fuelType,
+            insuranceDueDate: vehicle.insuranceDueDate,
+            odometer: vehicle.odometer,
+            jobCardId: undefined,
+          });
+        }}
+      />
     </div>
   );
 }

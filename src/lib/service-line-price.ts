@@ -68,3 +68,12 @@ export function isMembershipPricedLine(
 ): boolean {
   return line.priceSource === "MEMBERSHIP" || (line.priceSource == null && line.price <= 0);
 }
+
+/**
+ * Strips redundant tax suffixes such as "(excl. GST)" from service titles.
+ */
+export function cleanServiceName(name?: string | null): string {
+  if (!name) return "";
+  return name.replace(/\s*\(\s*excl\.?\s*gst\s*\)?\s*$/i, "").trim();
+}
+

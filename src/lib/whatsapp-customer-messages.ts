@@ -13,6 +13,22 @@ import type {
 } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
+import { useHighEndServiceStore } from "@/store/high-end-service-store";
+
+/**
+ * Returns all service names for a job card, combining catalog services and high-end programs.
+ */
+export function getJobCardServiceNames(job: JobCard): string[] {
+  const serviceNames = (job.services || []).map((s) => s.name).filter(Boolean);
+  if (!job.highEndServiceIds || job.highEndServiceIds.length === 0) {
+    return serviceNames;
+  }
+  const hesCatalog = useHighEndServiceStore.getState().services;
+  const highEndNames = job.highEndServiceIds
+    .map((hid) => hesCatalog.find((x) => x.id === hid)?.name)
+    .filter((n): n is string => Boolean(n));
+  return [...serviceNames, ...highEndNames];
+}
 
 /** Resolve the customer portal login URL — prefers /{orgSlug}/customer/login. */
 function resolvePortalUrl(override?: string): string {
@@ -67,13 +83,9 @@ export function buildJobCardCustomerWhatsAppMessage(
   const brand = options?.businessName?.trim() || "MY DETAIL OS";
   const firstName = job.customerName.trim().split(/\s+/)[0] ?? job.customerName;
   const vehicle = `${job.vehicleMakeModel} (${job.vehicleRegNumber})`.trim();
-  const serviceNames = job.services
-    .map((s) => s.name)
-    .filter(Boolean)
-    .slice(0, 6)
-    .join(", ");
-  const more =
-    job.services.length > 6 ? ` (+${job.services.length - 6} more)` : "";
+  const allServices = getJobCardServiceNames(job);
+  const serviceNames = allServices.slice(0, 6).join(", ");
+  const more = allServices.length > 6 ? ` (+${allServices.length - 6} more)` : "";
   const statusLabel =
     JOB_STATUS_CUSTOMER_LABEL[job.status] ?? JOB_STATUS_CUSTOMER_LABEL.RECEIVED;
 
@@ -822,7 +834,7 @@ export function buildJobReadyForPickupWhatsAppMessage(
 ): string {
   const firstName = job.customerName.trim().split(/\s+/)[0] ?? job.customerName;
   const vehicle = `${job.vehicleMakeModel} (${job.vehicleRegNumber})`.trim();
-  const serviceNames = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ");
+  const serviceNames = getJobCardServiceNames(job).slice(0, 6).join(", ");
   const portalUrl = resolvePortalUrl(opts.portalUrl);
   const phone = job.customerPhone?.trim() ?? "";
   const password = opts.temporaryPassword ?? inferDefaultCustomerPassword(job.customerName, phone);
@@ -872,7 +884,7 @@ export function buildBeforePhotosReadyWhatsAppMessage(
 ): string {
   const firstName = job.customerName.trim().split(/\s+/)[0] ?? job.customerName;
   const vehicle = `${job.vehicleMakeModel} (${job.vehicleRegNumber})`.trim();
-  const serviceNames = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ");
+  const serviceNames = getJobCardServiceNames(job).slice(0, 6).join(", ");
   const portalUrl = resolvePortalUrl(opts.portalUrl);
   const phone = opts.customerPhone ?? job.customerPhone ?? "";
   // Use provided temp password or reconstruct the default (FIRSTNAME + first4digits)

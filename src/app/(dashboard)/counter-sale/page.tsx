@@ -122,12 +122,64 @@ export default function CounterSalePage() {
   const commitCustomPrice = (line: CounterSaleCartLine) => {
     const n = Number.parseFloat(priceDraft.replace(/,/g, "").trim());
     const part = parts.find((p) => p.id === line.partId);
-    const catalogPrice = part ? getUnitPrice(part, line.unit) : line.unitPrice;
+    const catalogPrice = line.catalogPrice ?? (part ? getUnitPrice(part, line.unit) : line.unitPrice);
     const newPrice = Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : catalogPrice;
-    setCart(cart.map((l) =>
-      l.partId === line.partId && l.unit === line.unit ? { ...l, unitPrice: newPrice } : l
-    ));
+    const isCustom = Math.abs(newPrice - catalogPrice) > 0.005;
+    setCart(
+      cart.map((l) =>
+        l.partId === line.partId && l.unit === line.unit
+          ? {
+              ...l,
+              unitPrice: newPrice,
+              customUnitPrice: isCustom ? newPrice : undefined,
+              catalogPrice,
+              isCustomPrice: isCustom,
+            }
+          : l
+      )
+    );
     setEditingPriceKey(null);
+  };
+
+  const resetToCatalogPrice = (line: CounterSaleCartLine) => {
+    const part = parts.find((p) => p.id === line.partId);
+    const catalogPrice = line.catalogPrice ?? (part ? getUnitPrice(part, line.unit) : line.unitPrice);
+    setCart(
+      cart.map((l) =>
+        l.partId === line.partId && l.unit === line.unit
+          ? {
+              ...l,
+              unitPrice: catalogPrice,
+              customUnitPrice: undefined,
+              catalogPrice,
+              isCustomPrice: false,
+            }
+          : l
+      )
+    );
+    if (editingPriceKey === `${line.partId}-${line.unit}`) {
+      setEditingPriceKey(null);
+    }
+  };
+
+  const startEditingPrice = (line: CounterSaleCartLine) => {
+    setPriceDraft(String(line.unitPrice));
+    setEditingPriceKey(`${line.partId}-${line.unit}`);
+  };
+
+  const selectPartAndEditPrice = (part: Part, chosenUnit?: string) => {
+    const unit = chosenUnit ?? catalogueUnits[part.id] ?? getSelectableUnits(part)[0] ?? part.primaryUnit;
+    const existing = cart.find((l) => l.partId === part.id && l.unit === unit);
+    if (existing) {
+      startEditingPrice(existing);
+      return;
+    }
+    const ok = addPartToCart(part.id, unit);
+    if (ok) {
+      const catalogPrice = getUnitPrice(part, unit);
+      setPriceDraft(catalogPrice > 0 ? String(catalogPrice) : "");
+      setEditingPriceKey(`${part.id}-${unit}`);
+    }
   };
 
   const lookupMatches = useMemo(
@@ -159,9 +211,9 @@ export default function CounterSalePage() {
     return needed <= available + 1e-9;
   };
 
-  const addPartToCart = (partId: string, chosenUnit?: string) => {
+  const addPartToCart = (partId: string, chosenUnit?: string): boolean => {
     const part = parts.find((p) => p.id === partId);
-    if (!part) return;
+    if (!part) return false;
     const unit = chosenUnit ?? getSelectableUnits(part)[0] ?? part.primaryUnit;
     const existing = cart.find((l) => l.partId === partId && l.unit === unit);
     const nextQty = existing ? existing.quantity + 1 : 1;
@@ -172,15 +224,16 @@ export default function CounterSalePage() {
       toast.error(`Insufficient stock for ${part.name}`, {
         description: `Only ${formatted} ${unit} available in ${viewingLabel || "branch"}`
       });
-      return;
+      return false;
     }
+    const catalogPrice = getUnitPrice(part, unit);
     if (existing) {
       setCart(
         cart.map((l) =>
           l.partId === partId && l.unit === unit ? { ...l, quantity: l.quantity + 1 } : l
         )
       );
-      return;
+      return true;
     }
     setCart([
       ...cart,
@@ -190,11 +243,15 @@ export default function CounterSalePage() {
         sku: part.sku,
         quantity: 1,
         unit,
-        unitPrice: getUnitPrice(part, unit),
+        unitPrice: catalogPrice,
+        catalogPrice,
+        customUnitPrice: undefined,
+        isCustomPrice: false,
         lineDiscount: 0,
         hsnSac: part.hsnCode,
       },
     ]);
+    return true;
   };
 
   const completeSale = async () => {
@@ -546,119 +603,182 @@ export default function CounterSalePage() {
                             const cartItem = cart.find((l) => l.partId === part.id && l.unit === selected);
                             const unitPrice = cartItem ? cartItem.unitPrice : catalogPrice;
                             const isCustom = cartItem ? Math.abs(cartItem.unitPrice - catalogPrice) > 0.005 : false;
+                            const itemKey = `${part.id}-${selected}`;
+                            const isEditingThis = editingPriceKey === itemKey;
+
                             return (
-                              <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-sm font-medium tabular-nums">
-                                    {formatCurrency(unitPrice)}
-                                  </span>
-                                  {isCustom && (
-                                    <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
-                                      custom
+                              <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:items-end">
+                                <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-medium tabular-nums">
+                                      {formatCurrency(unitPrice)}
                                     </span>
-                                  )}
-                                </div>
-                                {units.length > 1 && (
-                                  <Select
-                                    value={selected}
-                                    onValueChange={(unit) =>
-                                      setCatalogueUnits((prev) => ({ ...prev, [part.id]: unit }))
-                                    }
-                                  >
-                                    <SelectTrigger className="h-7 w-[4.5rem] text-[11px] px-1.5 focus:ring-0">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {units.map((u) => (
-                                        <SelectItem key={u} value={u} className="text-xs">
-                                          {u}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                                {(() => {
-                                  if (cartItem) {
-                                    return (
-                                      <div className="flex items-center gap-1.5 border rounded-md px-1 py-0.5 bg-card">
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 shrink-0"
-                                          onClick={() => {
-                                            if (cartItem.quantity === 1) {
-                                              setCart(cart.filter((l) => !(l.partId === part.id && l.unit === selected)));
-                                            } else {
-                                              setCart(
-                                                cart.map((l) =>
-                                                  l.partId === part.id && l.unit === selected
-                                                    ? { ...l, quantity: l.quantity - 1 }
-                                                    : l
-                                                )
-                                              );
-                                            }
-                                          }}
-                                        >
-                                          <Minus className="h-2.5 w-2.5" />
-                                        </Button>
-                                        <span className="w-6 text-center text-xs font-semibold tabular-nums">
-                                          {cartItem.quantity}
+                                    {isCustom && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
+                                          custom
                                         </span>
-                                        <Button
+                                        <button
                                           type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 shrink-0"
-                                          onClick={() => {
-                                            const nextQty = cartItem.quantity + 1;
-                                            if (!checkBranchStockAvailable(part, nextQty, selected)) {
-                                              const canonical = getBranchCanonicalQty(branchStocks, part, branchId);
-                                              const qtyVal = canonicalSecondaryToUnitQty(part, canonical, selected);
-                                              const formatted = Number.isInteger(qtyVal) ? qtyVal.toLocaleString("en-IN") : qtyVal.toLocaleString("en-IN", { maximumFractionDigits: 2 });
-                                              toast.error(`Insufficient stock for ${part.name}`, {
-                                                description: `Only ${formatted} ${selected} available in ${viewingLabel || "branch"}`
-                                              });
-                                              return;
-                                            }
+                                          className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+                                          onClick={() => cartItem && resetToCatalogPrice(cartItem)}
+                                        >
+                                          Reset
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {units.length > 1 && (
+                                    <Select
+                                      value={selected}
+                                      onValueChange={(unit) =>
+                                        setCatalogueUnits((prev) => ({ ...prev, [part.id]: unit }))
+                                      }
+                                    >
+                                      <SelectTrigger className="h-7 w-[4.5rem] text-[11px] px-1.5 focus:ring-0">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {units.map((u) => (
+                                          <SelectItem key={u} value={u} className="text-xs">
+                                            {u}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                  {cartItem ? (
+                                    <div className="flex items-center gap-1.5 border rounded-md px-1 py-0.5 bg-card">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0"
+                                        onClick={() => {
+                                          if (cartItem.quantity === 1) {
+                                            setCart(cart.filter((l) => !(l.partId === part.id && l.unit === selected)));
+                                            if (editingPriceKey === itemKey) setEditingPriceKey(null);
+                                          } else {
                                             setCart(
                                               cart.map((l) =>
                                                 l.partId === part.id && l.unit === selected
-                                                  ? { ...l, quantity: l.quantity + 1 }
+                                                  ? { ...l, quantity: l.quantity - 1 }
                                                   : l
                                               )
                                             );
-                                          }}
-                                        >
-                                          <Plus className="h-2.5 w-2.5" />
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-                                          title="Edit unit price"
-                                          onClick={() => {
-                                            setPriceDraft(String(cartItem.unitPrice));
-                                            setEditingPriceKey(`${cartItem.partId}-${cartItem.unit}`);
-                                          }}
-                                        >
-                                          <Pencil className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                    );
-                                  }
-                                  return (
+                                          }
+                                        }}
+                                      >
+                                        <Minus className="h-2.5 w-2.5" />
+                                      </Button>
+                                      <span className="w-6 text-center text-xs font-semibold tabular-nums">
+                                        {cartItem.quantity}
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0"
+                                        onClick={() => {
+                                          const nextQty = cartItem.quantity + 1;
+                                          if (!checkBranchStockAvailable(part, nextQty, selected)) {
+                                            const canonical = getBranchCanonicalQty(branchStocks, part, branchId);
+                                            const qtyVal = canonicalSecondaryToUnitQty(part, canonical, selected);
+                                            const formatted = Number.isInteger(qtyVal) ? qtyVal.toLocaleString("en-IN") : qtyVal.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+                                            toast.error(`Insufficient stock for ${part.name}`, {
+                                              description: `Only ${formatted} ${selected} available in ${viewingLabel || "branch"}`
+                                            });
+                                            return;
+                                          }
+                                          setCart(
+                                            cart.map((l) =>
+                                              l.partId === part.id && l.unit === selected
+                                                ? { ...l, quantity: l.quantity + 1 }
+                                                : l
+                                            )
+                                          );
+                                        }}
+                                      >
+                                        <Plus className="h-2.5 w-2.5" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                                        title="Edit unit price"
+                                        onClick={() => startEditingPrice(cartItem)}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => addPartToCart(part.id, selected)}
+                                      >
+                                        Add
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 px-2 text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                                        title="Add with custom price"
+                                        onClick={() => selectPartAndEditPrice(part, selected)}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                        <span>Custom Price</span>
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                {isEditingThis && cartItem ? (
+                                  <div className="w-full pt-1.5 border-t border-border/40 flex items-center justify-end gap-1.5">
+                                    <Label className="text-[11px] text-muted-foreground shrink-0">Custom price (₹/{selected})</Label>
+                                    <Input
+                                      type="text"
+                                      inputMode="decimal"
+                                      className="h-7 w-24 text-xs tabular-nums text-right bg-background"
+                                      value={priceDraft}
+                                      autoFocus
+                                      placeholder="0"
+                                      onChange={(e) => setPriceDraft(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          commitCustomPrice(cartItem);
+                                        }
+                                        if (e.key === "Escape") {
+                                          e.preventDefault();
+                                          setEditingPriceKey(null);
+                                        }
+                                      }}
+                                    />
                                     <Button
                                       type="button"
                                       size="sm"
-                                      variant="outline"
-                                      onClick={() => addPartToCart(part.id, selected)}
+                                      className="h-7 text-xs px-2.5 shrink-0"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => commitCustomPrice(cartItem)}
                                     >
-                                      Add
+                                      Save
                                     </Button>
-                                  );
-                                })()}
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground shrink-0"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => setEditingPriceKey(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                ) : null}
                               </div>
                             );
                           })()}
@@ -718,7 +838,16 @@ export default function CounterSalePage() {
             <CardHeader className="px-5 py-4 pb-0 flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Cart ({cart.length} items)</CardTitle>
               {cart.length > 0 ? (
-                <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setCart([])}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => {
+                    setCart([]);
+                    setEditingPriceKey(null);
+                  }}
+                >
                   Clear
                 </Button>
               ) : null}
@@ -742,7 +871,12 @@ export default function CounterSalePage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                          onClick={() => setCart(cart.filter((l) => !(l.partId === line.partId && l.unit === line.unit)))}
+                          onClick={() => {
+                            setCart(cart.filter((l) => !(l.partId === line.partId && l.unit === line.unit)));
+                            if (editingPriceKey === `${line.partId}-${line.unit}`) {
+                              setEditingPriceKey(null);
+                            }
+                          }}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -759,45 +893,78 @@ export default function CounterSalePage() {
                       {(() => {
                         const key = `${line.partId}-${line.unit}`;
                         const part = parts.find((p) => p.id === line.partId);
-                        const catalogPrice = part ? getUnitPrice(part, line.unit) : line.unitPrice;
+                        const catalogPrice = line.catalogPrice ?? (part ? getUnitPrice(part, line.unit) : line.unitPrice);
                         const isCustom = Math.abs(line.unitPrice - catalogPrice) > 0.005;
                         if (editingPriceKey === key) {
                           return (
-                            <div className="flex items-center gap-2 pt-0.5">
-                              <Label className="text-[11px] text-muted-foreground shrink-0">Unit price (₹)</Label>
+                            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                              <Label className="text-[11px] text-muted-foreground shrink-0">₹/{line.unit}</Label>
                               <Input
                                 type="text"
                                 inputMode="decimal"
-                                className="h-7 w-24 text-xs tabular-nums"
+                                className="h-7 w-20 text-xs tabular-nums text-right"
                                 value={priceDraft}
                                 autoFocus
                                 onChange={(e) => setPriceDraft(e.target.value)}
                                 onKeyDown={(e) => {
-                                  if (e.key === "Enter") { e.preventDefault(); commitCustomPrice(line); }
-                                  if (e.key === "Escape") { e.preventDefault(); setEditingPriceKey(null); }
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    commitCustomPrice(line);
+                                  }
+                                  if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    setEditingPriceKey(null);
+                                  }
                                 }}
-                                onBlur={() => commitCustomPrice(line)}
                               />
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-7 text-xs px-2 shrink-0"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => commitCustomPrice(line)}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs px-1.5 text-muted-foreground hover:text-foreground shrink-0"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => setEditingPriceKey(null)}
+                              >
+                                Cancel
+                              </Button>
                             </div>
                           );
                         }
                         return (
-                          <div className="flex items-center gap-1.5 pt-0.5">
+                          <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
                             <span className="text-xs text-muted-foreground">
                               Unit: <span className="text-foreground tabular-nums">{formatCurrency(line.unitPrice)}</span>
                             </span>
                             {isCustom && (
-                              <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1 rounded">custom</span>
+                              <>
+                                <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded">
+                                  custom
+                                </span>
+                                <button
+                                  type="button"
+                                  className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+                                  onClick={() => resetToCatalogPrice(line)}
+                                >
+                                  Reset
+                                </button>
+                              </>
                             )}
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-5 w-5 text-muted-foreground"
-                              onClick={() => {
-                                setPriceDraft(String(line.unitPrice));
-                                setEditingPriceKey(key);
-                              }}
+                              className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                              title="Edit custom price"
+                              onClick={() => startEditingPrice(line)}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>

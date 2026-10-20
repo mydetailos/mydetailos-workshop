@@ -154,6 +154,7 @@ describe("buildInvoiceFromJobCard", () => {
     expect(invoice.couponCode).toBe("SAVE10");
     expect(invoice.grandTotal).toBe(31500);
     expect(invoice.lineItems).toHaveLength(1);
+    expect(invoice.lineItems[0]?.description).toBe("Full Body PPF");
     expect(invoice.lineItems[0]?.total).toBe(35000);
   });
 });

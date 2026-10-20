@@ -416,5 +416,32 @@ describe("buildTaxInvoicePrintHtml organization branding & logo", () => {
     expect(html).toContain("Voucher Discount (SAVE10):");
     expect(html).toContain("- ₹3,500");
   });
+
+  it("strips (excl. GST) from service description in rendered invoice HTML", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...testOpts,
+        invoice: {
+          ...testOpts.invoice,
+          lineItems: [
+            {
+              id: "li-hes-1",
+              description: "Interior Detailing (excl. GST)",
+              type: "SERVICE",
+              quantity: 1,
+              unitPrice: 10000,
+              total: 10000,
+            },
+          ],
+        },
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).toContain("Interior Detailing");
+    expect(html).not.toContain("Interior Detailing (excl. GST)");
+  });
 });
+
 

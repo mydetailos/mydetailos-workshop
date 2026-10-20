@@ -1,4 +1,13 @@
 import type { JobCard, JobCardStatus } from "@/types";
+import {
+  buildBeforePhotosReadyWhatsAppMessage,
+  buildJobReadyForPickupWhatsAppMessage,
+  buildJobDeliveredWhatsAppMessage,
+  buildJobCardCustomerWhatsAppMessage,
+  buildInvoiceWhatsAppMessage,
+  getJobCardServiceNames,
+} from "@/lib/whatsapp-customer-messages";
+import { buildBookingWhatsAppMessageCompact } from "@/lib/booking-confirmation-message";
 
 export type JobCardWhatsAppTemplateId =
   | "booking_confirmed"
@@ -67,7 +76,7 @@ function firstName(full: string): string {
 }
 
 function serviceSummary(job: JobCard): string {
-  const names = job.services.map((s) => s.name).filter(Boolean);
+  const names: string[] = getJobCardServiceNames(job);
   if (names.length === 0) return "";
   if (names.length <= 3) return names.join(", ");
   return `${names.slice(0, 3).join(", ")} (+${names.length - 3} more)`;
@@ -93,9 +102,6 @@ export function buildJobCardTemplateMessage(
   job: JobCard,
   opts: BuildJobCardTemplateMessageOpts
 ): string {
-  const { buildBeforePhotosReadyWhatsAppMessage, buildJobReadyForPickupWhatsAppMessage, buildJobDeliveredWhatsAppMessage, buildJobCardCustomerWhatsAppMessage, buildInvoiceWhatsAppMessage } = require("@/lib/whatsapp-customer-messages");
-  const { buildBookingWhatsAppMessageCompact } = require("@/lib/booking-confirmation-message");
-  
   const bizName = opts.businessName.trim() || "MY DETAIL OS";
 
   switch (templateId) {
@@ -112,7 +118,7 @@ export function buildJobCardTemplateMessage(
           vehicleId: job.vehicleId,
           vehicleRegNumber: job.vehicleRegNumber,
           vehicleMakeModel: job.vehicleMakeModel,
-          serviceType: job.services.map((s: any) => s.name).filter(Boolean).join(" + ") || "Service",
+          serviceType: getJobCardServiceNames(job).join(" + ") || "Service",
           date: job.createdAt,
           time: "00:00",
           status: "CONFIRMED",

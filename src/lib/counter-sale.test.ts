@@ -53,6 +53,45 @@ describe("counter sale totals and status", () => {
     expect(invoiceOutstanding(inv)).toBe(700);
     expect(inv.status).toBe("PARTIALLY_PAID");
   });
+
+  it("handles custom unit prices and maps isCustomPrice onto invoice line items", () => {
+    const customLine = {
+      partId: "p-custom",
+      name: "Detailing Polish 250ml",
+      sku: "DP-250",
+      quantity: 2,
+      unit: "Bottle",
+      unitPrice: 850,
+      catalogPrice: 1000,
+      customUnitPrice: 850,
+      isCustomPrice: true,
+      lineDiscount: 0,
+    };
+    expect(counterSaleLineTotal(customLine)).toBe(1700);
+    expect(counterSaleCartSubtotal([customLine])).toBe(1700);
+
+    const inv = buildCounterSaleInvoice({
+      id: "inv-cs-custom",
+      invoiceNumber: "INV-2026-0200",
+      branchId: "br-1",
+      customerId: "c-1",
+      customerName: "Walk-in VIP",
+      customerPhone: "9876543210",
+      lines: [customLine],
+      discountAmount: 0,
+      taxRate: 0.18,
+      taxAmount: 306,
+      grandTotal: 2006,
+      paidAmount: 2006,
+      paymentMethod: "UPI",
+      createdAt: "2026-08-18T12:00:00.000Z",
+    });
+
+    expect(inv.lineItems[0]!.unitPrice).toBe(850);
+    expect(inv.lineItems[0]!.total).toBe(1700);
+    expect(inv.lineItems[0]!.catalogPrice).toBe(1000);
+    expect(inv.lineItems[0]!.isCustomPrice).toBe(true);
+  });
 });
 
 describe("counter sale ledger label", () => {

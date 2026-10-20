@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import type { Appointment, JobCard } from "@/types";
+import { getJobCardServiceNames } from "@/lib/whatsapp-customer-messages";
 
 function buildTermsLine(termsUrl?: string): string {
   const base =
@@ -231,11 +232,7 @@ export function buildJobCardCreationConfirmationMessage(
   input: JobCardCreationConfirmationInput
 ): string {
   const { job } = input;
-  const serviceType =
-    job.services
-      .map((s) => s.name)
-      .filter(Boolean)
-      .join(" + ") || "Service";
+  const serviceType = getJobCardServiceNames(job).join(" + ") || "Service";
   const expectedDeliveryDate =
     job.expectedDelivery && !Number.isNaN(Date.parse(job.expectedDelivery))
       ? format(parseISO(job.expectedDelivery), "yyyy-MM-dd")

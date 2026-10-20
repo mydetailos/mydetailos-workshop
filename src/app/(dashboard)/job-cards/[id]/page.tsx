@@ -164,7 +164,7 @@ import {
   jobNeedsDropOffForm,
   orphanPickupRequestIdForJob,
 } from "@/lib/pickup-drop-flow";
-import { isMembershipPricedLine } from "@/lib/service-line-price";
+import { cleanServiceName, isMembershipPricedLine } from "@/lib/service-line-price";
 import type {
   JobCard,
   JobCardStatus,
@@ -1044,7 +1044,7 @@ export default function JobCardDetailPage() {
       const price = cfg ? highEndPriceForSegment(cfg, jobCard.vehicleSegment) : 0;
       return {
         id: hid,
-        name: cfg?.name ?? "High-End Service",
+        name: cleanServiceName(cfg?.name ?? "High-End Service"),
         price,
         isCompleted: Boolean(highEndChecklistDoneById[hid]),
         durationMinutes: jobCard.highEndCompletionMinutesByServiceId?.[hid],
@@ -2290,7 +2290,7 @@ export default function JobCardDetailPage() {
                         >
                           <div className="min-w-0">
                             <p className={cn("font-medium leading-tight", item.isCompleted && "line-through text-muted-foreground")}>
-                              {item.name}
+                              {cleanServiceName(item.name)}
                             </p>
                             {item.durationMinutes != null && (
                               <p className="text-xs text-muted-foreground mt-0.5 font-mono">
@@ -2323,7 +2323,7 @@ export default function JobCardDetailPage() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className={cn("font-medium leading-tight", item.isCompleted && "line-through text-muted-foreground")}>
-                                {item.name}
+                                {cleanServiceName(item.name)}
                               </p>
                               <Badge
                                 variant="secondary"
@@ -2628,7 +2628,7 @@ export default function JobCardDetailPage() {
                   className="flex flex-col lg:flex-row lg:items-end gap-3 p-3 rounded-lg border bg-muted/30"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium">{cfg.name}</p>
+                    <p className="font-medium">{cleanServiceName(cfg.name)}</p>
                     {hasReminders ? (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Schedule:{" "}

@@ -32,6 +32,34 @@ vi.mock("@/components/ui/select", () => ({
 vi.mock("@/store/auth-store", () => ({ useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { id: "u1", name: "Inspector", role: "ADMIN", branchId: "b1" } }) }));
 vi.mock("@/store/customer-store", () => ({ useCustomerStore: (selector: (state: unknown) => unknown) => selector({ customers: [{ id: "c1", name: "Amar", phone: "919999999999", email: "amar@example.com" }, { id: "c2", name: "Ansh", phone: "918888888888", email: "ansh@example.com" }] }) }));
 vi.mock("@/store/vehicle-store", () => ({ fetchCustomerVehicles: mocks.customerVehicles, useVehicleStore: (selector: (state: unknown) => unknown) => selector({ vehicles: [{ id: "v1", customerId: "c1", registrationNumber: "KA01AB1234", make: "Honda", model: "City", year: 2023, fuelType: "PETROL" }] }) }));
+vi.mock("@/components/customers/add-customer-dialog", () => ({
+  AddCustomerDialog: ({
+    open,
+    onCreated,
+    onOpenChange,
+  }: {
+    open: boolean;
+    onCreated?: (customer: unknown) => void;
+    onOpenChange: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Add new customer dialog">
+        <button
+          onClick={() => {
+            onCreated?.({
+              id: "c-new",
+              name: "Pooja Sharma",
+              phone: "9876543210",
+              email: "pooja@example.com",
+            });
+            onOpenChange(false);
+          }}
+        >
+          Create customer
+        </button>
+      </div>
+    ) : null,
+}));
 vi.mock("@/components/vehicles/add-vehicle-dialog", () => ({ AddVehicleDialog: ({ open, lockedCustomerId, onCreated, onOpenChange }: { open: boolean; lockedCustomerId: string; onCreated: (vehicle: unknown) => void; onOpenChange: (open: boolean) => void }) => open ? <div role="dialog" aria-label="Add customer vehicle"><span>Locked customer: {lockedCustomerId}</span><button onClick={() => { onCreated({ id: "new-v1", customerId: lockedCustomerId, registrationNumber: "KA02XY5678", make: "Toyota", model: "Glanza", year: 2025, fuelType: "PETROL", odometer: 250 }); onOpenChange(false); }}>Create linked vehicle</button></div> : null }));
 vi.mock("@/store/branch-store", () => ({ useBranchStore: (selector: (state: unknown) => unknown) => selector({ branches: [{ id: "b1", name: "Main", isActive: true }] }) }));
 vi.mock("@/store/settings-store", () => ({ useSettingsStore: () => ({ businessName: "Studio", businessAddress: "", businessPhone: "", brandPrimary: "#14B8A6" }) }));
@@ -241,6 +269,23 @@ describe("inspection workflow", () => {
     expect(vehicle).toHaveValue("new-v1");
     expect(screen.getByLabelText("Odometer (km)")).toHaveValue(250);
     expect(screen.queryByText("No vehicles linked to this customer.")).not.toBeInTheDocument();
+  });
+
+  it("opens add customer dialog and auto-selects newly created customer in the draft", async () => {
+    mocks.customerVehicles.mockResolvedValue([]);
+    render(<InspectionEditor />);
+    fireEvent.click(screen.getByRole("button", { name: "Add customer" }));
+    expect(screen.getByRole("dialog", { name: "Add new customer dialog" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create customer" }));
+    expect(screen.queryByRole("dialog", { name: "Add new customer dialog" })).not.toBeInTheDocument();
+    expect(mocks.success).toHaveBeenCalledWith(
+      expect.stringContaining("Customer Pooja Sharma selected"),
+      expect.objectContaining({
+        description: expect.stringContaining("You can now select or add their vehicle"),
+        action: expect.objectContaining({ label: "Add Vehicle" }),
+      })
+    );
+    await waitFor(() => expect(mocks.customerVehicles).toHaveBeenCalledWith("c-new"));
   });
 
   it("does not show a failed fetch as a customer with no vehicles", async () => {

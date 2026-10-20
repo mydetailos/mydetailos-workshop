@@ -22,6 +22,7 @@ import {
   buildQuotationConvertedWhatsAppMessage,
   buildMembershipWelcomeWhatsAppMessage,
   buildHighEndAdvanceReceiptWhatsAppMessage,
+  getJobCardServiceNames,
 } from "@/lib/whatsapp-customer-messages";
 import { executeCustomerWhatsAppAutomation } from "@/lib/whatsapp-automation-flow";
 import { useJobCardStore } from "@/store/job-card-store";
@@ -62,7 +63,7 @@ export function notifyBeforePhotosReadyWhatsApp(
   });
 
   const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
-  const serviceList = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service";
+  const serviceList = getJobCardServiceNames(job).slice(0, 6).join(", ") || "General Service";
 
   const template = TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED
     ? {
@@ -119,7 +120,7 @@ export function notifyJobReadyWhatsApp(job: JobCard, businessName: string): void
   }
 
   const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
-  const serviceList = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "Completed Services";
+  const serviceList = getJobCardServiceNames(job).slice(0, 6).join(", ") || "Completed Services";
 
   const template = TWILIO_TEMPLATE_SIDS.JOB_CARD_READY
     ? {

@@ -50,6 +50,7 @@ export function buildAppointmentConfirmedMessage(apt: Appointment, businessName:
     `Your appointment has been confirmed.`,
     ``,
     `Appointment ID: ${id}`,
+    ...(apt.serviceType?.trim() ? [`Service: ${apt.serviceType.trim()}`] : []),
     `Date: ${formatDisplayDate(apt.date)}`,
     `Time: ${formatDisplayTime(apt.time)}`,
     ``,

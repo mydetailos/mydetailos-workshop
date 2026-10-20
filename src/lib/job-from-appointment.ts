@@ -9,6 +9,7 @@ import type {
   Vehicle,
   VehicleSegment,
 } from "@/types";
+import { useHighEndServiceStore } from "@/store/high-end-service-store";
 
 export function resolveJobBranchId(
   currentBranch: Branch | null | undefined,
@@ -101,6 +102,17 @@ export function buildJobCardFromAppointment(params: {
   const notesParts = [apt.notes?.trim(), apt.deliveryExpectationNote?.trim()].filter(Boolean);
   const combinedNotes = notesParts.length ? notesParts.join("\n") : undefined;
 
+  const hesCatalog = useHighEndServiceStore.getState().services;
+  const aptServiceLower = apt.serviceType.toLowerCase().trim();
+  const matchingHes = aptServiceLower
+    ? hesCatalog.filter(
+        (hes) =>
+          aptServiceLower.includes(hes.name.toLowerCase()) ||
+          hes.name.toLowerCase().includes(aptServiceLower)
+      )
+    : [];
+  const highEndServiceIds = matchingHes.length > 0 ? matchingHes.map((h) => h.id) : undefined;
+
   return {
     id: jobId,
     jobNumber,
@@ -119,6 +131,7 @@ export function buildJobCardFromAppointment(params: {
     reportedIssues: `From ${getAppointmentDisplayId(apt)} · ${apt.date} ${apt.time}`,
     expectedDelivery,
     services: [serviceItem],
+    highEndServiceIds,
     estimatedAmount: estimatedAmount || linePrice,
     incentivePercent,
     incentiveAmount,

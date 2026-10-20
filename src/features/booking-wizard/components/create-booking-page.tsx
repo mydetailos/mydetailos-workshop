@@ -2005,8 +2005,10 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       const aptTime = format(when, "HH:mm");
       const bookingId = getNextBookingId(useAppointmentStore.getState().appointments);
       const aptId = `apt-${Date.now()}`;
-      const serviceTypeLabel =
-        serviceItems.map((s) => s.name).join(" + ") || "Service";
+      const highEndNames = highEndSummaryLines.map((l) => l.name);
+      const catalogNames = serviceItems.map((s) => s.name);
+      const combinedServiceNames = [...catalogNames, ...highEndNames];
+      const serviceTypeLabel = combinedServiceNames.join(" + ") || "Service";
       const expectedDelDate =
         expectedDeliveryIso && !Number.isNaN(new Date(expectedDeliveryIso).getTime())
           ? format(new Date(expectedDeliveryIso), "yyyy-MM-dd")
@@ -2385,6 +2387,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
   const addonLabels = selectedCatalogItems
     .filter((s) => selectedAddonIds.includes(s.id))
     .map((s) => s.name);
+  const highEndLabels = highEndSummaryLines.map((l) => l.name);
+  const allPrimaryServiceLabels = [...mainLabels, ...highEndLabels];
 
   const wizardSteps = useMemo((): JobWizardStepId[] => {
     const s: JobWizardStepId[] = [
@@ -2418,7 +2422,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
 
   const wizardSelectionSummary = useMemo(() => {
     const parts: string[] = [];
-    const svcCount = selectedMainIds.length;
+    const svcCount = selectedMainIds.length + selectedHighEndIds.length;
     if (svcCount > 0) parts.push(`${svcCount} Service${svcCount !== 1 ? "s" : ""}`);
     if (selectedPartLines.length > 0) {
       parts.push(`${selectedPartLines.length} Part${selectedPartLines.length !== 1 ? "s" : ""}`);
@@ -2427,7 +2431,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       parts.push(`${selectedAddonIds.length} Add-on${selectedAddonIds.length !== 1 ? "s" : ""}`);
     }
     return parts.join(" • ");
-  }, [selectedMainIds.length, selectedPartLines.length, selectedAddonIds.length]);
+  }, [selectedMainIds.length, selectedHighEndIds.length, selectedPartLines.length, selectedAddonIds.length]);
 
   const filteredMechanics = useMemo(() => {
     const q = mechanicSearch.trim().toLowerCase();
@@ -2704,17 +2708,23 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-xs"
-              onClick={() => goToJobWizardStep("serviceSelection")}
+              onClick={() => goToJobWizardStep(highEndSummaryLines.length > 0 && !mainLabels.length ? "highEndServices" : "serviceSelection")}
             >
               <Pencil className="mr-1 h-3 w-3" />
               Edit
             </Button>
           </div>
-          <p>{mainLabels.length ? mainLabels.join(", ") : "None selected"}</p>
-          {addonLabels.length > 0 && (
+          <p className="font-medium text-foreground">
+            {allPrimaryServiceLabels.length
+              ? allPrimaryServiceLabels.join(", ")
+              : addonLabels.length
+              ? addonLabels.join(", ")
+              : "None selected"}
+          </p>
+          {addonLabels.length > 0 && allPrimaryServiceLabels.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">Add-ons: {addonLabels.join(", ")}</p>
           )}
-          {highEndSummaryLines.length > 0 && (
+          {highEndSummaryLines.length > 0 && mainLabels.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
               High-end: {highEndSummaryLines.map((l) => l.name).join(", ")}
             </p>
@@ -2864,10 +2874,14 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
           <div className="flex justify-between gap-2 align-start">
             <dt className="text-muted-foreground shrink-0">Service(s)</dt>
             <dd className="text-right text-xs">
-              {mainLabels.length ? mainLabels.join(", ") : "Not selected"}
+              {allPrimaryServiceLabels.length
+                ? allPrimaryServiceLabels.join(", ")
+                : addonLabels.length
+                ? addonLabels.join(", ")
+                : "Not selected"}
             </dd>
           </div>
-          {addonLabels.length > 0 && (
+          {addonLabels.length > 0 && allPrimaryServiceLabels.length > 0 && (
             <div className="flex justify-between gap-2 align-start">
               <dt className="text-muted-foreground shrink-0">Add-ons</dt>
               <dd className="text-right text-xs">{addonLabels.join(", ")}</dd>

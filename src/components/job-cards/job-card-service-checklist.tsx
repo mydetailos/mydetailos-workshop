@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
-import { isMembershipPricedLine } from "@/lib/service-line-price";
+import { cleanServiceName, isMembershipPricedLine } from "@/lib/service-line-price";
 import type { ServiceItem } from "@/types";
 
 export type MembershipUsageInfo = {
@@ -81,7 +81,7 @@ export function JobCardServiceChecklist({
                       item.isCompleted ? "line-through text-muted-foreground" : ""
                     }`}
                   >
-                    {item.name}
+                    {cleanServiceName(item.name)}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {new Intl.NumberFormat("en-IN", {
@@ -146,7 +146,7 @@ export function JobCardServiceChecklist({
                             item.isCompleted ? "line-through text-muted-foreground" : ""
                           }`}
                         >
-                          {item.name}
+                          {cleanServiceName(item.name)}
                         </p>
                         <Badge
                           variant="secondary"

@@ -106,6 +106,7 @@ export interface InspectionSendLog {
   sentAt: string;
   sentBy: string;
   error?: string;
+  providerError?: string | null;
 }
 
 export interface InspectionTemplate {
