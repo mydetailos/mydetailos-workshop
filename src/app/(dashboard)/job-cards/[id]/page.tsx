@@ -34,6 +34,8 @@ import {
   Plus,
   Pencil,
   Truck,
+  Ticket,
+  Wrench,
 } from "lucide-react";
 import { TimerControlsBufferCard } from "@/components/job-cards/timer-controls-buffer-card";
 import { ServiceTimerDeliverySummary } from "@/components/job-cards/service-timer-delivery-summary";
@@ -853,6 +855,7 @@ export default function JobCardDetailPage() {
     setServiceItems(
       Array.isArray(jobCard.services) ? jobCard.services.map((s) => ({ ...s })) : []
     );
+    setHighEndChecklistDoneById(jobCard.highEndServiceCompletedById ?? {});
     setCurrentMechanicId(jobCard.mechanicId);
     setCurrentMechanicName(jobCard.mechanicName);
     setSwitchLog(jobCard.mechanicSwitchLog ?? []);
@@ -1034,8 +1037,35 @@ export default function JobCardDetailPage() {
     ? "Assign a mechanic before moving to In Service"
     : undefined;
 
-  const completedCount = serviceItems.filter((s) => s.isCompleted).length;
-  const totalCount = serviceItems.length;
+  const highEndChecklistItems = useMemo(() => {
+    if (!jobCard?.highEndServiceIds || jobCard.highEndServiceIds.length === 0) return [];
+    return jobCard.highEndServiceIds.map((hid) => {
+      const cfg = highEndServiceConfigs.find((x) => x.id === hid);
+      const price = cfg ? highEndPriceForSegment(cfg, jobCard.vehicleSegment) : 0;
+      return {
+        id: hid,
+        name: cfg?.name ?? "High-End Service",
+        price,
+        isCompleted: Boolean(highEndChecklistDoneById[hid]),
+        durationMinutes: jobCard.highEndCompletionMinutesByServiceId?.[hid],
+      };
+    });
+  }, [
+    jobCard?.highEndServiceIds,
+    jobCard?.vehicleSegment,
+    jobCard?.highEndCompletionMinutesByServiceId,
+    highEndServiceConfigs,
+    highEndChecklistDoneById,
+  ]);
+
+  const highEndTotalCount = jobCard?.highEndServiceIds?.length ?? 0;
+  const highEndCompletedCount = (jobCard?.highEndServiceIds ?? []).filter(
+    (id) => Boolean(highEndChecklistDoneById[id])
+  ).length;
+
+  const completedCount =
+    serviceItems.filter((s) => s.isCompleted).length + highEndCompletedCount;
+  const totalCount = serviceItems.length + highEndTotalCount;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const membershipUsageByCatalogId = useMemo(() => {
@@ -1219,8 +1249,28 @@ export default function JobCardDetailPage() {
     );
   };
 
+  const toggleHighEndComplete = (hesId: string) => {
+    if (!jobCard) return;
+    if (!jobCardIsEditable({ status: currentStatus })) {
+      toast.error("This job card can no longer be edited");
+      return;
+    }
+    const currentVal = Boolean(highEndChecklistDoneById[hesId]);
+    const nextVal = !currentVal;
+    const nextMap = {
+      ...highEndChecklistDoneById,
+      [hesId]: nextVal,
+    };
+    setHighEndChecklistDoneById(nextMap);
+    const nowIso = new Date().toISOString();
+    updateJobCard(jobCard.id, {
+      highEndServiceCompletedById: nextMap,
+      updatedAt: nowIso,
+    });
+  };
+
   const setAllServicesComplete = (completed: boolean) => {
-    if (!jobCard || serviceItems.length === 0) return;
+    if (!jobCard || (serviceItems.length === 0 && (jobCard.highEndServiceIds?.length ?? 0) === 0)) return;
     if (!jobCardIsEditable({ status: currentStatus })) {
       toast.error("This job card can no longer be edited");
       return;
@@ -1234,11 +1284,24 @@ export default function JobCardDetailPage() {
       const rollback = rollbackMembershipForUncompletion(toUncomplete);
       if (!rollback.ok) return;
     }
-    const next = serviceItems.map((s) => ({ ...s, isCompleted: completed }));
+    const nowIso = new Date().toISOString();
+    const byUser = authUser?.id ?? "USR-001";
+    const next = serviceItems.map((s) => ({
+      ...s,
+      isCompleted: completed,
+      completedAt: completed ? nowIso : undefined,
+      completedBy: completed ? byUser : undefined,
+    }));
+    const nextHighEndDone: Record<string, boolean> = {};
+    for (const hid of jobCard.highEndServiceIds ?? []) {
+      nextHighEndDone[hid] = completed;
+    }
     setServiceItems(next);
+    setHighEndChecklistDoneById(nextHighEndDone);
     updateJobCard(jobCard.id, {
       services: next,
-      updatedAt: new Date().toISOString(),
+      highEndServiceCompletedById: nextHighEndDone,
+      updatedAt: nowIso,
     });
   };
 
@@ -2202,6 +2265,117 @@ export default function JobCardDetailPage() {
               <Card className="border-border/80 shadow-sm">
                 <CardHeader className="pb-3 border-b border-border/60 bg-muted/15 flex flex-row items-center justify-between gap-2 space-y-0">
                   <CardTitle className="text-base flex items-center gap-2">
+                    <Wrench className="w-4 h-4 text-muted-foreground" />
+                    Services &amp; Programs
+                  </CardTitle>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs text-primary"
+                    onClick={() => setDetailTab("tasks")}
+                  >
+                    View checklist ({completedCount}/{totalCount})
+                  </Button>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-2">
+                  {serviceItems.length === 0 && highEndChecklistItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No services booked on this job card.</p>
+                  ) : (
+                    <>
+                      {serviceItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <p className={cn("font-medium leading-tight", item.isCompleted && "line-through text-muted-foreground")}>
+                              {item.name}
+                            </p>
+                            {item.durationMinutes != null && (
+                              <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                                Est. {item.durationMinutes} min
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {formatCurrency(item.price)}
+                            </span>
+                            {item.isCompleted ? (
+                              <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                Completed
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                Pending
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {highEndChecklistItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 dark:bg-amber-950/15 px-3 py-2.5 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={cn("font-medium leading-tight", item.isCompleted && "line-through text-muted-foreground")}>
+                                {item.name}
+                              </p>
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] py-0 px-1.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                              >
+                                High-End
+                              </Badge>
+                            </div>
+                            {item.durationMinutes != null && (
+                              <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                                Est. {item.durationMinutes} min
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {formatCurrency(item.price)}
+                            </span>
+                            {item.isCompleted ? (
+                              <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                Completed
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                Pending
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {((jobCard.couponDiscount ?? 0) > 0 || (jobCard.discountAmount ?? 0) > 0) && (
+                        <div className="pt-2 border-t border-border/60 text-xs space-y-1">
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span className="flex items-center gap-1">
+                              <Ticket className="w-3.5 h-3.5" />
+                              Voucher Discount ({jobCard.couponCode || "COUPON"})
+                            </span>
+                            <span className="tabular-nums">
+                              −{formatCurrency(jobCard.couponDiscount ?? jobCard.discountAmount ?? 0)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/80 shadow-sm">
+                <CardHeader className="pb-3 border-b border-border/60 bg-muted/15 flex flex-row items-center justify-between gap-2 space-y-0">
+                  <CardTitle className="text-base flex items-center gap-2">
                     <Package className="w-4 h-4 text-muted-foreground" />
                     Parts &amp; materials
                   </CardTitle>
@@ -2267,12 +2441,14 @@ export default function JobCardDetailPage() {
         <TabsContent value="tasks" className="mt-4 space-y-4 outline-none">
       <JobCardServiceChecklist
         serviceItems={serviceItems}
+        highEndItems={highEndChecklistItems}
         progressPercent={progressPercent}
         completedCount={completedCount}
         totalCount={totalCount}
         canEdit={canEditJobDetails}
         membershipUsageByCatalogId={membershipUsageByCatalogId}
         onToggleComplete={toggleServiceComplete}
+        onToggleHighEndComplete={toggleHighEndComplete}
       />
 
       {jobQualifiesForHighEndAdvance && jobCard.waiveHighEndAdvance && (
@@ -3357,7 +3533,7 @@ export default function JobCardDetailPage() {
           </DialogHeader>
           <div className="px-6 pb-4 min-h-0 flex-1 overflow-y-auto space-y-3">
             <Progress value={progressPercent} className="h-2" />
-            {serviceItems.length === 0 ? (
+            {serviceItems.length === 0 && highEndChecklistItems.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No services on this job card.</p>
             ) : (
               <div className="space-y-2">
@@ -3405,6 +3581,49 @@ export default function JobCardDetailPage() {
                             Included: {membershipUsageByCatalogId.get(item.serviceCatalogId)!.included} · Used: {membershipUsageByCatalogId.get(item.serviceCatalogId)!.used} · Remaining: {membershipUsageByCatalogId.get(item.serviceCatalogId)!.remaining}
                           </p>
                         ) : null}
+                        {item.durationMinutes != null && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Est. {item.durationMinutes} min
+                          </p>
+                        )}
+                      </label>
+                    </div>
+                    {item.isCompleted ? (
+                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 shrink-0">Done</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground shrink-0">Pending</span>
+                    )}
+                  </div>
+                ))}
+                {highEndChecklistItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 dark:bg-amber-950/15 p-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Checkbox
+                        id={`checklist-gate-he-${item.id}`}
+                        checked={item.isCompleted}
+                        disabled={!canEditJobDetails}
+                        onCheckedChange={() => toggleHighEndComplete(item.id)}
+                      />
+                      <label htmlFor={`checklist-gate-he-${item.id}`} className="min-w-0 cursor-pointer select-none">
+                        <div className="flex items-center gap-2">
+                          <p
+                            className={`font-medium text-sm ${item.isCompleted ? "line-through text-muted-foreground" : ""}`}
+                          >
+                            {item.name}
+                          </p>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] py-0 px-1.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                          >
+                            High-End
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          {formatCurrency(item.price)}
+                        </p>
                         {item.durationMinutes != null && (
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Est. {item.durationMinutes} min

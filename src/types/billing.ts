@@ -111,6 +111,12 @@ export interface Invoice {
   taxRate: number;
   taxAmount: number;
   discountAmount: number;
+  /** Applied voucher/coupon code */
+  couponCode?: string;
+  /** Discount amount from applied coupon/voucher */
+  couponDiscount?: number;
+  /** Direct discount amount applied */
+  directDiscount?: number;
   /** INR discount from reward points redemption. */
   rewardDiscount: number;
   /** Points redeemed for `rewardDiscount` (preferred over legacy 1:1 interpretation). */

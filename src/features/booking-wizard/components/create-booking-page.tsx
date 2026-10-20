@@ -129,6 +129,7 @@ import {
   findOfferByCode,
   splitOfferCouponDiscount,
 } from "@/lib/offer-coupon";
+import { ensureDomainResources } from "@/lib/domain-data-loader";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   INDIAN_VEHICLE_REG_HINT,
@@ -584,6 +585,10 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       setBranchId("");
     }
   }, [branchLocked, selectedBranchId]);
+
+  useEffect(() => {
+    void ensureDomainResources(["offers"]);
+  }, []);
 
   useEffect(() => {
     if (!isJobCard) return;
@@ -1354,15 +1359,18 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         serviceAmountsById[s.id] = custom != null ? custom : catalogPrice;
       }
     }
+    for (const line of highEndSummaryLines) {
+      serviceAmountsById[line.id] = line.amount;
+    }
     const partAmountsById: Record<string, number> = {};
     for (const line of selectedPartSummaryLines) {
       partAmountsById[line.id] = line.amount;
     }
     return {
       customerId: existingCustomerId,
-      servicesSubtotal: catalogSubtotalExclGst,
+      servicesSubtotal: catalogSubtotalExclGst + highEndSubtotalExclGst,
       partsSubtotal: partsSubtotalExclGst,
-      selectedServiceIds: [...selectedMainIds, ...selectedAddonIds],
+      selectedServiceIds: [...selectedMainIds, ...selectedAddonIds, ...selectedHighEndIds],
       selectedPartIds: selectedPartLines.map((l) => l.partId),
       serviceAmountsById,
       partAmountsById,
@@ -1372,11 +1380,14 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     selectedCatalogItems,
     selectedMainIds,
     selectedAddonIds,
+    selectedHighEndIds,
+    highEndSummaryLines,
     membershipMainServiceZeroIds,
     customPriceByServiceId,
     selectedPartSummaryLines,
     existingCustomerId,
     catalogSubtotalExclGst,
+    highEndSubtotalExclGst,
     partsSubtotalExclGst,
     selectedPartLines,
   ]);
@@ -1389,7 +1400,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       return result.ok ? result.amount : 0;
     }
     if (appliedCouponCode === "WELCOME10") {
-      return Math.round(catalogSubtotalExclGst * 0.1 * 100) / 100;
+      return Math.round((catalogSubtotalExclGst + highEndSubtotalExclGst) * 0.1 * 100) / 100;
     }
     return 0;
   }, [
@@ -1398,6 +1409,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     offers,
     couponEvalContext,
     catalogSubtotalExclGst,
+    highEndSubtotalExclGst,
   ]);
 
   const couponDiscountSplit = useMemo(() => {
@@ -1424,12 +1436,13 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     if (val === "") return 0;
     const num = parseFloat(val);
     if (isNaN(num) || num <= 0) return 0;
+    const discountableBase = catalogSubtotalExclGst + highEndSubtotalExclGst;
     if (directDiscountType === "percentage") {
-      return Math.round(catalogSubtotalExclGst * (num / 100) * 100) / 100;
+      return Math.round(discountableBase * (num / 100) * 100) / 100;
     } else {
-      return Math.min(num, catalogSubtotalExclGst);
+      return Math.min(num, discountableBase);
     }
-  }, [directDiscountType, directDiscountValue, catalogSubtotalExclGst]);
+  }, [directDiscountType, directDiscountValue, catalogSubtotalExclGst, highEndSubtotalExclGst]);
 
   const totalDiscount = useMemo(() => {
     return Math.round((discountAmount + directDiscountAmount) * 100) / 100;
@@ -1441,6 +1454,23 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     if (!pkg) return 0;
     return Math.round((pkg.price ?? 0) * 100) / 100;
   }, [wizardMembershipPackageId, membershipPackagesAll]);
+
+  const grossSubtotalExclGst = useMemo(() => {
+    return (
+      Math.round(
+        (catalogSubtotalExclGst +
+          highEndSubtotalExclGst +
+          partsSubtotalExclGst +
+          membershipActivationPreviewAmount) *
+          100
+      ) / 100
+    );
+  }, [
+    catalogSubtotalExclGst,
+    highEndSubtotalExclGst,
+    partsSubtotalExclGst,
+    membershipActivationPreviewAmount,
+  ]);
 
   /** Catalog after coupon + high-end program amounts + parts (all excl. GST). */
   const afterDiscount = Math.max(
@@ -1502,13 +1532,18 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     });
   };
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     const code = couponCode.trim().toUpperCase();
     if (!code) {
       toast.error("Enter a coupon code");
       return;
     }
-    const offer = findOfferByCode(offers, code);
+    let currentOffers = offers;
+    if (currentOffers.length === 0) {
+      await ensureDomainResources(["offers"]);
+      currentOffers = useOfferStore.getState().offers;
+    }
+    const offer = findOfferByCode(currentOffers, code);
     if (offer) {
       const result = computeOfferCouponDiscount(offer, couponEvalContext);
       if (!result.ok) {
@@ -1838,27 +1873,10 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         };
       }
       const custom = customPriceByServiceId[s.id];
-      const base =
-        custom != null
-          ? withCustomPrice(catalogPrice, custom).price
-          : catalogPrice;
-      const serviceCoupon = couponDiscountSplit.services;
-      const share =
-        catalogSubtotalExclGst > 0
-          ? base / catalogSubtotalExclGst
-          : 1 / selectedCatalogItems.length;
-      const discounted =
-        Math.round((base - serviceCoupon * share + Number.EPSILON) * 100) / 100;
       const priced =
         custom != null
-          ? {
-              ...withCustomPrice(catalogPrice, custom),
-              price: Math.max(0, discounted),
-            }
-          : {
-              ...withCatalogPrice(catalogPrice),
-              price: Math.max(0, discounted),
-            };
+          ? withCustomPrice(catalogPrice, custom)
+          : withCatalogPrice(catalogPrice);
       return {
         id: `si-${id}-${s.id}`,
         jobCardId: id,
@@ -1870,37 +1888,11 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       };
     });
 
-    let jobCardPartItems: JobCardPartItem[] = isJobCard
+    const jobCardPartItems: JobCardPartItem[] = isJobCard
       ? buildJobCardPartItems(id, selectedPartLines, inventoryParts)
       : [];
-    const partsCoupon = couponDiscountSplit.parts;
-    if (partsCoupon > 0 && jobCardPartItems.length > 0) {
-      const partsTotal = jobCardPartsSubtotal(jobCardPartItems);
-      if (partsTotal > 0) {
-        jobCardPartItems = jobCardPartItems.map((item) => {
-          const share = item.lineTotal / partsTotal;
-          const nextTotal =
-            Math.round((item.lineTotal - partsCoupon * share + Number.EPSILON) * 100) / 100;
-          const nextUnit =
-            item.quantity > 0
-              ? Math.round((Math.max(0, nextTotal) / item.quantity) * 100) / 100
-              : item.unitPrice;
-          return {
-            ...item,
-            lineTotal: Math.max(0, nextTotal),
-            unitPrice: nextUnit,
-            isCustomPrice: true,
-            priceSource: "CUSTOM" as const,
-          };
-        });
-      }
-    }
 
-    const estimatedAmount =
-      serviceItems.reduce((s, x) => s + x.price, 0) +
-      highEndSubtotalExclGst +
-      (isJobCard ? jobCardPartsSubtotal(jobCardPartItems) : 0) +
-      (activatedMembershipMeta?.amount ?? 0);
+    const estimatedAmount = Math.max(0, afterDiscount);
     const customIncRaw = mechanicIncentivePercentOverride.trim();
     let incentivePercentFinal = catalogAvgIncentivePercent;
     if (customIncRaw !== "") {
@@ -2141,6 +2133,10 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       membershipActivationStartDate: activatedMembershipMeta?.startDate,
       membershipActivationEndDate: activatedMembershipMeta?.endDate,
       ...advanceAmountPatch,
+      couponCode: couponApplied && appliedCouponCode ? appliedCouponCode : undefined,
+      couponDiscount: couponApplied && discountAmount > 0 ? discountAmount : undefined,
+      directDiscount: directDiscountAmount > 0 ? directDiscountAmount : undefined,
+      discountAmount: totalDiscount > 0 ? totalDiscount : undefined,
       createdBy: user?.id ?? "USR-001",
       createdAt: now,
       updatedAt: now,
@@ -3017,12 +3013,42 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
         )}
         <Separator className={cn(compactJobCardDesktop ? "my-1" : "my-2")} />
         <div className={cn("space-y-1 text-sm", compactJobCardDesktop && "space-y-0.5 text-[11px]")}>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">
-              {isGstRegistered ? "Subtotal (excl. GST)" : "Subtotal"}
-            </span>
-            <span className="tabular-nums">{formatCurrency(afterDiscount)}</span>
-          </div>
+          {totalDiscount > 0 ? (
+            <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  {isGstRegistered ? "Subtotal (Gross, excl. GST)" : "Subtotal (Gross)"}
+                </span>
+                <span className="tabular-nums">{formatCurrency(grossSubtotalExclGst)}</span>
+              </div>
+              {couponApplied && appliedCouponCode && discountAmount > 0 ? (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="flex items-center gap-1">
+                    <Ticket className="w-3.5 h-3.5" />
+                    Voucher Discount ({appliedCouponCode})
+                  </span>
+                  <span className="tabular-nums">−{formatCurrency(discountAmount)}</span>
+                </div>
+              ) : null}
+              {directDiscountAmount > 0 ? (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                  <span>Direct Discount</span>
+                  <span className="tabular-nums">−{formatCurrency(directDiscountAmount)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between font-medium text-foreground border-t border-border/40 pt-0.5">
+                <span>Net Subtotal (excl. GST)</span>
+                <span className="tabular-nums">{formatCurrency(afterDiscount)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                {isGstRegistered ? "Subtotal (excl. GST)" : "Subtotal"}
+              </span>
+              <span className="tabular-nums">{formatCurrency(afterDiscount)}</span>
+            </div>
+          )}
           {membershipActivationPreviewAmount > 0 ? (
             <div className="flex justify-between text-violet-700 dark:text-violet-400">
               <span>Membership in subtotal</span>

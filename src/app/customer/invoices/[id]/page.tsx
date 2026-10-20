@@ -325,20 +325,20 @@ export default function InvoiceDetailPage() {
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatCurrency(invoice.subtotal || 0)}</span>
           </div>
-          {(invoice.taxAmount || 0) > 0 && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">GST ({invoice.taxRate || 18}%)</span>
-              <span>{formatCurrency(invoice.taxAmount || 0)}</span>
-            </div>
-          )}
           {(invoice.discountAmount || 0) > 0 && (
-            <div className="flex justify-between text-green-600">
-              <span>Discount</span>
+            <div className="flex justify-between text-green-600 dark:text-green-400">
+              <span>{invoice.couponCode ? `Voucher Discount (${invoice.couponCode})` : "Discount"}</span>
               <span>−{formatCurrency(invoice.discountAmount || 0)}</span>
             </div>
           )}
+          {(invoice.taxAmount || 0) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">GST ({invoice.taxRate || 18}%)</span>
+              <span>+{formatCurrency(invoice.taxAmount || 0)}</span>
+            </div>
+          )}
           {(invoice.walletAmountUsed || 0) > 0 && (
-            <div className="flex justify-between text-green-600">
+            <div className="flex justify-between text-green-600 dark:text-green-400">
               <span>Wallet used</span>
               <span>−{formatCurrency(invoice.walletAmountUsed || 0)}</span>
             </div>

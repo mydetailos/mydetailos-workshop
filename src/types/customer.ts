@@ -75,10 +75,14 @@ export interface OfferBroadcast {
   /** Editable WhatsApp body; may include `{{name}}` for per-recipient first name. */
   customMessage?: string;
   /**
-   * Broadcast recipients. When non-empty, coupon apply is limited to these customers
-   * (empty = all customers).
+   * Broadcast recipients.
    */
   selectedCustomerIds: string[];
+  /**
+   * When true, only customers in `selectedCustomerIds` can redeem this coupon.
+   * When false/omitted, anyone with the coupon code can redeem it.
+   */
+  restrictToSelectedCustomers?: boolean;
   status: "DRAFT" | "SENT";
   sentAt?: string;
   sentCount: number;

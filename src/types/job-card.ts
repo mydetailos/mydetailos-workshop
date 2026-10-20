@@ -140,6 +140,14 @@ export interface JobCard {
   highEndAdvanceCollectedAt?: string;
   highEndAdvanceMethod?: PaymentMethod;
   highEndAdvanceReference?: string;
+  /** Applied voucher/coupon code during job creation */
+  couponCode?: string;
+  /** Discount amount from applied coupon/voucher (excl. GST) */
+  couponDiscount?: number;
+  /** Direct discount amount applied (excl. GST) */
+  directDiscount?: number;
+  /** Total discount amount applied to subtotal excl. GST */
+  discountAmount?: number;
   /** Membership activated during this job creation; billed on the job invoice. */
   membershipActivationId?: string;
   membershipActivationPackageId?: string;

@@ -45,10 +45,13 @@ describe("resourcesForPath", () => {
   it("loads appSettings for job-cards, booking, and payment pricing routes", () => {
     expect(resourcesForPath("/job-cards")).toContain("appSettings");
     expect(resourcesForPath("/job-cards/new")).toContain("appSettings");
+    expect(resourcesForPath("/job-cards/new")).toContain("offers");
     expect(resourcesForPath("/booking")).toContain("appSettings");
     expect(resourcesForPath("/bookings")).toContain("appSettings");
+    expect(resourcesForPath("/bookings")).toContain("offers");
     expect(resourcesForPath("/billing")).toContain("appSettings");
     expect(resourcesForPath("/quotations")).toContain("appSettings");
+    expect(resourcesForPath("/quotations")).toContain("offers");
     expect(resourcesForPath("/customers")).toContain("appSettings");
     expect(resourcesForPath("/parties")).toContain("appSettings");
   });

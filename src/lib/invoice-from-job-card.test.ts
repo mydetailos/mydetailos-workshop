@@ -96,4 +96,64 @@ describe("buildInvoiceFromJobCard", () => {
     expect(invoice.lineItems[1]?.description).toBe("Monthly membership");
     expect(invoice.lineItems[1]?.total).toBe(5000);
   });
+
+  it("propagates coupon discount and voucher code from job card and computes taxable total", () => {
+    useSettingsStore.setState({ gstRegistrationStatus: "NOT_REGISTERED" });
+    useHighEndServiceStore.setState({
+      services: [
+        {
+          id: "hes-ppf",
+          name: "Full Body PPF",
+          category: "PPF",
+          estimateAmountInr: 35000,
+          isActive: true,
+          pricingBySegment: {
+            HATCHBACK: 35000,
+            SEDAN: 38000,
+            SUV: 42000,
+            LUXURY: 50000,
+            MUV: 40000,
+            COMPACT_SUV: 36000,
+            BIKE: 20000,
+          },
+        } as never,
+      ],
+    });
+
+    const job: JobCard = {
+      id: "jc-2",
+      jobNumber: "JC-2026-0002",
+      branchId: "br-1",
+      customerId: "cust-2",
+      customerName: "Rohan Verma",
+      customerPhone: "9876543210",
+      vehicleId: "veh-2",
+      vehicleRegNumber: "MH02CD5678",
+      vehicleMakeModel: "Hyundai i20",
+      vehicleSegment: "HATCHBACK",
+      status: "DELIVERED",
+      reportedIssues: "—",
+      expectedDelivery: "2026-08-29T12:00:00.000Z",
+      services: [],
+      highEndServiceIds: ["hes-ppf"],
+      couponCode: "SAVE10",
+      couponDiscount: 3500,
+      discountAmount: 3500,
+      estimatedAmount: 31500,
+      incentivePercent: 0,
+      incentiveAmount: 0,
+      createdBy: "usr-1",
+      createdAt: "2026-08-29T10:00:00.000Z",
+      updatedAt: "2026-08-29T10:00:00.000Z",
+    };
+
+    const invoice = buildInvoiceFromJobCard(job, "INV-2026-0002", "inv-2");
+
+    expect(invoice.subtotal).toBe(35000);
+    expect(invoice.discountAmount).toBe(3500);
+    expect(invoice.couponCode).toBe("SAVE10");
+    expect(invoice.grandTotal).toBe(31500);
+    expect(invoice.lineItems).toHaveLength(1);
+    expect(invoice.lineItems[0]?.total).toBe(35000);
+  });
 });

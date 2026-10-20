@@ -394,5 +394,27 @@ describe("buildTaxInvoicePrintHtml organization branding & logo", () => {
     expect(html).toContain('<img class="brand-logo" src="https://example.com/logo.png"');
     expect(html).toContain('alt="Elite Detailing"');
   });
+
+  it("renders voucher discount line with coupon code when applied", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...testOpts,
+        invoice: {
+          ...testOpts.invoice,
+          subtotal: 35000,
+          discountAmount: 3500,
+          couponCode: "SAVE10",
+          taxRate: 0.18,
+          taxAmount: 5670,
+          grandTotal: 37170,
+        },
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).toContain("Voucher Discount (SAVE10):");
+    expect(html).toContain("- ₹3,500");
+  });
 });
 

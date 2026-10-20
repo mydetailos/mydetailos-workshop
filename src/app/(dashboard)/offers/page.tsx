@@ -21,6 +21,7 @@ import {
 import { useCustomerStore } from "@/store/customer-store";
 import { useOfferStore } from "@/store/offer-store";
 import { useServiceCatalogStore } from "@/store/service-catalog-store";
+import { useHighEndServiceStore } from "@/store/high-end-service-store";
 import { useInventoryStore } from "@/store/inventory-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { useNotificationStore } from "@/store/notification-store";
@@ -148,6 +149,7 @@ export default function OffersPage() {
   const [messageDirty, setMessageDirty] = useState(false);
   const [messageMode, setMessageMode] = useState<"edit" | "preview">("edit");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [restrictToSelectedCustomers, setRestrictToSelectedCustomers] = useState(false);
   const [search, setSearch] = useState("");
   const [guestPhones, setGuestPhones] = useState("");
   const [saving, setSaving] = useState(false);
@@ -157,6 +159,7 @@ export default function OffersPage() {
   const [deleting, setDeleting] = useState(false);
 
   const serviceCatalog = useServiceCatalogStore((s) => s.catalog);
+  const highEndServices = useHighEndServiceStore((s) => s.services);
   const inventoryParts = useInventoryStore((s) => s.parts);
 
   useEffect(() => {
@@ -190,6 +193,14 @@ export default function OffersPage() {
         : serviceCatalog
             .filter((s) => s.isActive !== false)
             .map((s) => ({ id: s.id, label: s.name, kind: "service" as const }));
+    const highEnd =
+      applicableOn === "SPARE_PARTS"
+        ? []
+        : highEndServices.map((s) => ({
+            id: s.id,
+            label: `${s.name} (High-End)`,
+            kind: "service" as const,
+          }));
     const parts =
       applicableOn === "SERVICES"
         ? []
@@ -199,10 +210,10 @@ export default function OffersPage() {
             kind: "part" as const,
           }));
     const q = itemSearch.trim().toLowerCase();
-    const all = [...services, ...parts];
+    const all = [...services, ...highEnd, ...parts];
     if (!q) return all;
     return all.filter((x) => x.label.toLowerCase().includes(q));
-  }, [applicableOn, serviceCatalog, inventoryParts, itemSearch]);
+  }, [applicableOn, serviceCatalog, highEndServices, inventoryParts, itemSearch]);
 
   const templateMessage = useMemo(
     () =>
@@ -295,6 +306,7 @@ export default function OffersPage() {
     setMessageText("");
     setMessageMode("edit");
     setSelectedIds(new Set());
+    setRestrictToSelectedCustomers(false);
     setSearch("");
     setGuestPhones("");
     setMessageDirty(false);
@@ -338,6 +350,7 @@ export default function OffersPage() {
     setApplicableItemIds(new Set(offer.applicableItemIds ?? []));
     setDetails(offer.details);
     setSelectedIds(new Set(offer.selectedCustomerIds));
+    setRestrictToSelectedCustomers(Boolean(offer.restrictToSelectedCustomers));
     if (offer.customMessage?.trim()) {
       setMessageText(offer.customMessage);
       setMessageDirty(true);
@@ -416,6 +429,7 @@ export default function OffersPage() {
     details: details.trim(),
     customMessage: messageText.trim() || undefined,
     selectedCustomerIds: Array.from(selectedIds),
+    restrictToSelectedCustomers: restrictToSelectedCustomers && selectedIds.size > 0,
     status,
     sentCount: 0,
     createdAt: now,
@@ -455,8 +469,8 @@ export default function OffersPage() {
       const existing = loadOfferId ? offers.find((o) => o.id === loadOfferId) : undefined;
       const saved = await persistOffer(existing?.status === "SENT" ? "SENT" : "DRAFT");
       toast.success(
-        selectedCount > 0
-          ? `Coupon ${saved.code} saved for ${selectedCount} selected customer${selectedCount === 1 ? "" : "s"}`
+        saved.restrictToSelectedCustomers && (saved.selectedCustomerIds?.length ?? 0) > 0
+          ? `Coupon ${saved.code} saved exclusively for ${saved.selectedCustomerIds.length} customer${saved.selectedCustomerIds.length === 1 ? "" : "s"}`
           : `Coupon ${saved.code} saved — anyone can redeem this code at booking`
       );
     } catch (e) {
@@ -987,9 +1001,9 @@ export default function OffersPage() {
                 <Users className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold tracking-tight">Audience</h2>
+                <h2 className="text-sm font-semibold tracking-tight">Audience & Broadcast</h2>
                 <p className="text-xs text-muted-foreground">
-                  Optional. Leave empty so anyone can redeem the code.
+                  Select customers to send WhatsApp broadcasts.
                 </p>
               </div>
             </div>
@@ -997,6 +1011,28 @@ export default function OffersPage() {
               {selectedCount} selected
             </Badge>
           </div>
+
+          {selectedCount > 0 && (
+            <div className="flex items-start gap-2.5 border-b border-border/60 bg-muted/20 px-4 py-2.5 sm:px-5">
+              <Checkbox
+                id="offer-restrict-customers"
+                checked={restrictToSelectedCustomers}
+                onCheckedChange={(v) => setRestrictToSelectedCustomers(v === true)}
+                className="mt-0.5"
+              />
+              <div className="space-y-0.5 min-w-0">
+                <label
+                  htmlFor="offer-restrict-customers"
+                  className="text-xs font-medium text-foreground cursor-pointer select-none"
+                >
+                  Restrict coupon redemption to selected recipients only
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Leave unchecked so anyone with this coupon code can redeem it at booking or job card creation.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2 border-b border-border/60 px-4 py-2.5 sm:px-5">
             <Label htmlFor="offer-guest-phones" className="text-xs">
@@ -1155,7 +1191,9 @@ export default function OffersPage() {
                         {o.minBillAmount && o.minBillAmount > 0
                           ? ` · Min ${formatCurrency(o.minBillAmount)}`
                           : ""}
-                        {(o.selectedCustomerIds?.length ?? 0) === 0 ? " · All customers" : ""}
+                        {o.restrictToSelectedCustomers && (o.selectedCustomerIds?.length ?? 0) > 0
+                          ? ` · Exclusive (${o.selectedCustomerIds.length})`
+                          : " · All customers"}
                       </p>
                     </td>
                     <td className="px-3 py-3 font-mono text-xs">{o.code}</td>

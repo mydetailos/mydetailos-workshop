@@ -154,11 +154,12 @@ export function computeOfferCouponDiscount(
   }
 
   if (
-    offer.selectedCustomerIds.length > 0 &&
-    ctx.customerId &&
-    !offer.selectedCustomerIds.includes(ctx.customerId)
+    offer.restrictToSelectedCustomers &&
+    (offer.selectedCustomerIds?.length ?? 0) > 0
   ) {
-    return { ok: false, error: "This coupon is not valid for this customer" };
+    if (!ctx.customerId || !offer.selectedCustomerIds.includes(ctx.customerId)) {
+      return { ok: false, error: "This coupon is only valid for selected customers" };
+    }
   }
 
   const base = eligibleOfferBase(offer, ctx);

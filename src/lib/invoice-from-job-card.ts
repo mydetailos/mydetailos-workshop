@@ -36,7 +36,11 @@ function highEndSubtotalExclGst(job: JobCard): number {
  * Skipped when any line has a custom price, or when estimate already matches (incl. parts).
  */
 function normalizedServicePrices(job: JobCard): ServiceItem[] {
-  if (job.services.some((s) => s.isCustomPrice || s.priceSource === "CUSTOM")) {
+  if (
+    (job.discountAmount ?? 0) > 0 ||
+    (job.couponDiscount ?? 0) > 0 ||
+    job.services.some((s) => s.isCustomPrice || s.priceSource === "CUSTOM")
+  ) {
     return job.services;
   }
   const hesSubtotal = highEndSubtotalExclGst(job);
@@ -188,7 +192,12 @@ export function buildInvoiceFromJobCard(
   ];
 
   const subtotal = lineItems.reduce((sum, li) => sum + li.total, 0);
-  const { taxRate: effectiveTaxRate, taxAmount, grandTotal } = currentInvoiceTaxTotals(subtotal);
+  const discountAmount = Math.max(
+    0,
+    job.discountAmount ?? ((job.couponDiscount ?? 0) + (job.directDiscount ?? 0))
+  );
+  const taxable = Math.max(0, subtotal - discountAmount);
+  const { taxRate: effectiveTaxRate, taxAmount, grandTotal } = currentInvoiceTaxTotals(taxable);
 
   const createdAt = new Date().toISOString();
   const payments: Payment[] = [];
@@ -249,7 +258,10 @@ export function buildInvoiceFromJobCard(
     subtotal,
     taxRate: effectiveTaxRate,
     taxAmount,
-    discountAmount: 0,
+    discountAmount,
+    couponCode: job.couponCode,
+    couponDiscount: job.couponDiscount,
+    directDiscount: job.directDiscount,
     rewardDiscount: 0,
     walletAmountUsed: 0,
     grandTotal,

@@ -79,6 +79,7 @@ const OPS_CORE: DomainResource[] = [
   "invoices",
   "membership",
   "notifications",
+  "offers",
   /** GST / tax registration — required before job card, booking, and invoice pricing. */
   "appSettings",
 ];

@@ -886,7 +886,7 @@ table.inv .b { font-weight: 700; color: #171717; }
     <div>
       <div class="tot">
         <div class="tot-row"><span>Sub-Total:</span><span>${formatCurrency(invoice.subtotal)}</span></div>
-        ${(invoice.discountAmount || 0) > 0 ? `<div class="tot-row"><span>Flat Discount:</span><span>- ${formatCurrency(invoice.discountAmount || 0)}</span></div>` : ""}
+        ${(invoice.discountAmount || 0) > 0 ? `<div class="tot-row"><span>${invoice.couponCode ? `Voucher Discount (${escapeHtml(invoice.couponCode)}):` : "Discount:"}</span><span>- ${formatCurrency(invoice.discountAmount || 0)}</span></div>` : ""}
         ${(invoice.rewardDiscount || 0) > 0 ? `<div class="tot-row"><span>Reward Points Discount:</span><span>- ${formatCurrency(invoice.rewardDiscount || 0)}</span></div>` : ""}
         ${(invoice.referralDiscount || 0) > 0 ? `<div class="tot-row"><span>Referral Discount:</span><span>- ${formatCurrency(invoice.referralDiscount || 0)}</span></div>` : ""}
         ${isGstRegistered ? `<div class="tot-row"><span>Taxable Amount:</span><span>${formatCurrency(taxable)}</span></div>` : ""}
