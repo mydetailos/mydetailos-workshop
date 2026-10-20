@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useMemo, useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
@@ -40,6 +40,7 @@ import { useVehicleStore } from "@/store/vehicle-store";
 import { useVehicleCatalogStore } from "@/store/vehicle-catalog-store";
 import { AddVehicleDialog } from "@/components/vehicles/add-vehicle-dialog";
 import { useServiceCatalogStore } from "@/store/service-catalog-store";
+import { useHighEndServiceStore, highEndPriceForSegment } from "@/store/high-end-service-store";
 import { useCustomerStore } from "@/store/customer-store";
 import { useJobCardStore } from "@/store/job-card-store";
 import { useQuotationStore } from "@/store/quotation-store";
@@ -114,6 +115,7 @@ import {
   Info,
   Check,
   Pencil,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { quotationIsEditable } from "@/lib/quotation-edit-policy";
@@ -170,6 +172,7 @@ export default function QuotationsPage() {
   const storesReady = useDashboardStoresReady();
   const router = useRouter();
   const catalog = useServiceCatalogStore((s) => s.catalog);
+  const highEndServices = useHighEndServiceStore((s) => s.services);
   const vehicles = useVehicleStore((s) => s.vehicles);
   const setVehicles = useVehicleStore((s) => s.setVehicles);
   const addVehicle = useVehicleStore((s) => s.addVehicle);
@@ -292,6 +295,7 @@ export default function QuotationsPage() {
   /** Per-service custom override (document-scoped). null/absent = catalog price. */
   const [formCustomPrices, setFormCustomPrices] = useState<Record<string, number>>({});
   const [serviceSearch, setServiceSearch] = useState("");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<"ALL" | "STANDARD" | "HIGH_END">("ALL");
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [formNotes, setFormNotes] = useState("");
   const [formTerms, setFormTerms] = useState("");
@@ -330,11 +334,32 @@ export default function QuotationsPage() {
     return formSegment;
   }, [hasExistingCustomer, selectedVehicle, formSegment]);
 
+  const resolveServicePrice = useCallback(
+    (sid: string, segment: VehicleSegment) => {
+      const hes = highEndServices.find((h) => h.id === sid);
+      if (hes) {
+        return highEndPriceForSegment(hes, segment);
+      }
+      return getServicePrice(catalog, sid, segment);
+    },
+    [highEndServices, catalog]
+  );
+
+  const resolveServiceName = useCallback(
+    (sid: string) => {
+      const hes = highEndServices.find((h) => h.id === sid);
+      if (hes) return hes.name;
+      const cat = catalog.find((c) => c.id === sid);
+      return cat?.name ?? sid;
+    },
+    [highEndServices, catalog]
+  );
+
   const formCalculations = useMemo(() => {
     const segment = effectiveSegment;
     let servicesSubtotal = 0;
     formServiceIds.forEach((sid) => {
-      const catalogPrice = getServicePrice(catalog, sid, segment);
+      const catalogPrice = resolveServicePrice(sid, segment);
       const custom = formCustomPrices[sid];
       servicesSubtotal += custom != null ? custom : catalogPrice;
     });
@@ -347,7 +372,7 @@ export default function QuotationsPage() {
     formServiceIds,
     formCustomPrices,
     effectiveSegment,
-    catalog,
+    resolveServicePrice,
     gstRegistrationStatus,
   ]);
 
@@ -355,10 +380,36 @@ export default function QuotationsPage() {
   const canSelectServices =
     hasExistingCustomer ? !!formVehicleId : true;
 
-  const filteredQuotationServices = useMemo(
-    () => filterCatalogServices(catalog, serviceSearch),
-    [catalog, serviceSearch]
-  );
+  const filteredQuotationServices = useMemo(() => {
+    const standardServices = filterCatalogServices(catalog, serviceSearch).map((s) => ({
+      id: s.id,
+      name: s.name,
+      isHighEnd: false,
+      category: s.category,
+    }));
+
+    const q = serviceSearch.trim().toLowerCase();
+    const matchingHighEnd = highEndServices
+      .filter((h) => {
+        if (!q) return true;
+        return (
+          h.name.toLowerCase().includes(q) ||
+          "high-end".includes(q) ||
+          "coating".includes(q) ||
+          "ppf".includes(q)
+        );
+      })
+      .map((h) => ({
+        id: h.id,
+        name: h.name,
+        isHighEnd: true,
+        category: "High-End",
+      }));
+
+    if (serviceTypeFilter === "STANDARD") return standardServices;
+    if (serviceTypeFilter === "HIGH_END") return matchingHighEnd;
+    return [...matchingHighEnd, ...standardServices];
+  }, [catalog, highEndServices, serviceSearch, serviceTypeFilter]);
 
   const kpis = useMemo(() => {
     const total = quotationList.length;
@@ -448,6 +499,7 @@ export default function QuotationsPage() {
     setFormServiceIds(new Set());
     setFormCustomPrices({});
     setServiceSearch("");
+    setServiceTypeFilter("ALL");
     setFormNotes("");
     setFormTerms("");
     setFormPartLines([]);
@@ -693,14 +745,14 @@ export default function QuotationsPage() {
     }
 
     const services = Array.from(formServiceIds).map((sid) => {
-      const svc = catalog.find((s) => s.id === sid)!;
-      const catalogPrice = getServicePrice(catalog, sid, vehicleSegment);
+      const name = resolveServiceName(sid);
+      const catalogPrice = resolveServicePrice(sid, vehicleSegment);
       const custom = formCustomPrices[sid];
       const priced =
         custom != null ? withCustomPrice(catalogPrice, custom) : withCatalogPrice(catalogPrice);
       return {
         serviceCatalogId: sid,
-        name: svc.name,
+        name,
         price: priced.price,
         catalogPrice: priced.catalogPrice,
         isCustomPrice: priced.isCustomPrice,
@@ -874,7 +926,19 @@ export default function QuotationsPage() {
     const jobNumber = getNextJobNumber();
     const now = new Date().toISOString();
 
-    const serviceItems: ServiceItem[] = (q.services ?? []).map((s, idx) => {
+    const hesCatalog = useHighEndServiceStore.getState().services;
+    const highEndIds: string[] = [];
+    const regularServiceLines: typeof q.services = [];
+
+    for (const s of q.services ?? []) {
+      if (hesCatalog.some((h) => h.id === s.serviceCatalogId)) {
+        highEndIds.push(s.serviceCatalogId);
+      } else {
+        regularServiceLines.push(s);
+      }
+    }
+
+    const serviceItems: ServiceItem[] = regularServiceLines.map((s, idx) => {
       const cat = catalog.find((c) => c.id === s.serviceCatalogId);
       const catalogPrice =
         s.catalogPrice ??
@@ -930,6 +994,16 @@ export default function QuotationsPage() {
       reportedIssues: `Converted from quotation ${q.quotationNumber}`,
       expectedDelivery: new Date(Date.now() + 86400000).toISOString(),
       services: serviceItems,
+      highEndServiceIds: highEndIds.length > 0 ? highEndIds : undefined,
+      highEndFirstFollowUpMonthsByServiceId:
+        highEndIds.length > 0
+          ? Object.fromEntries(
+              highEndIds.map((hesId) => {
+                const cfg = hesCatalog.find((h) => h.id === hesId);
+                return [hesId, cfg?.reminderIntervals[0] ?? 6] as const;
+              })
+            )
+          : undefined,
       parts: jobParts,
       estimatedAmount: q.subtotal,
       incentivePercent,
@@ -1778,18 +1852,57 @@ export default function QuotationsPage() {
                         Add services
                       </Button>
                     </div>
+                    <div className="flex items-center gap-1.5 pb-0.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setServiceTypeFilter("ALL")}
+                        className={cn(
+                          "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                          serviceTypeFilter === "ALL"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        )}
+                      >
+                        All ({catalog.filter((s) => s.isActive && !s.isAddon).length + highEndServices.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setServiceTypeFilter("HIGH_END")}
+                        className={cn(
+                          "px-2.5 py-1 text-xs font-medium rounded-full transition-colors inline-flex items-center gap-1",
+                          serviceTypeFilter === "HIGH_END"
+                            ? "bg-amber-600 text-white shadow-sm"
+                            : "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+                        )}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        High-End ({highEndServices.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setServiceTypeFilter("STANDARD")}
+                        className={cn(
+                          "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                          serviceTypeFilter === "STANDARD"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        )}
+                      >
+                        Standard ({catalog.filter((s) => s.isActive && !s.isAddon).length})
+                      </button>
+                    </div>
                     <ServiceSearchInput
                       value={serviceSearch}
                       onChange={setServiceSearch}
                     />
-                    <div className="rounded-lg border border-border p-3 max-h-48 overflow-y-auto space-y-2 bg-background">
+                    <div className="rounded-lg border border-border p-3 max-h-56 overflow-y-auto space-y-2 bg-background">
                       {filteredQuotationServices.length === 0 ? (
                         <p className="py-3 text-center text-sm text-muted-foreground">
                           No services match
                         </p>
                       ) : (
                         filteredQuotationServices.map((svc) => {
-                        const catalogPrice = getServicePrice(catalog, svc.id, effectiveSegment);
+                        const catalogPrice = resolveServicePrice(svc.id, effectiveSegment);
                         const custom = formCustomPrices[svc.id];
                         const selected = formServiceIds.has(svc.id);
                         const atServiceLimit = !selected && formServiceIds.size >= MAX_QUOTATION_SERVICES;
@@ -1809,12 +1922,23 @@ export default function QuotationsPage() {
                               />
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex items-start justify-between gap-2">
-                                  <label
-                                    htmlFor={`svc-${svc.id}`}
-                                    className="text-sm font-medium leading-snug cursor-pointer text-foreground"
-                                  >
-                                    {svc.name}
-                                  </label>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <label
+                                      htmlFor={`svc-${svc.id}`}
+                                      className="text-sm font-medium leading-snug cursor-pointer text-foreground"
+                                    >
+                                      {svc.name}
+                                    </label>
+                                    {svc.isHighEnd && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px] py-0 px-1.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-medium shrink-0"
+                                      >
+                                        <Sparkles className="h-2.5 w-2.5 mr-0.5 inline" />
+                                        High-End
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">
                                     {formatCurrency(displayPrice)}
                                   </span>
@@ -1973,12 +2097,25 @@ export default function QuotationsPage() {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Services</p>
                     <ul className="space-y-1">
-                      {(selectedQuotation.services ?? []).map((s) => (
-                        <li key={s.serviceCatalogId} className="flex justify-between gap-3 text-sm">
-                          <span className="min-w-0 truncate">{s.name}</span>
-                          <span className="shrink-0 tabular-nums">{formatCurrency(s.price)}</span>
-                        </li>
-                      ))}
+                      {(selectedQuotation.services ?? []).map((s) => {
+                        const isHighEnd = highEndServices.some((h) => h.id === s.serviceCatalogId);
+                        return (
+                          <li key={s.serviceCatalogId} className="flex justify-between gap-3 text-sm">
+                            <span className="min-w-0 truncate flex items-center gap-1.5">
+                              <span>{s.name}</span>
+                              {isHighEnd && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] py-0 px-1.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 shrink-0 font-medium"
+                                >
+                                  High-End
+                                </Badge>
+                              )}
+                            </span>
+                            <span className="shrink-0 tabular-nums">{formatCurrency(s.price)}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
