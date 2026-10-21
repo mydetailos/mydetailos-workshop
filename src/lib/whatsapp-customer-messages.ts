@@ -30,6 +30,22 @@ export function getJobCardServiceNames(job: JobCard): string[] {
   return [...serviceNames, ...highEndNames];
 }
 
+/**
+ * Returns formatted part names for a job card (e.g. ["pad (1 Piece)"]).
+ */
+export function getJobCardPartNames(job: JobCard): string[] {
+  return (job.parts || [])
+    .map((p) => {
+      const name = p.name?.trim();
+      if (!name) return "";
+      const qty = p.quantity;
+      const unit = p.unit?.trim();
+      const qtyLabel = qty && unit ? ` (${qty} ${unit})` : qty ? ` (${qty})` : "";
+      return `${name}${qtyLabel}`;
+    })
+    .filter(Boolean);
+}
+
 /** Resolve the customer portal login URL — prefers /{orgSlug}/customer/login. */
 function resolvePortalUrl(override?: string): string {
   if (override) return override;
@@ -86,6 +102,9 @@ export function buildJobCardCustomerWhatsAppMessage(
   const allServices = getJobCardServiceNames(job);
   const serviceNames = allServices.slice(0, 6).join(", ");
   const more = allServices.length > 6 ? ` (+${allServices.length - 6} more)` : "";
+  const allParts = getJobCardPartNames(job);
+  const partNames = allParts.slice(0, 6).join(", ");
+  const moreParts = allParts.length > 6 ? ` (+${allParts.length - 6} more)` : "";
   const statusLabel =
     JOB_STATUS_CUSTOMER_LABEL[job.status] ?? JOB_STATUS_CUSTOMER_LABEL.RECEIVED;
 
@@ -121,6 +140,7 @@ export function buildJobCardCustomerWhatsAppMessage(
     `🟢 Status: *${statusLabel}*`,
     `🚗 Vehicle: ${vehicle}`,
     serviceNames ? `🔧 Services: ${serviceNames}${more}` : null,
+    partNames ? `📦 Parts: ${partNames}${moreParts}` : null,
     ...credentialsBlock,
     ``,
     `Reply here if you have any questions.`,
@@ -835,6 +855,9 @@ export function buildJobReadyForPickupWhatsAppMessage(
   const firstName = job.customerName.trim().split(/\s+/)[0] ?? job.customerName;
   const vehicle = `${job.vehicleMakeModel} (${job.vehicleRegNumber})`.trim();
   const serviceNames = getJobCardServiceNames(job).slice(0, 6).join(", ");
+  const allParts = getJobCardPartNames(job);
+  const partNames = allParts.slice(0, 6).join(", ");
+  const moreParts = allParts.length > 6 ? ` (+${allParts.length - 6} more)` : "";
   const portalUrl = resolvePortalUrl(opts.portalUrl);
   const phone = job.customerPhone?.trim() ?? "";
   const password = opts.temporaryPassword ?? inferDefaultCustomerPassword(job.customerName, phone);
@@ -857,6 +880,7 @@ export function buildJobReadyForPickupWhatsAppMessage(
     `🟢 Status: *Ready for Pickup*`,
     `🚗 Vehicle: ${vehicle}`,
     serviceNames ? `🔧 Services Completed: ${serviceNames}` : null,
+    partNames ? `📦 Parts: ${partNames}${moreParts}` : null,
     ``,
     ...credentialsBlock,
     ``,
@@ -885,6 +909,9 @@ export function buildBeforePhotosReadyWhatsAppMessage(
   const firstName = job.customerName.trim().split(/\s+/)[0] ?? job.customerName;
   const vehicle = `${job.vehicleMakeModel} (${job.vehicleRegNumber})`.trim();
   const serviceNames = getJobCardServiceNames(job).slice(0, 6).join(", ");
+  const allParts = getJobCardPartNames(job);
+  const partNames = allParts.slice(0, 6).join(", ");
+  const moreParts = allParts.length > 6 ? ` (+${allParts.length - 6} more)` : "";
   const portalUrl = resolvePortalUrl(opts.portalUrl);
   const phone = opts.customerPhone ?? job.customerPhone ?? "";
   // Use provided temp password or reconstruct the default (FIRSTNAME + first4digits)
@@ -915,6 +942,7 @@ export function buildBeforePhotosReadyWhatsAppMessage(
     `🟢 Status: *Received*`,
     `🚗 Vehicle: ${vehicle}`,
     serviceNames ? `🔧 Services: ${serviceNames}` : "",
+    partNames ? `📦 Parts: ${partNames}${moreParts}` : "",
     ...credentialsBlock,
     ``,
     `Your vehicle is now with our team. We\'ll notify you when it\'s ready for pickup.`,

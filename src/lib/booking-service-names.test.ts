@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import { useHighEndServiceStore } from "@/store/high-end-service-store";
-import { getJobCardServiceNames } from "@/lib/whatsapp-customer-messages";
+import {
+  getJobCardServiceNames,
+  getJobCardPartNames,
+  buildBeforePhotosReadyWhatsAppMessage,
+  buildJobCardCustomerWhatsAppMessage,
+  buildJobReadyForPickupWhatsAppMessage,
+} from "@/lib/whatsapp-customer-messages";
 import {
   buildBookingConfirmationMessage,
   buildJobCardCreationConfirmationMessage,
@@ -65,6 +71,85 @@ describe("Selected Service Names in Booking & WhatsApp Confirmations", () => {
         "High-End Coating",
         "Paint Protection Film (PPF)",
       ]);
+    });
+  });
+
+  describe("getJobCardPartNames", () => {
+    it("returns formatted part names with quantity and unit", () => {
+      const job = {
+        parts: [
+          { name: "Brake Pad", quantity: 2, unit: "Piece" },
+          { name: "Engine Oil", quantity: 4, unit: "L" },
+        ],
+      } as unknown as JobCard;
+
+      expect(getJobCardPartNames(job)).toEqual([
+        "Brake Pad (2 Piece)",
+        "Engine Oil (4 L)",
+      ]);
+    });
+
+    it("returns empty array when no parts are present", () => {
+      const job = { parts: [] } as unknown as JobCard;
+      expect(getJobCardPartNames(job)).toEqual([]);
+    });
+  });
+
+  describe("WhatsApp Job Card Messages with Parts", () => {
+    const jobWithServicesAndParts = {
+      id: "jc-1",
+      jobNumber: "JC-2026-0001",
+      customerName: "Rahul Sharma",
+      customerPhone: "9876543210",
+      vehicleMakeModel: "BMW 3 Series",
+      vehicleRegNumber: "KA1254323",
+      status: "RECEIVED",
+      services: [{ name: "Exterior Wash", price: 1710 }],
+      parts: [{ name: "pad", quantity: 1, unit: "Piece", lineTotal: 1000 }],
+    } as unknown as JobCard;
+
+    const jobWithOnlyParts = {
+      id: "jc-2",
+      jobNumber: "JC-2026-0002",
+      customerName: "Rahul Sharma",
+      customerPhone: "9876543210",
+      vehicleMakeModel: "BMW 3 Series",
+      vehicleRegNumber: "KA1254323",
+      status: "RECEIVED",
+      services: [],
+      parts: [{ name: "pad", quantity: 1, unit: "Piece", lineTotal: 1000 }],
+    } as unknown as JobCard;
+
+    it("includes both services and parts in buildBeforePhotosReadyWhatsAppMessage", () => {
+      const msg = buildBeforePhotosReadyWhatsAppMessage(jobWithServicesAndParts, {
+        businessName: "Prime Detailers",
+      });
+      expect(msg).toContain("🔧 Services: Exterior Wash");
+      expect(msg).toContain("📦 Parts: pad (1 Piece)");
+    });
+
+    it("includes parts when only parts are selected in buildBeforePhotosReadyWhatsAppMessage", () => {
+      const msg = buildBeforePhotosReadyWhatsAppMessage(jobWithOnlyParts, {
+        businessName: "Prime Detailers",
+      });
+      expect(msg).not.toContain("🔧 Services:");
+      expect(msg).toContain("📦 Parts: pad (1 Piece)");
+    });
+
+    it("includes both services and parts in buildJobCardCustomerWhatsAppMessage", () => {
+      const msg = buildJobCardCustomerWhatsAppMessage(jobWithServicesAndParts, {
+        businessName: "Prime Detailers",
+      });
+      expect(msg).toContain("🔧 Services: Exterior Wash");
+      expect(msg).toContain("📦 Parts: pad (1 Piece)");
+    });
+
+    it("includes both services and parts in buildJobReadyForPickupWhatsAppMessage", () => {
+      const msg = buildJobReadyForPickupWhatsAppMessage(jobWithServicesAndParts, {
+        businessName: "Prime Detailers",
+      });
+      expect(msg).toContain("🔧 Services Completed: Exterior Wash");
+      expect(msg).toContain("📦 Parts: pad (1 Piece)");
     });
   });
 

@@ -6,6 +6,7 @@ import {
   buildJobCardCustomerWhatsAppMessage,
   buildInvoiceWhatsAppMessage,
   getJobCardServiceNames,
+  getJobCardPartNames,
 } from "@/lib/whatsapp-customer-messages";
 import { buildBookingWhatsAppMessageCompact } from "@/lib/booking-confirmation-message";
 
@@ -76,7 +77,7 @@ function firstName(full: string): string {
 }
 
 function serviceSummary(job: JobCard): string {
-  const names: string[] = getJobCardServiceNames(job);
+  const names = [...getJobCardServiceNames(job), ...getJobCardPartNames(job)];
   if (names.length === 0) return "";
   if (names.length <= 3) return names.join(", ");
   return `${names.slice(0, 3).join(", ")} (+${names.length - 3} more)`;
@@ -118,7 +119,7 @@ export function buildJobCardTemplateMessage(
           vehicleId: job.vehicleId,
           vehicleRegNumber: job.vehicleRegNumber,
           vehicleMakeModel: job.vehicleMakeModel,
-          serviceType: getJobCardServiceNames(job).join(" + ") || "Service",
+          serviceType: [...getJobCardServiceNames(job), ...getJobCardPartNames(job)].join(" + ") || "Service",
           date: job.createdAt,
           time: "00:00",
           status: "CONFIRMED",

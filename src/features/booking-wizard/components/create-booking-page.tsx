@@ -29,6 +29,8 @@ import {
 import {
   appendAdvanceAckToJobMessage,
   buildJobCardCustomerWhatsAppMessage,
+  getJobCardServiceNames,
+  getJobCardPartNames,
 } from "@/lib/whatsapp-customer-messages";
 import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
@@ -251,7 +253,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       const workshopName = resolveWorkshopDisplayName({ businessName: currentBusinessName });
       const portalUrl = getCustomerPortalLoginUrl();
       const vehicleStr = `${job.vehicleMakeModel || ""} ${job.vehicleRegNumber ? `(${job.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
-      const serviceList = job.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service";
+      const serviceList = [...getJobCardServiceNames(job), ...getJobCardPartNames(job)].slice(0, 6).join(", ") || "General Service";
       const template = TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED
         ? {
             contentSid: TWILIO_TEMPLATE_SIDS.JOB_CARD_CREATED,
@@ -1631,11 +1633,16 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       toast.error("VIN must be at least 5 characters.");
       return;
     }
-    if (
-      selectedMainIds.length + selectedAddonIds.length === 0 &&
-      selectedHighEndIds.length === 0
-    ) {
-      toast.error("Select at least one service, add-on, or high-end program.");
+    const hasServices =
+      selectedMainIds.length + selectedAddonIds.length > 0 ||
+      selectedHighEndIds.length > 0;
+    const hasParts = isJobCard && selectedPartLines.length > 0;
+    if (!hasServices && !hasParts) {
+      toast.error(
+        isJobCard
+          ? "Select at least one service, part, or high-end program."
+          : "Select at least one service, add-on, or high-end program."
+      );
       return;
     }
     if (isJobCard && selectedHighEndIds.length > 0) {
@@ -2574,6 +2581,7 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
       }
       const hasHighEndStep = highEndServices.length > 0;
       if (
+        !isJobCard &&
         !redeemingMembershipVisit &&
         !hasHighEndStep &&
         selectedMainIds.length === 0
@@ -2719,6 +2727,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
               ? allPrimaryServiceLabels.join(", ")
               : addonLabels.length
               ? addonLabels.join(", ")
+              : isJobCard && selectedPartLines.length > 0
+              ? "Parts only (see below)"
               : "None selected"}
           </p>
           {addonLabels.length > 0 && allPrimaryServiceLabels.length > 0 && (
@@ -2878,6 +2888,8 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
                 ? allPrimaryServiceLabels.join(", ")
                 : addonLabels.length
                 ? addonLabels.join(", ")
+                : isJobCard && selectedPartLines.length > 0
+                ? "Parts only"
                 : "Not selected"}
             </dd>
           </div>

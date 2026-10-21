@@ -57,7 +57,11 @@ import {
   buildJobReadyForPickupVariables,
   buildJobDeliveredVariables,
 } from "@/lib/twilio-templates-config";
-import { buildJobCardPhotosWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
+import {
+  buildJobCardPhotosWhatsAppMessage,
+  getJobCardServiceNames,
+  getJobCardPartNames,
+} from "@/lib/whatsapp-customer-messages";
 import { getCustomerPortalAbsoluteUrl, getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
@@ -319,7 +323,7 @@ export default function JobCardsPage() {
     }
 
     const vehicleStr = `${jc.vehicleMakeModel || ""} ${jc.vehicleRegNumber ? `(${jc.vehicleRegNumber})` : ""}`.trim() || "Vehicle";
-    const serviceList = jc.services.map((s) => s.name).filter(Boolean).slice(0, 6).join(", ") || "General Service";
+    const serviceList = [...getJobCardServiceNames(jc), ...getJobCardPartNames(jc)].slice(0, 6).join(", ") || "General Service";
     const portalUrl = getCustomerPortalLoginUrl();
 
     let template: { contentSid: string; contentVariables: Record<string, string> } | undefined;
