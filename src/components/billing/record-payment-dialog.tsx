@@ -265,7 +265,6 @@ export function RecordPaymentDialog({
 
           await useCustomerStore.getState().updateCustomer(buyer.id, {
             rewardPoints: nextPoints,
-            totalVisits: (buyer.totalVisits || 0) + 1,
           });
 
           toast.success(
