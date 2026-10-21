@@ -14,6 +14,7 @@ import type {
 import { formatCurrency } from "@/lib/utils";
 import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import { useHighEndServiceStore } from "@/store/high-end-service-store";
+import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
 
 /**
  * Returns all service names for a job card, combining catalog services and high-end programs.
@@ -182,7 +183,7 @@ export function buildQuotationWhatsAppMessage(
   q: Quotation,
   opts: { businessName?: string } = {}
 ): string {
-  const brand = opts.businessName?.trim() || "MY DETAIL OS";
+  const brand = resolveWorkshopDisplayName(opts);
   const first = q.customerName.trim().split(/\s+/)[0] ?? q.customerName;
   const hasServices = q.services.length > 0;
   const hasParts = (q.parts ?? []).length > 0;

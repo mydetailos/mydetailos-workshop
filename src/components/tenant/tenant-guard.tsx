@@ -14,6 +14,8 @@ import {
 import { useOrganizationStore } from "@/store/organization-store";
 import { useAppBootstrapStore } from "@/store/app-bootstrap-store";
 import { useAuthStore } from "@/store/auth-store";
+import { resetPickupDropStore } from "@/store/pickup-drop-store";
+import { resetNotificationStore } from "@/store/notification-store";
 import { useTenantSlug } from "@/components/tenant/tenant-context";
 import { BootOverlay } from "@/components/shared/boot-overlay";
 
@@ -215,9 +217,15 @@ export function TenantGuard({ children, mode = "staff" }: TenantGuardProps) {
   );
 
   // Initial + slug change
+  const prevSlugRef = useRef(orgSlug);
   useEffect(() => {
+    if (prevSlugRef.current && orgSlug && prevSlugRef.current.toLowerCase() !== orgSlug.toLowerCase()) {
+      resetPickupDropStore();
+      resetNotificationStore();
+    }
+    prevSlugRef.current = orgSlug;
     void revalidate({ soft: false, prefetch: true });
-  }, [revalidate]);
+  }, [orgSlug, revalidate]);
 
   // Soft nav within the same org (SPA) — re-check without hard refresh
   useEffect(() => {

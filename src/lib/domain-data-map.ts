@@ -75,6 +75,7 @@ const OPS_CORE: DomainResource[] = [
   "staffDirectory",
   "serviceCatalog",
   "serviceCategories",
+  "highEndServices",
   "appointments",
   "invoices",
   "membership",

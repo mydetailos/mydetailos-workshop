@@ -13,6 +13,8 @@ import { consumeFreshAuthHandoff } from "@/lib/auth-handoff";
 import { useReportFavouritesStore } from "@/store/report-favourites-store";
 import { useOrganizationStore } from "@/store/organization-store";
 import { useAppBootstrapStore } from "@/store/app-bootstrap-store";
+import { resetPickupDropStore } from "@/store/pickup-drop-store";
+import { resetNotificationStore } from "@/store/notification-store";
 
 export type SendLoginOtpResult =
   | {
@@ -69,6 +71,12 @@ export const useAuthStore = create<AuthState>()(
 
       applyAuthPayload: (data) => {
         const homeBranch = data.branch ?? null;
+        const currentOrgId = get().user?.organizationId;
+        const nextOrgId = data.user.organizationId;
+        if (currentOrgId && nextOrgId && currentOrgId !== nextOrgId) {
+          resetPickupDropStore();
+          resetNotificationStore();
+        }
         set({
           accessToken: data.accessToken,
           user: data.user,
@@ -246,6 +254,8 @@ export const useAuthStore = create<AuthState>()(
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => {});
         }
+        resetPickupDropStore();
+        resetNotificationStore();
         useReportFavouritesStore.getState().clear();
         useOrganizationStore.getState().setEntitlement(null);
         useAppBootstrapStore.getState().reset();

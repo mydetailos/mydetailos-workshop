@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { JobCard, PickupDropRequest, PickupDropStatus, PickupDropType } from "@/types";
 import { postCollectionSnapshot } from "@/lib/collection-sync";
+import { useBranchStore } from "@/store/branch-store";
 import {
   dropDeliveryIsPremature,
   findPickupDropRequest,
@@ -26,6 +27,11 @@ export function clearPickupDropWriteBlock() {
     }
   } catch { /* non-critical */ }
   usePickupDropStore.getState().setWritesBlocked(false);
+}
+
+/** Reset in-memory pickup drop store when switching tenant or signing out. */
+export function resetPickupDropStore() {
+  usePickupDropStore.setState({ requests: [], hydrated: false, writesBlocked: false });
 }
 
 const _WRITES_BLOCKED_KEY = "pnd_writes_blocked";
@@ -66,7 +72,16 @@ function pushPickupSnapshot(requests: PickupDropRequest[]) {
   if (_bootReconciling) return;
   if (isWritesBlocked()) return;
   if (process.env.NEXT_PUBLIC_BLOCK_PICKUP_DROP_WRITES === "true") { blockWrites(); return; }
-  void postCollectionSnapshot("pickupDropRequests", requests).catch((err) => {
+
+  // Defensive: only push requests belonging to the current organization's branches
+  const branches = useBranchStore.getState().branches;
+  const validBranchIds = new Set(branches.map((b) => b.id));
+  const safeRequests =
+    validBranchIds.size > 0
+      ? requests.filter((r) => !r.branchId || validBranchIds.has(r.branchId))
+      : requests;
+
+  void postCollectionSnapshot("pickupDropRequests", safeRequests).catch((err) => {
     if (err != null && typeof err === "object" && "status" in err && (err as { status: number }).status === 403) {
       blockWrites();
       return;
@@ -77,11 +92,16 @@ function pushPickupSnapshot(requests: PickupDropRequest[]) {
 
 function nextId(requests: PickupDropRequest[]): string {
   const nums = requests.map((r) => {
-    const m = /^PND-\d{4}-(\d+)$/.exec(r.id);
+    const m = /^PND-\d{4}-(\d+)/.exec(r.id);
     return m ? parseInt(m[1], 10) : 0;
   });
   const max = nums.length ? Math.max(...nums) : 0;
-  return `PND-2026-${String(max + 1).padStart(4, "0")}`;
+  const seq = String(max + 1).padStart(4, "0");
+  const rand =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID().slice(0, 6)
+      : Math.random().toString(36).slice(2, 8);
+  return `PND-2026-${seq}-${rand}`;
 }
 
 export type AddPickupDropInput = {
@@ -98,6 +118,7 @@ export type AddPickupDropInput = {
   type: PickupDropType;
   driverId?: string;
   driverName?: string;
+  status?: PickupDropStatus;
   notes?: string;
 };
 
@@ -140,13 +161,17 @@ export const usePickupDropStore = create<PickupDropStore>((set, get) => ({
 
   setWritesBlocked: (blocked) => set({ writesBlocked: blocked }),
 
-  setRequestsFromBootstrap: (serverRequests) => set((s) => {
-    // Keep any locally created requests that the server doesn't know about yet
-    // (e.g. created while writes were blocked or before first sync).
-    const serverIds = new Set(serverRequests.map((r) => r.id));
-    const localOnly = s.requests.filter((r) => !serverIds.has(r.id));
-    return { requests: [...serverRequests, ...localOnly], hydrated: true };
-  }),
+  setRequestsFromBootstrap: (serverRequests) => {
+    // Only accept requests that belong to the current organization's branches,
+    // avoiding cross-organization leakage from previous sessions/tenants.
+    const branches = useBranchStore.getState().branches;
+    const validBranchIds = new Set(branches.map((b) => b.id));
+    const safeServer =
+      validBranchIds.size > 0
+        ? serverRequests.filter((r) => !r.branchId || validBranchIds.has(r.branchId))
+        : serverRequests;
+    set({ requests: safeServer, hydrated: true });
+  },
 
   addRequest: (input) => {
     const existing = findPickupDropRequest(input.jobCardId, input.type, get().requests);
@@ -171,7 +196,7 @@ export const usePickupDropStore = create<PickupDropStore>((set, get) => ({
       type: input.type,
       driverId: input.driverId,
       driverName: input.driverName,
-      status: input.driverId ? "DRIVER_ASSIGNED" : "PENDING",
+      status: input.status ?? (input.driverId ? "DRIVER_ASSIGNED" : "PENDING"),
       notes: input.notes?.trim() || undefined,
       createdAt: now,
       updatedAt: now,

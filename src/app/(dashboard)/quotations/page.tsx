@@ -61,6 +61,7 @@ import { sortByNewest } from "@/lib/sort-by-date";
 import { referredByFromOptionalInput } from "@/lib/referral-eligibility";
 import { NewCustomerReferralCodeField } from "@/components/customers/new-customer-referral-code-field";
 import { buildQuotationWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
+import { resolveWorkshopDisplayName } from "@/lib/workshop-display-name";
 import { openWhatsAppComposer } from "@/lib/whatsapp-send";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { useNotificationStore } from "@/store/notification-store";
@@ -888,7 +889,8 @@ export default function QuotationsPage() {
       toast.error("Customer has no phone number");
       return;
     }
-    const message = buildQuotationWhatsAppMessage(q);
+    const workshopName = resolveWorkshopDisplayName({ businessName });
+    const message = buildQuotationWhatsAppMessage(q, { businessName: workshopName });
     const { usedClipboard } = openWhatsAppComposer(phone, message);
     finalizeQuotationWhatsApp(q);
     useNotificationStore.getState().addNotification({
@@ -1065,7 +1067,8 @@ export default function QuotationsPage() {
       description: `${q.quotationNumber} → ${jobNumber}`,
     });
 
-    notifyQuotationConvertedWhatsApp(q, jobNumber, jobId, businessName);
+    const workshopName = resolveWorkshopDisplayName({ businessName });
+    notifyQuotationConvertedWhatsApp(q, jobNumber, jobId, workshopName);
     setDetailsDialogOpen(false);
     router.push(`/job-cards/${jobId}`);
     setConvertingQuotationId(null);

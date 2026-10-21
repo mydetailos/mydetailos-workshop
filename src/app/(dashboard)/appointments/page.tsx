@@ -8,6 +8,10 @@ import { useCustomerStore } from "@/store/customer-store";
 import { useStaffStore } from "@/store/staff-store";
 import { useAppointmentStore } from "@/store/appointment-store";
 import { useJobCardStore } from "@/store/job-card-store";
+import {
+  useHighEndServiceStore,
+  highEndConfigToCatalogItem,
+} from "@/store/high-end-service-store";
 import { useVehicleCatalogStore } from "@/store/vehicle-catalog-store";
 import { isAppointmentSlotElapsed } from "@/lib/appointment-status";
 import { referredByFromOptionalInput } from "@/lib/referral-eligibility";
@@ -159,6 +163,11 @@ export default function AppointmentsPage() {
   const canEditAppointments = userCanEdit(authUser, "APPOINTMENTS");
   const currentBranch = useAuthStore((s) => s.currentBranch);
   const catalog = useServiceCatalogStore((s) => s.catalog);
+  const highEndServices = useHighEndServiceStore((s) => s.services);
+  const combinedServices = useMemo(() => {
+    const highEndCatalogItems = highEndServices.map(highEndConfigToCatalogItem);
+    return [...catalog, ...highEndCatalogItems];
+  }, [catalog, highEndServices]);
   const vehicles = useVehicleStore((s) => s.vehicles);
   const setVehicles = useVehicleStore((s) => s.setVehicles);
   const addVehicle = useVehicleStore((s) => s.addVehicle);
@@ -394,7 +403,7 @@ export default function AppointmentsPage() {
 
   const handleNewAppointmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const service = catalog.find((s) => s.id === formServiceId);
+    const service = combinedServices.find((s) => s.id === formServiceId);
     if (!service) {
       toast.error("Please select a service");
       return;
@@ -648,12 +657,12 @@ export default function AppointmentsPage() {
       const job = await convertAppointmentToJobCard({
         apt,
         vehicles,
-        catalog,
+        catalog: combinedServices,
         branches,
         currentBranch,
         createdBy: authUser?.id ?? "usr-004",
       });
-      if (!findCatalogServiceForAppointment(catalog, apt.serviceType)) {
+      if (!findCatalogServiceForAppointment(combinedServices, apt.serviceType)) {
         toast.info("Custom service line", {
           description: `No catalog match for "${apt.serviceType}" — check prices on the job card.`,
         });
@@ -1165,7 +1174,7 @@ export default function AppointmentsPage() {
                           required
                           value={formServiceId}
                           onChange={setFormServiceId}
-                          services={catalog}
+                          services={combinedServices}
                         />
                       </div>
                       <div className="space-y-2">

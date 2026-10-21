@@ -26,6 +26,10 @@ import { useAppointmentStore } from "@/store/appointment-store";
 import { useStaffStore } from "@/store/staff-store";
 import { useBranchStore } from "@/store/branch-store";
 import { useServiceCatalogStore } from "@/store/service-catalog-store";
+import {
+  useHighEndServiceStore,
+  highEndConfigToCatalogItem,
+} from "@/store/high-end-service-store";
 import { appointmentIsEditable } from "@/lib/appointment-edit-policy";
 import { pushActivityLog } from "@/lib/activity-log-helper";
 import { getAppointmentDisplayId } from "@/lib/appointment-ids";
@@ -47,6 +51,11 @@ export function EditReservationDialog({
   const staff = useStaffStore((s) => s.staff);
   const branches = useBranchStore((s) => s.branches);
   const catalog = useServiceCatalogStore((s) => s.catalog);
+  const highEndServices = useHighEndServiceStore((s) => s.services);
+  const combinedServices = useMemo(() => {
+    const highEndCatalogItems = highEndServices.map(highEndConfigToCatalogItem);
+    return [...catalog, ...highEndCatalogItems];
+  }, [catalog, highEndServices]);
 
   const mechanics = useMemo(
     () => staff.filter((s) => s.role === "MECHANIC" && s.isActive !== false),
@@ -273,7 +282,7 @@ export function EditReservationDialog({
           <div className="space-y-1.5">
             <Label htmlFor="res-service">Service</Label>
             {(() => {
-              const matched = catalog.find(
+              const matched = combinedServices.find(
                 (s) => s.isActive && !s.isAddon && s.name === serviceType
               );
               return (
@@ -283,10 +292,10 @@ export function EditReservationDialog({
                   unmatchedLabel={matched ? undefined : serviceType.trim() || undefined}
                   onChange={(id) => {
                     if (id === "__unmatched__") return;
-                    const svc = catalog.find((s) => s.id === id);
+                    const svc = combinedServices.find((s) => s.id === id);
                     if (svc) setServiceType(svc.name);
                   }}
-                  services={catalog}
+                  services={combinedServices}
                 />
               );
             })()}

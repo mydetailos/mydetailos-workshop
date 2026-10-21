@@ -9,7 +9,10 @@ import type {
   Vehicle,
   VehicleSegment,
 } from "@/types";
-import { useHighEndServiceStore } from "@/store/high-end-service-store";
+import {
+  useHighEndServiceStore,
+  highEndConfigToCatalogItem,
+} from "@/store/high-end-service-store";
 
 export function resolveJobBranchId(
   currentBranch: Branch | null | undefined,
@@ -28,13 +31,25 @@ export function findCatalogServiceForAppointment(
   if (!t) return null;
   const exact = catalog.find((s) => s.name.trim().toLowerCase() === t);
   if (exact) return exact;
-  return (
-    catalog.find(
-      (s) =>
-        s.name.toLowerCase().includes(t) ||
-        t.includes(s.name.toLowerCase())
-    ) ?? null
+  const partial = catalog.find(
+    (s) =>
+      s.name.toLowerCase().includes(t) ||
+      t.includes(s.name.toLowerCase())
   );
+  if (partial) return partial;
+
+  const hesCatalog = useHighEndServiceStore.getState().services;
+  const hesMatch = hesCatalog.find(
+    (h) =>
+      h.name.trim().toLowerCase() === t ||
+      h.name.toLowerCase().includes(t) ||
+      t.includes(h.name.toLowerCase())
+  );
+  if (hesMatch) {
+    return highEndConfigToCatalogItem(hesMatch);
+  }
+
+  return null;
 }
 
 function estimatedAmountFromAppointment(

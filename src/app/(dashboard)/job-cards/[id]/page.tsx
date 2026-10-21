@@ -1711,15 +1711,15 @@ export default function JobCardDetailPage() {
           status: "DELIVERED",
         });
       } else {
-        const createdDrop = pd.addRequest({
+        pd.addRequest({
           ...buildDropRequestInput(jobCard, pickup),
           address: result.dropOff.address,
           scheduledTime: result.dropOff.scheduledTime,
           driverId: result.dropOff.driverId,
           driverName: result.dropOff.driverName,
+          status: "DELIVERED",
           notes: "Completed from Deliver Vehicle",
         });
-        pd.updateStatus(createdDrop.id, "DELIVERED");
       }
     }
 

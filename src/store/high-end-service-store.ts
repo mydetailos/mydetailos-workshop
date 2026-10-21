@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { putSingletonDocument } from "@/lib/collection-sync";
-import type { SegmentPricing, VehicleSegment } from "@/types";
+import type { SegmentPricing, ServiceCatalogItem, VehicleSegment } from "@/types";
 
 export interface HighEndServiceConfig {
   id: string;
@@ -66,6 +66,30 @@ export function highEndPriceForSegment(
     if (typeof p === "number" && Number.isFinite(p) && p > 0) return p;
   }
   return svc.estimateAmountInr ?? 0;
+}
+
+export function highEndConfigToCatalogItem(hes: HighEndServiceConfig): ServiceCatalogItem {
+  const p = hes.estimateAmountInr ?? 0;
+  return {
+    id: hes.id,
+    name: hes.name,
+    description: "",
+    category: "High-End",
+    defaultPrice: p,
+    segmentPricing: hes.segmentPricing ?? {
+      HATCHBACK: p,
+      SEDAN: p,
+      SUV: p,
+      LUXURY: p,
+      MUV: p,
+      COMPACT_SUV: p,
+      BIKE: p,
+    },
+    isActive: true,
+    isHighEnd: true,
+    isAddon: false,
+    incentivePercent: 0,
+  };
 }
 
 export const DEFAULT_HIGH_END_SERVICES: HighEndServiceConfig[] = [

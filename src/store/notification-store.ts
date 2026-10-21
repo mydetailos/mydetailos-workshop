@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { postCollectionSnapshot } from "@/lib/collection-sync";
+import { useBranchStore } from "@/store/branch-store";
 
 export type NotificationType =
   | "job_created"
@@ -27,6 +28,11 @@ export interface Notification {
   createdAt: string;
 }
 
+/** Reset in-memory notifications when switching tenant or signing out. */
+export function resetNotificationStore() {
+  useNotificationStore.setState({ notifications: [] });
+}
+
 function sortByNewest(list: Notification[]): Notification[] {
   return [...list].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -50,7 +56,13 @@ export function mergeNotificationLists(
 }
 
 function persist(notifications: Notification[]) {
-  void postCollectionSnapshot("notifications", notifications).catch((err) => {
+  const branches = useBranchStore.getState().branches;
+  const validBranchIds = new Set(branches.map((b) => b.id));
+  const safeNotifications =
+    validBranchIds.size > 0
+      ? notifications.filter((n) => !n.branchId || validBranchIds.has(n.branchId))
+      : notifications;
+  void postCollectionSnapshot("notifications", safeNotifications).catch((err) => {
     if (process.env.NODE_ENV !== "production") console.error(err);
   });
 }

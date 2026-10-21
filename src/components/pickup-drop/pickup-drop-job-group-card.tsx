@@ -17,6 +17,7 @@ import {
   validatePickupDropAdvance,
 } from "@/lib/pickup-drop-flow";
 import { cn, formatDateTime } from "@/lib/utils";
+import { useTenantPath } from "@/components/tenant/tenant-context";
 import type { JobCard, PickupDropRequest, PickupDropStatus } from "@/types";
 
 const STATUS_STYLE: Record<PickupDropStatus, string> = {
@@ -51,6 +52,7 @@ function LegRow({
   onEdit,
 }: LegRowProps) {
   const router = useRouter();
+  const tenantHref = useTenantPath();
   const status = effectivePickupDropStatus(leg, job, allRequests);
   const statusLabel = pickupDropDisplayLabel(leg, allRequests, job);
   const nextStatus = nextPickupDropStatus(leg.type, status);
@@ -115,7 +117,7 @@ function LegRow({
                 if (status === "PICKED_UP") {
                   onAdvance({ ...leg, status });
                 }
-                router.push(`/job-cards/new?pickupId=${leg.id}`);
+                router.push(tenantHref(`/job-cards/new?pickupId=${leg.id}`));
               }}
             >
               Create Job Card

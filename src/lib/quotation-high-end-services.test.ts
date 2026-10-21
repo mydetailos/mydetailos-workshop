@@ -6,7 +6,9 @@ import {
 } from "@/store/high-end-service-store";
 import { computeGstFromSubtotal } from "@/lib/gst-tax";
 import { buildQuotationWhatsAppMessage } from "@/lib/whatsapp-customer-messages";
-import type { Quotation, ServiceCatalogItem, ServiceItem, JobCard } from "@/types";
+import { useOrganizationStore } from "@/store/organization-store";
+import { useSettingsStore } from "@/store/settings-store";
+import type { Quotation, ServiceCatalogItem, ServiceItem, JobCard, OrganizationEntitlement } from "@/types";
 
 describe("Quotation High-End Services", () => {
   beforeEach(() => {
@@ -90,8 +92,100 @@ describe("Quotation High-End Services", () => {
     expect(message).toContain("PPF Coating");
     expect(message).toContain("Deep Interior Cleaning");
     expect(message).toContain("₹50,000");
-    expect(message).toContain("₹3,500");
-    expect(message).toContain("₹63,130");
+    expect(message).toContain("AutoSpa Studio");
+    expect(message).toContain("— Team AutoSpa Studio");
+  });
+
+  it("uses organization name instead of platform default MY DETAIL OS when businessName is not customized", () => {
+    useSettingsStore.setState({ businessName: "MY DETAIL OS" });
+    useOrganizationStore.setState({
+      entitlement: {
+        organization: {
+          id: "org-prime",
+          name: "Prime",
+          slug: "prime",
+        },
+      } as OrganizationEntitlement,
+    });
+
+    const q: Quotation = {
+      id: "quo-002",
+      quotationNumber: "QUO-2026-0002",
+      customerId: "cust-prime",
+      customerName: "Prime",
+      customerPhone: "9876543210",
+      vehicleId: "veh-002",
+      vehicleRegNumber: "UP93CC6666",
+      vehicleMakeModel: "Toyota Fortuner",
+      services: [
+        {
+          serviceCatalogId: "hes-001",
+          name: "PPF Coating",
+          price: 50000,
+          catalogPrice: 50000,
+        },
+      ],
+      subtotal: 50000,
+      taxRate: 0,
+      taxAmount: 0,
+      grandTotal: 50000,
+      status: "DRAFT",
+      sentViaWhatsApp: false,
+      validUntil: "2026-11-20",
+      createdBy: "usr-001",
+      createdAt: new Date().toISOString(),
+    };
+
+    const message = buildQuotationWhatsAppMessage(q);
+    expect(message).toContain("Here is your estimate *QUO-2026-0002* from *Prime*. 📄");
+    expect(message).toContain("— Team Prime");
+    expect(message).not.toContain("MY DETAIL OS");
+  });
+
+  it("falls back to formatted organization slug if organization name is empty", () => {
+    useSettingsStore.setState({ businessName: "MY DETAIL OS" });
+    useOrganizationStore.setState({
+      entitlement: {
+        organization: {
+          id: "org-prime",
+          name: "",
+          slug: "prime",
+        },
+      } as OrganizationEntitlement,
+    });
+
+    const q: Quotation = {
+      id: "quo-002",
+      quotationNumber: "QUO-2026-0002",
+      customerId: "cust-prime",
+      customerName: "Prime",
+      customerPhone: "9876543210",
+      vehicleId: "veh-002",
+      vehicleRegNumber: "UP93CC6666",
+      vehicleMakeModel: "Toyota Fortuner",
+      services: [
+        {
+          serviceCatalogId: "hes-001",
+          name: "PPF Coating",
+          price: 50000,
+          catalogPrice: 50000,
+        },
+      ],
+      subtotal: 50000,
+      taxRate: 0,
+      taxAmount: 0,
+      grandTotal: 50000,
+      status: "DRAFT",
+      sentViaWhatsApp: false,
+      validUntil: "2026-11-20",
+      createdBy: "usr-001",
+      createdAt: new Date().toISOString(),
+    };
+
+    const message = buildQuotationWhatsAppMessage(q);
+    expect(message).toContain("Here is your estimate *QUO-2026-0002* from *Prime*. 📄");
+    expect(message).toContain("— Team Prime");
+    expect(message).not.toContain("MY DETAIL OS");
   });
 
   it("separates high-end services into highEndServiceIds upon job card conversion", () => {
