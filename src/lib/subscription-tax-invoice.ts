@@ -159,9 +159,6 @@ export function generateSubscriptionTaxInvoiceHtml(
         <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
           MY DETAIL OS
         </div>
-        <div style="font-size: 11px; color: #64748b; font-weight: 500; margin-top: 2px;">
-          SaaS Auto Detailing Operating System
-        </div>
       </div>
     </div>
     <div style="text-align: right;">

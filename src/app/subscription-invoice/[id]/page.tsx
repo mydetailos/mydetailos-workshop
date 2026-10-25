@@ -202,9 +202,6 @@ export default function PublicSubscriptionInvoicePage() {
                 <div className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
                   MY DETAIL OS
                 </div>
-                <div className="text-xs text-slate-500 font-medium mt-0.5">
-                  SaaS Auto Detailing Operating System
-                </div>
               </div>
             </div>
 
