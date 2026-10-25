@@ -154,9 +154,7 @@ export function generateSubscriptionTaxInvoiceHtml(
   <!-- Header -->
   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
     <div style="display: flex; align-items: center; gap: 12px;">
-      <div style="width: 44px; height: 44px; border-radius: 8px; background: #0d9488; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; line-height: 1;">
-        M
-      </div>
+      <img src="/my-detail-os-mark.png" alt="MY DETAIL OS Logo" style="width: 44px; height: 44px; border-radius: 8px; object-fit: contain; border: 1px solid #e2e8f0;" />
       <div>
         <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1.1;">
           MY DETAIL OS

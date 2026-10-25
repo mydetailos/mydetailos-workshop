@@ -190,9 +190,14 @@ export default function PublicSubscriptionInvoicePage() {
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-lg bg-teal-600 text-white flex items-center justify-center font-extrabold text-2xl leading-none">
-                M
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/my-detail-os-mark.png"
+                alt="MY DETAIL OS Logo"
+                width={48}
+                height={48}
+                className="w-12 h-12 rounded-xl object-contain border border-slate-200/80 shadow-xs"
+              />
               <div>
                 <div className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
                   MY DETAIL OS
