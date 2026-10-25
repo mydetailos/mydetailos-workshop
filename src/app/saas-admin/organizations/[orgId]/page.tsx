@@ -20,6 +20,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Download } from "lucide-react";
+import {
+  openSubscriptionTaxInvoicePrint,
+  openSubscriptionInvoiceWhatsApp,
+} from "@/lib/subscription-tax-invoice";
 import {
   Select,
   SelectContent,
@@ -427,12 +432,13 @@ export default function SaasAdminOrganizationDetailPage() {
                   <th className="px-3 py-2">Term</th>
                   <th className="px-3 py-2">Period end</th>
                   <th className="px-3 py-2">Created</th>
+                  <th className="px-3 py-2 text-right">Invoice</th>
                 </tr>
               </thead>
               <tbody>
                 {(row.bills ?? []).length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-4 text-muted-foreground">
+                    <td colSpan={5} className="px-3 py-4 text-muted-foreground">
                       No bills yet.
                     </td>
                   </tr>
@@ -443,6 +449,66 @@ export default function SaasAdminOrganizationDetailPage() {
                       <td className="px-3 py-2">{b.termLabel}</td>
                       <td className="px-3 py-2">{formatDate(b.periodEnd)}</td>
                       <td className="px-3 py-2">{formatDate(b.createdAt)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            title="Download Tax Invoice"
+                            onClick={() => {
+                              void (async () => {
+                                try {
+                                  const full = await apiGet<SubscriptionBillRow>(
+                                    `/api/organization/subscription/bills/${encodeURIComponent(b.id)}`
+                                  );
+                                  openSubscriptionTaxInvoicePrint({
+                                    ...full,
+                                    organizationName: row.organization.name,
+                                  });
+                                } catch {
+                                  openSubscriptionTaxInvoicePrint({
+                                    ...b,
+                                    organizationName: row.organization.name,
+                                  });
+                                }
+                              })();
+                            }}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[#25D366] hover:text-[#20ba5a] hover:bg-[#25D366]/10"
+                            title="Share invoice on WhatsApp"
+                            onClick={() => {
+                              void (async () => {
+                                try {
+                                  const full = await apiGet<SubscriptionBillRow>(
+                                    `/api/organization/subscription/bills/${encodeURIComponent(b.id)}`
+                                  );
+                                  openSubscriptionInvoiceWhatsApp({
+                                    ...full,
+                                    organizationName: row.organization.name,
+                                  });
+                                } catch {
+                                  openSubscriptionInvoiceWhatsApp({
+                                    ...b,
+                                    organizationName: row.organization.name,
+                                  });
+                                }
+                              })();
+                            }}
+                          >
+                            <svg className="size-3.5 fill-current shrink-0" viewBox="0 0 24 24">
+                              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.772.82 2.791.82 3.181 0 5.768-2.587 5.768-5.766.001-3.182-2.585-5.77-5.768-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.694.075-2.227-.563-1.854-.771-3.04-2.655-3.133-2.779-.093-.124-.752-1.002-.752-1.91 0-.909.475-1.356.645-1.54.17-.185.372-.232.497-.232.124 0 .248.001.355.006.113.006.264-.043.413.315.155.372.531 1.298.577 1.393.047.095.078.207.016.331-.062.125-.093.203-.186.311-.093.109-.196.244-.28.327-.093.093-.19.195-.082.381.108.185.481.794 1.033 1.285.711.633 1.31.83 1.497.923.186.093.295.078.404-.047.108-.124.465-.541.589-.728.124-.186.248-.155.418-.093.17.062 1.082.51 1.268.604.186.093.31.14.356.217.047.078.047.45-.097.855z" />
+                            </svg>
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}

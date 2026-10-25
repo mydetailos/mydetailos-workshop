@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { KeyRound, Eye, EyeOff, Sparkles, Loader2, Share2 } from "lucide-react";
 import type { User } from "@/types";
 import { useStaffStore, generateRandomStaffPassword } from "@/store/staff-store";
@@ -36,7 +35,6 @@ export function ResetPasswordDialog({
 }: ResetPasswordDialogProps) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(true);
-  const [mustChange, setMustChange] = useState(true);
   const [busy, setBusy] = useState(false);
   const resetStaffPassword = useStaffStore((s) => s.resetStaffPassword);
 
@@ -44,7 +42,6 @@ export function ResetPasswordDialog({
     if (open && user) {
       setPassword(generateRandomStaffPassword());
       setShowPassword(true);
-      setMustChange(true);
     }
   }, [open, user]);
 
@@ -70,14 +67,14 @@ export function ResetPasswordDialog({
 
     setBusy(true);
     try {
-      const res = await resetStaffPassword(user.id, pwd, mustChange);
+      const res = await resetStaffPassword(user.id, pwd, false);
       if (res.ok) {
         pushActivityLog({
           action: "UPDATED",
           entityType: "STAFF",
           entityId: user.email,
           entityLabel: user.name,
-          details: `Staff password reset (mustChange: ${mustChange})`,
+          details: "Staff password reset",
         });
         toast.success("Password reset successfully.");
         onOpenChange(false);
@@ -181,22 +178,7 @@ export function ResetPasswordDialog({
             <p className="text-[11px] text-muted-foreground">{PASSWORD_POLICY_HINT}</p>
           </div>
 
-          {/* Must change password toggle */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <Label htmlFor="must-change-toggle" className="text-xs font-medium cursor-pointer">
-                Require password change on login
-              </Label>
-              <p className="text-[11px] text-muted-foreground">
-                Staff must pick a new password before accessing the portal.
-              </p>
-            </div>
-            <Switch
-              id="must-change-toggle"
-              checked={mustChange}
-              onCheckedChange={setMustChange}
-            />
-          </div>
+
         </div>
 
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">

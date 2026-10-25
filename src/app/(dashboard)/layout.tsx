@@ -36,7 +36,6 @@ import { goToMarketingLogin } from "@/lib/marketing-site";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const mustChangePassword = useAuthStore((s) => s.user?.mustChangePassword === true);
   const user = useAuthStore((s) => s.user);
   const pathname = usePathname();
   const appPath = useMemo(() => stripOrgSlugFromPath(pathname), [pathname]);
@@ -111,11 +110,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    if (mustChangePassword) {
-      void router.replace(tenantHref("/change-password"));
-      return;
-    }
-
     if (!user) return;
 
     if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
@@ -153,7 +147,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     sessionChecked,
     isAuthenticated,
     user,
-    mustChangePassword,
     currentNavItem,
     appPath,
     pathname,
@@ -208,10 +201,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]);
 
   if (!authReady || !handoffDone || !sessionChecked || !isAuthenticated) {
-    return <BootOverlay />;
-  }
-
-  if (mustChangePassword) {
     return <BootOverlay />;
   }
 

@@ -77,7 +77,6 @@ import {
   type StaffAccessLevel,
 } from "@/lib/staff-access";
 import { StaffAccessSelector } from "@/components/staff/staff-access-selector";
-import { Switch } from "@/components/ui/switch";
 import { validateStrongPassword, PASSWORD_POLICY_HINT } from "@/lib/password-policy";
 import { allocateNextEmployeeCode, type UpdatePinResult } from "@/store/staff-store";
 import type { Branch, User, UserRole } from "@/types";
@@ -110,7 +109,6 @@ function StaffPasswordCard({
 }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [mustChange, setMustChange] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generated, setGenerated] = useState("");
 
@@ -134,11 +132,9 @@ function StaffPasswordCard({
     }
     setSaving(true);
     try {
-      const result = await resetStaffPassword(member.id, pwd, mustChange);
+      const result = await resetStaffPassword(member.id, pwd, false);
       if (result.ok) {
-        toast.success("Password updated.", {
-          description: mustChange ? "Staff member will be prompted to change it on next login." : undefined,
-        });
+        toast.success("Password updated.");
         setPasswordInput("");
         setGenerated("");
         setShowPassword(false);
@@ -194,16 +190,7 @@ function StaffPasswordCard({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="must-change"
-            checked={mustChange}
-            onCheckedChange={setMustChange}
-          />
-          <Label htmlFor="must-change" className="text-sm cursor-pointer">
-            Require staff to change password on next login
-          </Label>
-        </div>
+
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={saving} onClick={() => void handleSave()}>
             {saving ? "Saving..." : "Set Password"}

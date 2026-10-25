@@ -9,6 +9,8 @@ import { formatPaymentStatus } from "@/lib/subscription-export-lock";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, FileText } from "lucide-react";
+import { openSubscriptionTaxInvoicePrint } from "@/lib/subscription-tax-invoice";
+import { useOrganizationStore } from "@/store/organization-store";
 
 function paymentStatusVariant(status: string | null | undefined): "default" | "secondary" | "destructive" | "outline" {
   if (!status) return "outline";
@@ -22,50 +24,7 @@ function paymentStatusVariant(status: string | null | undefined): "default" | "s
 }
 
 function openSubscriptionBillPrint(bill: SubscriptionBillRow & { organizationName?: string }) {
-  const orgName = bill.organizationName ?? "Business";
-  const formatAmt = (n: number | null | undefined) =>
-    n != null ? formatCurrency(n) : "—";
-  const html = `<!DOCTYPE html><html><head><title>${bill.billNumber}</title>
-<style>
-  body{font-family:system-ui,sans-serif;padding:32px;color:#0f172a}
-  h1{font-size:20px;margin:0 0 8px}
-  .muted{color:#64748b;font-size:13px}
-  table{width:100%;border-collapse:collapse;margin-top:24px}
-  td{padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:14px}
-  td:first-child{color:#64748b;width:44%}
-  .total td{font-weight:600;font-size:15px;border-top:2px solid #0f172a;padding-top:12px}
-  .foot{margin-top:28px;font-size:12px;color:#64748b}
-</style></head><body>
-  <h1>Subscription Bill</h1>
-  <p class="muted">${bill.billNumber} &middot; ${orgName}</p>
-  <table>
-    <tr><td>Plan</td><td>${bill.planName}</td></tr>
-    <tr><td>Term</td><td>${bill.termLabel} (${bill.termMonths} months)</td></tr>
-    <tr><td>Period start</td><td>${formatDate(bill.periodStart)}</td></tr>
-    <tr><td>Expiry / period end</td><td><strong>${formatDate(bill.periodEnd)}</strong></td></tr>
-    <tr><td>Base subscription</td><td>${formatAmt(bill.baseAmount)}</td></tr>
-    ${bill.extraBranchCost ? `<tr><td>Extra branches</td><td>${formatAmt(bill.extraBranchCost)}</td></tr>` : ""}
-    ${bill.extraUserCost ? `<tr><td>Extra users</td><td>${formatAmt(bill.extraUserCost)}</td></tr>` : ""}
-    ${bill.onboardingFee ? `<tr><td>Onboarding fee</td><td>${formatAmt(bill.onboardingFee)}</td></tr>` : ""}
-    ${bill.referralDiscount ? `<tr><td>Referral discount</td><td>- ${formatAmt(bill.referralDiscount)}</td></tr>` : ""}
-    <tr><td>GST (${bill.gstPercent ?? 18}%)</td><td>${formatAmt(bill.gstAmount)}</td></tr>
-    <tr class="total"><td>Total amount</td><td>${formatAmt(bill.totalAmount ?? bill.amount)} ${bill.currency}</td></tr>
-  </table>
-  <table style="margin-top:16px">
-    <tr><td>Payment status</td><td>${formatPaymentStatus(bill.paymentStatus)}</td></tr>
-    ${bill.txnReference ? `<tr><td>Transaction reference</td><td>${bill.txnReference}</td></tr>` : ""}
-    <tr><td>Issued on</td><td>${formatDate(bill.createdAt)}</td></tr>
-  </table>
-  <p class="foot">This receipt covers SaaS subscription access for the term above. Business data is retained after expiry; exports may be locked until renewal.</p>
-  <script>window.onload=function(){window.print();}</script>
-</body></html>`;
-  const w = window.open("", "_blank");
-  if (!w) {
-    toast.error("Allow pop-ups to download the bill");
-    return;
-  }
-  w.document.write(html);
-  w.document.close();
+  openSubscriptionTaxInvoicePrint(bill);
 }
 
 export function SubscriptionBillsSection({ refreshKey = 0 }: { refreshKey?: number }) {
@@ -147,15 +106,22 @@ export function SubscriptionBillsSection({ refreshKey = 0 }: { refreshKey?: numb
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2"
+                  title="Download Tax Invoice"
                   onClick={() => {
                     void (async () => {
                       try {
                         const full = await apiGet<SubscriptionBillRow>(
                           `/api/organization/subscription/bills/${encodeURIComponent(b.id)}`
                         );
-                        openSubscriptionBillPrint(full);
+                        const orgName =
+                          full.organizationName ||
+                          useOrganizationStore.getState().entitlement?.organization.name;
+                        openSubscriptionTaxInvoicePrint({
+                          ...full,
+                          organizationName: orgName,
+                        });
                       } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "Could not open bill");
+                        toast.error(e instanceof Error ? e.message : "Could not open invoice");
                       }
                     })();
                   }}

@@ -17,8 +17,6 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Eye,
-  EyeOff,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -45,7 +43,6 @@ export function StaffCredentialsModal({
   onOpenChange,
   credentials,
 }: StaffCredentialsModalProps) {
-  const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
 
@@ -77,15 +74,8 @@ export function StaffCredentialsModal({
       lines.push(`• Registered Mobile: ${credentials.phone} (Sign in with Mobile OTP)`);
     }
     lines.push(`• Login Email: ${credentials.email}`);
-
-    if (credentials.temporaryPassword) {
-      lines.push(`• Temporary Password: ${credentials.temporaryPassword}`);
-      lines.push("");
-      lines.push("You can sign in using your mobile number and OTP, or with your temporary password.");
-    } else {
-      lines.push("");
-      lines.push("You can sign in using your mobile number and OTP, or with your password.");
-    }
+    lines.push("");
+    lines.push("You can sign in directly using your registered mobile number and OTP.");
 
     if (credentials.attendancePin) {
       lines.push("");
@@ -222,47 +212,9 @@ export function StaffCredentialsModal({
             </div>
           </div>
 
-          {/* Password */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              {credentials.temporaryPassword ? "Temporary Password" : "Password"}
-            </Label>
-            {credentials.temporaryPassword ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-md border bg-background px-3 py-2 text-xs font-mono font-bold tracking-wider truncate text-foreground select-all">
-                    {showPassword ? credentials.temporaryPassword : "•".repeat(credentials.temporaryPassword.length)}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                    title={showPassword ? "Hide password" : "Show password"}
-                    onClick={() => setShowPassword((v) => !v)}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                    title="Copy temporary password"
-                    onClick={() => copyToClipboard(credentials.temporaryPassword!, "Password")}
-                  >
-                    {copiedField === "Password" ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
-                  </Button>
-                </div>
-                <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                  Staff member will be prompted to set their permanent password upon initial sign-in.
-                </div>
-              </>
-            ) : (
-              <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground italic">
-                Existing password unchanged. Staff member should use their current password.
-              </div>
-            )}
+          {/* Sign-in Method Notice */}
+          <div className="rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2.5 text-xs text-blue-700 dark:text-blue-400">
+            Staff member can sign in directly using their registered mobile number and OTP. No password is required.
           </div>
 
           {/* Attendance PIN */}

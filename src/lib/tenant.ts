@@ -57,6 +57,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set(
     "profile",
     "public-invoice",
     "public-ledger",
+    "subscription-invoice",
+    "public-subscription-invoice",
     "attendance",
     "backend-api",
     "backend-uploads",

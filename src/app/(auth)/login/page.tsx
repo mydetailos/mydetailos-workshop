@@ -16,10 +16,12 @@ import { BootOverlay } from "@/components/shared/boot-overlay";
  */
 function readNextParam(searchParams: URLSearchParams): string {
   if (typeof window === "undefined") {
-    return searchParams.get("next") || "/dashboard";
+    const raw = searchParams.get("next") || "/dashboard";
+    return raw.includes("change-password") ? "/dashboard" : raw;
   }
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  return hashParams.get("next") || searchParams.get("next") || "/dashboard";
+  const raw = hashParams.get("next") || searchParams.get("next") || "/dashboard";
+  return raw.includes("change-password") ? "/dashboard" : raw;
 }
 
 function resolveOrgSlug(pathname: string): string | null {
@@ -59,11 +61,9 @@ function LoginHandoffPage() {
           return;
         }
 
-        const mustChange = result.user.mustChangePassword === true;
         const role = result.user.role;
-        let dest = next;
-        if (mustChange) dest = "/change-password";
-        else if (role === "PLATFORM_OWNER") dest = "/saas-admin/organizations";
+        let dest = next.includes("change-password") ? "/dashboard" : next;
+        if (role === "PLATFORM_OWNER") dest = "/saas-admin/organizations";
         else if (role === "CUSTOMER") dest = "/customer/dashboard";
 
         if (role !== "PLATFORM_OWNER") {

@@ -77,7 +77,7 @@ interface StaffStoreState {
   resetStaffPassword: (
     staffId: string,
     password: string,
-    mustChangeOnLogin: boolean
+    mustChangeOnLogin?: boolean
   ) => Promise<{ ok: boolean }>;
   deleteStaff: (staffId: string) => Promise<void>;
   findByAttendancePin: (pin: string) => User | undefined;
@@ -331,11 +331,11 @@ export const useStaffStore = create<StaffStoreState>((set, get) => ({
     }
   },
 
-  resetStaffPassword: async (staffId, password, mustChangeOnLogin) => {
+  resetStaffPassword: async (staffId, password, mustChangeOnLogin = false) => {
     try {
       const { user } = await apiPut<{ user: User }>(
         `/api/users/${staffId}/reset-password`,
-        { password, mustChangePassword: mustChangeOnLogin }
+        { password, mustChangePassword: false }
       );
       set((s) => ({
         staff: s.staff.map((m) => (m.id === staffId ? user : m)),
