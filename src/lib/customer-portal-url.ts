@@ -41,12 +41,23 @@ export function getCustomerPortalAbsoluteUrl(
 function resolveAppOrigin(override?: string | null): string {
   const fromOpt = typeof override === "string" ? override.trim().replace(/\/$/, "") : "";
   let origin = fromOpt;
+
+  const configured = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+
   if (!origin && typeof window !== "undefined" && window.location?.origin) {
-    origin = window.location.origin.replace(/\/$/, "");
+    const loc = window.location.origin.replace(/\/$/, "");
+    // On localhost or local IP, external links sent to customer phones must use the public domain
+    if (loc.includes("localhost") || loc.includes("127.0.0.1")) {
+      origin = configured || "https://app.mydetailos.com";
+    } else {
+      origin = loc;
+    }
   }
+
   if (!origin) {
-    origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+    origin = configured || "https://app.mydetailos.com";
   }
+
   // Sanitize: ensure portal link never points to the marketing site root (www.mydetailos.com or mydetailos.com)
   if (
     origin &&
@@ -56,9 +67,7 @@ function resolveAppOrigin(override?: string | null): string {
   ) {
     origin = "https://app.mydetailos.com";
   }
-  if (!origin && typeof window === "undefined" && process.env.NODE_ENV === "production") {
-    origin = "https://app.mydetailos.com";
-  }
+
   return origin;
 }
 
