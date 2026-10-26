@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   completeStaffAuthHandoff,
   readAccessTokenFromLocation,
@@ -34,6 +34,7 @@ function resolveOrgSlug(pathname: string): string | null {
 }
 
 function LoginHandoffPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ function LoginHandoffPage() {
           dest = tenantPath(orgSlug, dest);
         }
 
-        window.location.replace(dest);
+        router.replace(dest);
       } catch {
         if (!cancelled) goToMarketingLogin();
       }
