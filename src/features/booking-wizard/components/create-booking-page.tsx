@@ -2293,21 +2293,22 @@ export function CreateBookingPage({ variant }: { variant: CreateBookingVariant }
     const uploadUserId = user?.id ?? "USR-001";
     const jcExisting = useJobCardStore.getState().jobCards.find((j) => j.id === checkInJob.id);
     const existingPhotos = [...(jcExisting?.inspectionPhotos ?? [])];
-    const uploaded: InspectionPhoto[] = [];
-
+    let uploaded: InspectionPhoto[] = [];
     setCheckInSubmitting(true);
     try {
-      for (const p of checkInPhotos) {
-        const url = await uploadJobInspectionPhoto(checkInJob.id, "before", p.file, p.id);
-        uploaded.push({
-          id: p.id,
-          type: toPersistedInspectionPhotoType("before"),
-          url,
-          caption: p.label.trim() ? `Check-in · ${p.label.trim()}` : "Check-in",
-          uploadedAt: nowIso,
-          uploadedBy: uploadUserId,
-        });
-      }
+      uploaded = await Promise.all(
+        checkInPhotos.map(async (p) => {
+          const url = await uploadJobInspectionPhoto(checkInJob.id, "before", p.file, p.id);
+          return {
+            id: p.id,
+            type: toPersistedInspectionPhotoType("before"),
+            url,
+            caption: p.label.trim() ? `Check-in · ${p.label.trim()}` : "Check-in",
+            uploadedAt: nowIso,
+            uploadedBy: uploadUserId,
+          };
+        })
+      );
       const nextPhotos = mergeInspectionPhotosById(existingPhotos, uploaded);
       const savedOk = await updateJobCard(checkInJob.id, {
         inspectionPhotos: nextPhotos,

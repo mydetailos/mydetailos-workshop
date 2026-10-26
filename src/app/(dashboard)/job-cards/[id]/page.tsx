@@ -925,30 +925,32 @@ export default function JobCardDetailPage() {
       const uploadUserId = useAuthStore.getState().user?.id ?? "USR-001";
       const jcNow = useJobCardStore.getState().jobCards.find((j) => j.id === jobCard.id);
       const base = [...(jcNow?.inspectionPhotos ?? [])];
-      const added: InspectionPhoto[] = [];
+      let added: InspectionPhoto[] = [];
       const kind = type === "BEFORE" ? "before" : "after";
 
       try {
-        for (const file of fileList) {
-          const photoId = `ph-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-          const url = await uploadJobInspectionPhoto(jobCard.id, kind, file, photoId);
-          const rawCaption = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
-          const baseLabel = rawCaption || "Photo";
-          const storedCaption =
-            kind === "before"
-              ? baseLabel.toLowerCase() === "photo"
-                ? "Inspection"
-                : `Inspection · ${baseLabel}`
-              : baseLabel;
-          added.push({
-            id: photoId,
-            type: toPersistedInspectionPhotoType(kind),
-            url,
-            caption: storedCaption,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: uploadUserId,
-          });
-        }
+        added = await Promise.all(
+          fileList.map(async (file) => {
+            const photoId = `ph-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            const url = await uploadJobInspectionPhoto(jobCard.id, kind, file, photoId);
+            const rawCaption = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
+            const baseLabel = rawCaption || "Photo";
+            const storedCaption =
+              kind === "before"
+                ? baseLabel.toLowerCase() === "photo"
+                  ? "Inspection"
+                  : `Inspection · ${baseLabel}`
+                : baseLabel;
+            return {
+              id: photoId,
+              type: toPersistedInspectionPhotoType(kind),
+              url,
+              caption: storedCaption,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: uploadUserId,
+            };
+          })
+        );
         await updateJobCard(jobCard.id, {
           inspectionPhotos: mergeInspectionPhotosById(base, added),
           updatedAt: new Date().toISOString(),
