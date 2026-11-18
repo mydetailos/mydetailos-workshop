@@ -242,6 +242,7 @@ export default function JobCardsPage() {
       odometerReading: jc.odometerReading ?? undefined,
       business: {
         businessName: settingsStore.businessName,
+        legalEntity: settingsStore.legalEntity,
         businessTagline: settingsStore.businessTagline,
         businessAddress: settingsStore.businessAddress,
         businessPhone: settingsStore.businessPhone,

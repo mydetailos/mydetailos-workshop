@@ -120,6 +120,10 @@ export default function PublicInvoicePage() {
     const businessDetails = {
       ...business,
       businessName: resolvedBusinessName,
+      legalEntity:
+        businessSettings?.legalEntity ||
+        businessSettings?.legalName ||
+        (isPlatformDefaultName(resolvedBusinessName) ? "Samriddhi Agencies" : undefined),
       logoUrl: resolvedLogoUrl,
       businessTagline: businessSettings?.businessTagline || "Car Wash & Detailing Studio",
       businessAddress:

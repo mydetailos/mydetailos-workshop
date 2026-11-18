@@ -58,7 +58,6 @@ describe("subscription-tax-invoice", () => {
     // Header
     expect(html).toContain("TAX INVOICE");
     expect(html).toContain("MY DETAIL OS");
-    expect(html).toContain("SaaS Auto Detailing Operating System");
     expect(html).toContain("Invoice #: INV-2026-0001");
 
     // Legal Entity

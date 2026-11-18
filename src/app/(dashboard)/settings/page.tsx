@@ -219,6 +219,7 @@ export default function SettingsPage() {
   const [newModelSegment, setNewModelSegment] = useState<VehicleSegment>("HATCHBACK");
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState(settings.businessName);
+  const [legalEntity, setLegalEntity] = useState(settings.legalEntity || "");
   const [businessPhone, setBusinessPhone] = useState(settings.businessPhone);
   const [businessEmail, setBusinessEmail] = useState(settings.businessEmail);
   const [businessAddress, setBusinessAddress] = useState(settings.businessAddress);
@@ -258,6 +259,36 @@ export default function SettingsPage() {
     setReferralBonus(String(rewardReferralBonus));
     setMinRedeemPoints(String(rewardMinRedeem));
   }, [rewardPointsPer100, rewardPointValue, rewardReferralBonus, rewardMinRedeem]);
+
+  useEffect(() => {
+    setBusinessName(settings.businessName);
+    setLegalEntity(settings.legalEntity || "");
+    setBusinessPhone(settings.businessPhone);
+    setBusinessEmail(settings.businessEmail);
+    setBusinessAddress(settings.businessAddress);
+    setGstRegistrationStatus(settings.gstRegistrationStatus);
+    setGstin(settings.gstin);
+    setBankName(settings.bankName);
+    setBankBranch(settings.bankBranch);
+    setBankAccountNumber(settings.bankAccountNumber);
+    setBankIfsc(settings.bankIfsc);
+    setBankUpi(settings.bankUpi);
+    setIdentityContactName(settings.identityContactName);
+  }, [
+    settings.businessName,
+    settings.legalEntity,
+    settings.businessPhone,
+    settings.businessEmail,
+    settings.businessAddress,
+    settings.gstRegistrationStatus,
+    settings.gstin,
+    settings.bankName,
+    settings.bankBranch,
+    settings.bankAccountNumber,
+    settings.bankIfsc,
+    settings.bankUpi,
+    settings.identityContactName,
+  ]);
 
   const [notifJobUpdate, setNotifJobUpdate] = useState(true);
   const [notifPayment, setNotifPayment] = useState(true);
@@ -648,6 +679,7 @@ export default function SettingsPage() {
       settings.setBusinessProfile({
         gstRegistrationStatus,
         businessName,
+        legalEntity,
         businessPhone,
         businessEmail,
         businessAddress,
@@ -665,6 +697,7 @@ export default function SettingsPage() {
       settings.setBusinessProfile({
         gstRegistrationStatus,
         gstin,
+        legalEntity,
       });
     }
 
@@ -1102,8 +1135,26 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label>Company Name</Label>
-                      <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+                      <Label>Brand / Company Name</Label>
+                      <Input
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        placeholder="e.g. MY DETAIL OS or Amar Auto Studio"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Customer-facing brand name displayed prominently on invoices, portals, and banners.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" />Legal Entity Name</Label>
+                      <Input
+                        value={legalEntity}
+                        onChange={(e) => setLegalEntity(e.target.value)}
+                        placeholder="e.g. Samriddhi Agencies"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Registered legal entity associated with your GSTIN (shown as &ldquo;(Legal Entity)&rdquo; on tax invoices).
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Identity contact name</Label>

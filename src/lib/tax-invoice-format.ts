@@ -110,6 +110,8 @@ export function additionalDiscountTotal(invoice: Invoice): number {
 export interface TaxInvoiceBusinessBlock {
   gstRegistrationStatus?: "REGISTERED" | "NOT_REGISTERED";
   businessName: string;
+  legalEntity?: string;
+  legalName?: string;
   businessLogo?: string;
   logoUrl?: string;
   businessTagline: string;
@@ -351,6 +353,12 @@ export function buildTaxInvoicePrintHtml(
       : "";
 
   const isGstRegistered = business.gstRegistrationStatus !== "NOT_REGISTERED";
+  const legalEntity = (
+    business.legalEntity ||
+    business.legalName ||
+    (business.businessName?.trim().toUpperCase() === "MY DETAIL OS" ? "Samriddhi Agencies" : "")
+  )?.trim();
+  const displayGstin = isGstRegistered && business.gstin?.trim() ? business.gstin.trim() : "";
   const isDedicatedMembershipInvoice = invoice.source === "MEMBERSHIP";
   const displayTaxRate = isGstRegistered ? invoice.taxRate : 0;
   const displayTaxAmount = isGstRegistered ? invoice.taxAmount : 0;
@@ -576,7 +584,7 @@ export function buildTaxInvoicePrintHtml(
 body { font-family: 'Outfit', system-ui, sans-serif; font-size: 10.5px; color: #171717; background: #fafafa; line-height: 1.4; padding: 20px 0; }
 .wrap { max-width: 800px; margin: 0 auto; padding: 24px; border: 1.5px solid #3b82f6; background: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border-radius: 8px; }
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
-.brand-row { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.brand-row { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
 .brand-logo {
   width: 56px;
   height: 56px;
@@ -590,8 +598,13 @@ body { font-family: 'Outfit', system-ui, sans-serif; font-size: 10.5px; color: #
   border: 2px solid #3b82f6;
   display: block;
   overflow: hidden;
+  margin-top: 1px;
 }
 .brand-text { min-width: 0; }
+.brand-legal { font-size: 11px; font-weight: 600; color: #334155; margin-top: 2px; line-height: 1.35; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.brand-legal .legal-tag { font-size: 9px; font-weight: 500; color: #64748b; }
+.brand-gstin { font-size: 10px; font-weight: 600; color: #334155; margin-top: 1px; line-height: 1.35; }
+.brand-gstin .gstin-val { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; color: #0f172a; }
 .metadata-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; margin: 16px 0; padding: 10px 12px; border-top: 1.5px solid #3b82f6; border-bottom: 1.5px solid #3b82f6; background: #eff6ff; border-radius: 2px; }
 .metadata-bar.membership { grid-template-columns: repeat(2, 1fr); }
 .metadata-item div:first-child { color: #737373; font-weight: 500; text-transform: uppercase; font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px; }
@@ -647,6 +660,8 @@ table.inv .b { font-weight: 700; color: #171717; }
     max-height: 44px;
   }
   .brand-name { font-size: 16px !important; }
+  .brand-legal { font-size: 10px !important; }
+  .brand-gstin { font-size: 9.5px !important; }
   .brand-sub { font-size: 9px !important; }
   .invoice-title-block { align-items: flex-start !important; height: auto !important; text-align: left !important; }
   .invoice-title-block .doc-title { font-size: 14px !important; }
@@ -662,6 +677,9 @@ table.inv .b { font-weight: 700; color: #171717; }
   .wrap { box-shadow: none; border: 1.2px solid #3b82f6 !important; padding: 12px 16px !important; }
   .top { margin-bottom: 6px !important; }
   .brand-logo { width: 48px !important; height: 48px !important; min-width: 48px !important; min-height: 48px !important; }
+  .brand-sub { font-size: 8.5px !important; margin-top: 1px !important; }
+  .brand-legal { font-size: 9px !important; margin-top: 1px !important; line-height: 1.25 !important; }
+  .brand-gstin { font-size: 8.5px !important; line-height: 1.25 !important; }
   .metadata-bar { margin: 8px 0 !important; padding: 6px 8px !important; gap: 4px !important; }
   .metadata-item div:first-child { font-size: 7px !important; margin-bottom: 1px !important; }
   .metadata-item div:last-child { font-size: 8.5px !important; }
@@ -710,7 +728,26 @@ table.inv .b { font-weight: 700; color: #171717; }
       }
       <div class="brand-text">
         <div class="brand-name" style="font-size: 22px; font-weight: 700; color: #1e3a8a; letter-spacing: -0.5px;">${escapeHtml(business.businessName)}</div>
-        <div class="brand-sub" style="font-size: 10px; font-weight: 500; color: #3b82f6; letter-spacing: 0.5px; margin-top: 1px;">${escapeHtml(business.businessTagline)}</div>
+        ${
+          business.businessTagline?.trim()
+            ? `<div class="brand-sub" style="font-size: 10px; font-weight: 500; color: #3b82f6; letter-spacing: 0.5px; margin-top: 1px;">${escapeHtml(business.businessTagline.trim())}</div>`
+            : ""
+        }
+        ${
+          legalEntity
+            ? `<div class="brand-legal">
+          <span>${escapeHtml(legalEntity)}</span>
+          <span class="legal-tag">(Legal Entity)</span>
+        </div>`
+            : ""
+        }
+        ${
+          displayGstin
+            ? `<div class="brand-gstin">
+          <span style="color: #64748b; font-weight: 500;">GSTIN:</span> <span class="gstin-val">${escapeHtml(displayGstin)}</span>
+        </div>`
+            : ""
+        }
         <div style="display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 9px; color: #525252; margin-top: 6px; font-weight: 500;">
           ${business.businessPhone ? `<span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11"/></svg>${escapeHtml(business.businessPhone)}</span>` : ""}
           ${business.businessEmail ? `<span style="display: flex; align-items: center; gap: 3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${escapeHtml(business.businessEmail)}</span>` : ""}

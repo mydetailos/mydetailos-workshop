@@ -442,6 +442,64 @@ describe("buildTaxInvoicePrintHtml organization branding & logo", () => {
     expect(html).toContain("Interior Detailing");
     expect(html).not.toContain("Interior Detailing (excl. GST)");
   });
+
+  it("renders brand name, legal entity, and dynamic GSTIN in header", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...testOpts,
+        business: {
+          ...testOpts.business,
+          businessName: "MY DETAIL OS",
+          legalEntity: "Samriddhi Agencies",
+          gstin: "29AABCT1234F1ZP",
+          businessTagline: "Car Wash & Detailing Studio",
+        },
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).toContain("MY DETAIL OS");
+    expect(html).toContain("Samriddhi Agencies");
+    expect(html).toContain("(Legal Entity)");
+    expect(html).toContain("29AABCT1234F1ZP");
+    expect(html).toContain("Car Wash &amp; Detailing Studio");
+    expect(html).toContain("TAX PRE INVOICE");
+    expect(html).toContain("Original for Recipient");
+
+    const brandIndex = html.indexOf("MY DETAIL OS");
+    const taglineIndex = html.indexOf("Car Wash &amp; Detailing Studio");
+    const legalIndex = html.indexOf("Samriddhi Agencies");
+    const gstinIndex = html.indexOf("29AABCT1234F1ZP");
+
+    expect(brandIndex).toBeLessThan(taglineIndex);
+    expect(taglineIndex).toBeLessThan(legalIndex);
+    expect(legalIndex).toBeLessThan(gstinIndex);
+  });
+
+  it("dynamically renders custom organization legal entity and gstin without hardcoding", async () => {
+    const { buildTaxInvoicePrintHtml } = await import("@/lib/tax-invoice-format");
+    const html = buildTaxInvoicePrintHtml(
+      {
+        ...testOpts,
+        business: {
+          ...testOpts.business,
+          businessName: "Amar Auto Studio",
+          legalEntity: "Amar Detailing Services LLP",
+          gstin: "27ABCDE1234F1Z5",
+          businessTagline: "Ceramic & PPF Experts",
+        },
+      },
+      { includePrintScript: false }
+    );
+
+    expect(html).toContain("Amar Auto Studio");
+    expect(html).toContain("Amar Detailing Services LLP");
+    expect(html).toContain("(Legal Entity)");
+    expect(html).toContain("27ABCDE1234F1Z5");
+    expect(html).toContain("Ceramic &amp; PPF Experts");
+  });
 });
+
 
 

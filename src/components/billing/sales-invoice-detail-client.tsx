@@ -417,6 +417,7 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
   const {
     gstRegistrationStatus,
     businessName,
+    legalEntity,
     businessTagline,
     businessPhone,
     businessWhatsApp,
@@ -1094,6 +1095,7 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
       odometerReading: odometerReading ?? undefined,
       business: {
         businessName,
+        legalEntity: legalEntity || undefined,
         businessTagline,
         businessAddress,
         businessPhone,
@@ -1131,6 +1133,7 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
     totalPaid,
     remainingBalance,
     businessName,
+    legalEntity,
     businessTagline,
     businessAddress,
     businessPhone,

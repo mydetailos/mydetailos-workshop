@@ -38,6 +38,7 @@ export type InvoiceSignatureType = "BLANK" | "CUSTOM" | "STYLIZED" | "NONE";
 export interface SerializableAppSettings {
   gstRegistrationStatus: "REGISTERED" | "NOT_REGISTERED";
   businessName: string;
+  legalEntity?: string;
   businessLogo: string;
   businessTagline: string;
   businessPhone: string;
@@ -98,6 +99,7 @@ export interface SerializableAppSettings {
 export const DEFAULT_SERIALIZABLE_APP_SETTINGS: SerializableAppSettings = {
   gstRegistrationStatus: "REGISTERED",
   businessName: "MY DETAIL OS",
+  legalEntity: "Samriddhi Agencies",
   businessLogo: "",
   businessTagline: "Car Wash & Detailing Studio",
   businessPhone: "+91-80-4123-4567",
@@ -151,6 +153,7 @@ function sliceSerializable(s: SerializableAppSettings): SerializableAppSettings 
   return {
     gstRegistrationStatus: s.gstRegistrationStatus,
     businessName: s.businessName,
+    legalEntity: s.legalEntity ?? "",
     businessLogo: s.businessLogo,
     businessTagline: s.businessTagline,
     businessPhone: s.businessPhone,
@@ -212,6 +215,7 @@ export function mergeAppSettingsPayload(raw: unknown): Partial<SerializableAppSe
   assignStr(
     "gstRegistrationStatus",
     "businessName",
+    "legalEntity",
     "businessLogo",
     "businessTagline",
     "businessPhone",
@@ -233,6 +237,9 @@ export function mergeAppSettingsPayload(raw: unknown): Partial<SerializableAppSe
     "invoiceSignatoryTitle",
     "invoiceSignatoryName"
   );
+  if (!next.legalEntity && typeof o.legalName === "string") {
+    next.legalEntity = o.legalName;
+  }
   if (
     o.invoiceSignatureType === "BLANK" ||
     o.invoiceSignatureType === "CUSTOM" ||
@@ -294,6 +301,7 @@ interface SettingsState extends SerializableAppSettings {
         SerializableAppSettings,
         | "gstRegistrationStatus"
         | "businessName"
+        | "legalEntity"
         | "businessLogo"
         | "businessTagline"
         | "businessPhone"

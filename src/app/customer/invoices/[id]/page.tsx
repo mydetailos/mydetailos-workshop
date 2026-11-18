@@ -123,6 +123,10 @@ function buildPublicInvoicePdfOpts(
           ? "NOT_REGISTERED"
           : "REGISTERED",
       businessName: resolvedBusinessName,
+      legalEntity:
+        businessSettings?.legalEntity ||
+        businessSettings?.legalName ||
+        (isPlatformDefaultName(resolvedBusinessName) ? "Samriddhi Agencies" : undefined),
       logoUrl: resolvedLogoUrl,
       businessTagline: businessSettings?.businessTagline || "Car Wash & Detailing Studio",
       businessAddress:

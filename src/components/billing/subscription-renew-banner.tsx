@@ -883,7 +883,7 @@ export function SubscriptionRenewBanner() {
       {showBanner ? (
         <div
           className={cn(
-            "mb-3 grid grid-cols-1 items-center gap-2 rounded-lg border border-amber-200/90 bg-[#FFF8F0] px-2.5 py-2 shadow-sm sm:grid-cols-3 sm:gap-3 sm:px-3",
+            "mb-3 flex items-center justify-between gap-2 rounded-lg border border-amber-200/90 bg-[#FFF8F0] px-2.5 py-1.5 shadow-sm sm:grid sm:grid-cols-3 sm:gap-3 sm:px-3 sm:py-2",
             "border-l-[3px] border-l-[#FB8612]",
             urgent && "border-red-200 bg-red-50/90 border-l-red-500"
           )}
@@ -891,17 +891,17 @@ export function SubscriptionRenewBanner() {
           <div className="flex min-w-0 items-center gap-2">
             <div
               className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                "flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full",
                 urgent ? "bg-red-100 text-red-700" : "bg-[#FB8612]/15 text-[#C45F0A]"
               )}
             >
-              {locked ? <Lock className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
+              {locked ? <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Clock3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
             </div>
             <div className="min-w-0 leading-tight">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p
                   className={cn(
-                    "text-sm font-semibold",
+                    "text-xs sm:text-sm font-semibold truncate",
                     urgent ? "text-red-950" : "text-amber-950"
                   )}
                 >
@@ -910,7 +910,7 @@ export function SubscriptionRenewBanner() {
                 {daysBadgeLabel ? (
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-bold tracking-wide uppercase",
+                      "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-bold tracking-wide uppercase",
                       urgent
                         ? "bg-red-100 text-red-700"
                         : "bg-[#FB8612]/15 text-[#C45F0A]"
@@ -923,7 +923,7 @@ export function SubscriptionRenewBanner() {
               </div>
               <p
                 className={cn(
-                  "truncate text-[11px]",
+                  "hidden sm:block truncate text-[11px]",
                   urgent ? "text-red-900/70" : "text-amber-900/70"
                 )}
               >
@@ -932,20 +932,21 @@ export function SubscriptionRenewBanner() {
             </div>
           </div>
 
-          <div className="flex justify-center">
+          <div className="hidden sm:flex justify-center">
             {countdown ? (
               <SubscriptionCountdownClock parts={countdown} expiresAt={expiresAt} />
             ) : null}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex shrink-0 justify-end">
             <Button
               type="button"
               size="sm"
-              className="h-8 shrink-0 rounded-md bg-[#FB8612] px-3 text-xs font-semibold text-white hover:bg-[#e5780f]"
+              className="h-7 sm:h-8 shrink-0 rounded-md bg-[#FB8612] px-2.5 sm:px-3 text-xs font-semibold text-white hover:bg-[#e5780f]"
               onClick={() => setRenewOpen(true)}
             >
-              {ctaLabel}
+              <span className="sm:hidden">{isTrial ? "Upgrade" : "Renew"}</span>
+              <span className="hidden sm:inline">{ctaLabel}</span>
             </Button>
           </div>
         </div>
