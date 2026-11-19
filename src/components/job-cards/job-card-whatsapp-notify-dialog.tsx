@@ -39,11 +39,6 @@ export type JobCardWhatsAppNotifyDialogProps = {
   customerPhone?: string | null;
 };
 
-function appOrigin(): string {
-  if (typeof window !== "undefined") return window.location.origin;
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
-}
-
 export function JobCardWhatsAppNotifyDialog({
   open,
   onOpenChange,
@@ -61,11 +56,9 @@ export function JobCardWhatsAppNotifyDialog({
     () => ({
       businessName: displayName,
       invoiceNumber: invoiceNumber ?? null,
-      customerLoginUrl: getCustomerPortalLoginUrl({ origin: appOrigin() || null }),
+      customerLoginUrl: getCustomerPortalLoginUrl(),
       customerPhotosLink: jobCard.secureToken
-        ? getCustomerPortalAbsoluteUrl(`/customer/job-card/${jobCard.secureToken}/photos`, {
-            origin: appOrigin() || null,
-          })
+        ? getCustomerPortalAbsoluteUrl(`/customer/job-card/${jobCard.secureToken}/photos`)
         : null,
     }),
     [displayName, invoiceNumber, jobCard.secureToken]

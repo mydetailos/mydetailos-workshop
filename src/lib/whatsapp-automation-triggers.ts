@@ -230,7 +230,14 @@ export function notifyInvoiceCreatedWhatsApp(inv: Invoice, businessName: string)
     invoiceLabel,
   });
 
-  const vehicleStr = `${inv.vehicleRegNumber || ""}`.trim() || "Vehicle";
+  const isCounterSale =
+    inv.source === "COUNTER_SALE" ||
+    inv.jobNumber === "Counter Sale" ||
+    inv.vehicleRegNumber === "—" ||
+    !inv.vehicleRegNumber;
+  const vehicleStr = isCounterSale
+    ? "Counter Sale"
+    : `${inv.vehicleRegNumber || ""}`.trim() || "Vehicle";
 
   const template = TWILIO_TEMPLATE_SIDS.INVOICE_CREATED
     ? {
@@ -257,7 +264,7 @@ export function notifyInvoiceCreatedWhatsApp(inv: Invoice, businessName: string)
     },
     notificationSummary: `${inv.invoiceNumber} → ${phone}`,
     href: `/billing/${inv.id}`,
-    branchId: branchIdForJobCardId(inv.jobCardId),
+    branchId: inv.branchId || branchIdForJobCardId(inv.jobCardId),
     activityLog: {
       entityType: "INVOICE",
       entityId: inv.id,

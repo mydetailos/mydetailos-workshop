@@ -49,7 +49,12 @@ export async function notifyCustomerPaymentRecordedWhatsApp(params: {
     { businessName: workshopName }
   );
 
-  const vehicleStr = params.invoice.vehicleRegNumber || "Vehicle";
+  const isCounterSale =
+    params.invoice.source === "COUNTER_SALE" ||
+    params.invoice.jobNumber === "Counter Sale" ||
+    params.invoice.vehicleRegNumber === "—" ||
+    !params.invoice.vehicleRegNumber;
+  const vehicleStr = isCounterSale ? "Counter Sale" : params.invoice.vehicleRegNumber || "Vehicle";
   const template = TWILIO_TEMPLATE_SIDS.PAYMENT_RECEIVED
     ? {
         contentSid: TWILIO_TEMPLATE_SIDS.PAYMENT_RECEIVED,
@@ -67,9 +72,11 @@ export async function notifyCustomerPaymentRecordedWhatsApp(params: {
     : undefined;
 
   const billingHref = `/billing/${params.invoice.id}`;
-  const branchId = useJobCardStore
-    .getState()
-    .jobCards.find((j) => j.id === params.invoice.jobCardId)?.branchId;
+  const branchId =
+    params.invoice.branchId ||
+    useJobCardStore
+      .getState()
+      .jobCards.find((j) => j.id === params.invoice.jobCardId)?.branchId;
   const notify = (channel: "api" | "composer") => {
     useNotificationStore.getState().addNotification({
       type: "whatsapp_sent",

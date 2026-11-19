@@ -543,13 +543,19 @@ export function buildInvoiceWhatsAppMessage(
       ? `\n(+${invoice.lineItems.length - 8} more line(s) on full invoice)`
       : "";
 
-  return [
+  const isCounterSale =
+    invoice.source === "COUNTER_SALE" ||
+    invoice.jobNumber === "Counter Sale" ||
+    invoice.vehicleRegNumber === "—" ||
+    !invoice.vehicleRegNumber;
+
+  const lines = [
     `Hi *${first}*! 👋`,
     ``,
     `Your ${opts.invoiceLabel ?? "tax invoice"} *${invoice.invoiceNumber}* is ready from *${opts.businessName}*. 🧾`,
     ``,
-    `🚗 Vehicle: ${invoice.vehicleRegNumber}`,
-    `Job: *${invoice.jobNumber}*`,
+    isCounterSale ? `Type: *Counter Sale*` : `🚗 Vehicle: ${invoice.vehicleRegNumber}`,
+    isCounterSale ? "" : `Job: *${invoice.jobNumber}*`,
     ``,
     lineSummary + more,
     ``,
@@ -559,7 +565,9 @@ export function buildInvoiceWhatsAppMessage(
     `Use the invoice PDF for UPI / bank details, or reply here for help.`,
     ``,
     `— ${opts.businessName}`,
-  ].join("\n");
+  ];
+
+  return lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n");
 }
 
 function formatWhatsAppInr(amount: number): string {
@@ -803,12 +811,18 @@ export function buildInvoicePaymentReceivedWhatsAppMessage(
     ? `Reference: *${payment.referenceNumber.trim()}*`
     : "";
 
+  const isCounterSale =
+    invoice.source === "COUNTER_SALE" ||
+    invoice.jobNumber === "Counter Sale" ||
+    invoice.vehicleRegNumber === "—" ||
+    !invoice.vehicleRegNumber;
+
   return [
     `Hi *${first}*,`,
     ``,
     `We’ve recorded your payment for invoice *${invoice.invoiceNumber}* at *${opts.businessName}*.`,
-    `Job: *${invoice.jobNumber}*`,
-    `Vehicle: ${invoice.vehicleRegNumber}`,
+    isCounterSale ? `Type: *Counter Sale*` : `Job: *${invoice.jobNumber}*`,
+    isCounterSale ? null : `Vehicle: ${invoice.vehicleRegNumber}`,
     ``,
     `*Amount paid:* *${formatCurrency(payment.amount)}*`,
     `Method: *${methodLabel}*`,

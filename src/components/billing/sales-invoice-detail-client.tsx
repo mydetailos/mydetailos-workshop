@@ -22,6 +22,7 @@ import {
   Minus,
   Percent,
   BookMarked,
+  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -82,7 +83,9 @@ import { getCustomerPortalLoginUrl } from "@/lib/customer-portal-url";
 import {
   TWILIO_TEMPLATE_SIDS,
   buildInvoiceCreatedVariables,
+  buildPaymentReceivedVariables,
 } from "@/lib/twilio-templates-config";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import {
   sendCustomerWhatsApp,
   openWhatsAppComposer,
@@ -1364,6 +1367,13 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
 
   const handleInvoiceWhatsApp = async () => {
     if (!invoice) return;
+    const phone = invoice.customerPhone?.trim();
+    if (!phone) {
+      toast.error("No phone number on invoice", {
+        description: "Add a phone number to the customer or invoice before sending WhatsApp.",
+      });
+      return;
+    }
     const invoiceLabel = invoiceCustomerDocumentLabel(
       invoice,
       isGstRegistered(gstRegistrationStatus)
@@ -1373,14 +1383,13 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
       remainingBalance,
       invoiceLabel,
     });
-    const phone = invoice.customerPhone;
     const notify = (channel: "api" | "composer") => {
       useNotificationStore.getState().addNotification({
         type: "whatsapp_sent",
         title: channel === "api" ? "Invoice shared via WhatsApp" : "Invoice — WhatsApp composer",
         message: `${invoice.invoiceNumber} → ${phone}`,
         href: `/billing/${invoice.id}`,
-        branchId: jobCard?.branchId,
+        branchId: invoice.branchId || jobCard?.branchId,
       });
     };
     const logSent = () => {
@@ -1392,21 +1401,49 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
         details: `Invoice ${invoice.invoiceNumber} shared with ${invoice.customerName} via WhatsApp`,
       });
     };
-    const vehicleStr = invoice.vehicleRegNumber?.trim() || "Vehicle";
-    const template = TWILIO_TEMPLATE_SIDS.INVOICE_CREATED
-      ? {
-          contentSid: TWILIO_TEMPLATE_SIDS.INVOICE_CREATED,
-          contentVariables: buildInvoiceCreatedVariables({
-            customerName: invoice.customerName,
-            businessName,
-            invoiceNumber: invoice.invoiceNumber,
-            vehicleStr,
-            totalAmount: formatCurrency(invoice.grandTotal),
-            balanceDue: formatCurrency(remainingBalance),
-            portalUrl: getCustomerPortalLoginUrl(),
-          }),
-        }
-      : undefined;
+
+    const isCounterSale =
+      invoice.source === "COUNTER_SALE" ||
+      invoice.jobNumber === "Counter Sale" ||
+      invoice.vehicleRegNumber === "—" ||
+      !invoice.vehicleRegNumber;
+    const vehicleStr = isCounterSale
+      ? "Counter Sale"
+      : invoice.vehicleRegNumber?.trim() || "Vehicle";
+
+    const isPaid = (invoice.status === "PAID" || remainingBalance <= 0.01) && invoice.payments.length > 0;
+    const lastPayment = invoice.payments[invoice.payments.length - 1];
+
+    let template: { contentSid: string; contentVariables: Record<string, string> } | undefined;
+
+    if (isPaid && TWILIO_TEMPLATE_SIDS.PAYMENT_RECEIVED) {
+      template = {
+        contentSid: TWILIO_TEMPLATE_SIDS.PAYMENT_RECEIVED,
+        contentVariables: buildPaymentReceivedVariables({
+          customerName: invoice.customerName,
+          businessName,
+          invoiceNumber: invoice.invoiceNumber,
+          vehicleStr,
+          amountPaid: formatCurrency(lastPayment?.amount ?? invoice.grandTotal),
+          method: lastPayment?.method ?? "CASH",
+          remainingBalance: formatCurrency(0),
+          portalUrl: getCustomerPortalLoginUrl(),
+        }),
+      };
+    } else if (TWILIO_TEMPLATE_SIDS.INVOICE_CREATED) {
+      template = {
+        contentSid: TWILIO_TEMPLATE_SIDS.INVOICE_CREATED,
+        contentVariables: buildInvoiceCreatedVariables({
+          customerName: invoice.customerName,
+          businessName,
+          invoiceNumber: invoice.invoiceNumber,
+          vehicleStr,
+          totalAmount: formatCurrency(invoice.grandTotal),
+          balanceDue: formatCurrency(remainingBalance),
+          portalUrl: getCustomerPortalLoginUrl(),
+        }),
+      };
+    }
 
     try {
       await sendCustomerWhatsApp(phone, message, template);
@@ -1590,47 +1627,31 @@ export function SalesInvoiceDetailClient({ invoiceId: id }: SalesInvoiceDetailCl
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => void handleInvoiceWhatsApp()}>
+                <WhatsAppIcon className="mr-1.5 h-4 w-4" />
+                Send via WhatsApp
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  const customerName = invoice.customerName;
-                  const businessNameVal = businessName || "MY DETAIL OS";
-                  const invoiceNumber = invoice.invoiceNumber;
-                  const totalAmount = invoice.grandTotal;
-                  const vehicleName = resolvedVehicleMakeModel !== "—" ? resolvedVehicleMakeModel : "Vehicle";
-                  const vehicleNumber = invoice.vehicleRegNumber || jobCard?.vehicleRegNumber || "";
-                  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
-                  const publicInvoiceUrl = `${appBaseUrl}/public-invoice/${invoice.id}`;
-
-                  const msg = `Hi ${customerName},
-
-Please find your invoice from ${businessNameVal}.
-
-Invoice: ${invoiceNumber}
-
-Amount: ₹${totalAmount}
-
-Vehicle: ${vehicleName} - ${vehicleNumber}
-
-You can view the invoice here: ${publicInvoiceUrl}
-
-Thank you,
-${businessNameVal}`;
-
-                  openWhatsAppComposer(invoice.customerPhone, msg);
+                  const phone = invoice.customerPhone?.trim();
+                  if (!phone) {
+                    toast.error("No phone number on invoice");
+                    return;
+                  }
+                  const invoiceLabel = invoiceCustomerDocumentLabel(
+                    invoice,
+                    isGstRegistered(gstRegistrationStatus)
+                  ).sentenceCase;
+                  const message = buildInvoiceWhatsAppMessage(invoice, {
+                    businessName,
+                    remainingBalance,
+                    invoiceLabel,
+                  });
+                  openWhatsAppComposer(phone, message);
                 }}
               >
-                <svg
-                  className="mr-0.5 h-4 w-4 shrink-0"
-                  viewBox="0 0 240 241.19"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fill="#25d366"
-                    fillRule="evenodd"
-                    d="M205,35.05A118.61,118.61,0,0,0,120.46,0C54.6,0,1,53.61,1,119.51a119.5,119.5,0,0,0,16,59.74L0,241.19l63.36-16.63a119.43,119.43,0,0,0,57.08,14.57h0A119.54,119.54,0,0,0,205,35.07v0ZM120.5,219A99.18,99.18,0,0,1,69.91,205.1l-3.64-2.17-37.6,9.85,10-36.65-2.35-3.76A99.37,99.37,0,0,1,190.79,49.27,99.43,99.43,0,0,1,120.49,219ZM175,144.54c-3-1.51-17.67-8.71-20.39-9.71s-4.72-1.51-6.75,1.51-7.72,9.71-9.46,11.72-3.49,2.27-6.45.76-12.63-4.66-24-14.84A91.1,91.1,0,0,1,91.25,113.3c-1.75-3-.19-4.61,1.33-6.07s3-3.48,4.47-5.23a19.65,19.65,0,0,0,3-5,5.51,5.51,0,0,0-.24-5.23C99,90.27,93,75.57,90.6,69.58s-4.89-5-6.73-5.14-3.73-.09-5.7-.09a11,11,0,0,0-8,3.73C67.48,71.05,59.75,78.3,59.75,93s10.69,28.88,12.19,30.9S93,156.07,123,169c7.12,3.06,12.68,4.9,17,6.32a41.18,41.18,0,0,0,18.8,1.17c5.74-.84,17.66-7.21,20.17-14.18s2.5-13,1.75-14.19-2.69-2.06-5.7-3.59l0,0Z"
-                  />
-                </svg>
-                Whatsapp
+                <ExternalLink className="mr-1.5 h-4 w-4" />
+                Open WhatsApp Web
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

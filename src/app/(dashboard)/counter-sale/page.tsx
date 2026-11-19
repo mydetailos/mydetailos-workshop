@@ -35,6 +35,8 @@ import {
   PaymentReceivedInField,
 } from "@/components/billing/payment-received-in-field";
 import { useCashBankStore } from "@/store/cash-bank-store";
+import { notifyCustomerPaymentRecordedWhatsApp } from "@/lib/payment-received-whatsapp";
+import { notifyInvoiceCreatedWhatsApp } from "@/lib/whatsapp-automation-triggers";
 import { getBranchCanonicalQty } from "@/lib/inventory/branch-stock";
 import { isMlTrackedPart } from "@/lib/inventory-units";
 import {
@@ -400,6 +402,25 @@ export default function CounterSalePage() {
       toast.success("Counter Sale recorded", {
         description: `${invoice.invoiceNumber} · ${counterSaleInvoiceStatus(grandTotal, collected)}`,
       });
+
+      // Automated WhatsApp notification to customer for the Counter Sale
+      const currentBusinessName = useSettingsStore.getState().businessName;
+      const cleanPhone = (customerPhone || "").replace(/\D/g, "");
+      if (cleanPhone.length >= 10) {
+        if (collected > 0.01) {
+          void notifyCustomerPaymentRecordedWhatsApp({
+            invoice,
+            amount: collected,
+            method: paymentMethod,
+            paidAt: now,
+            remainingBalanceAfter: Math.max(0, grandTotal - collected),
+            businessName: currentBusinessName,
+          });
+        } else {
+          notifyInvoiceCreatedWhatsApp(invoice, currentBusinessName);
+        }
+      }
+
       router.push(`/billing/invoices/${invoice.id}`);
     } catch (e) {
       toast.error("Could not complete Counter Sale", {
